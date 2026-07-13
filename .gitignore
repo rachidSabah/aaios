@@ -155,3 +155,6 @@ claude.json
 *.tfstate
 *.tfstate.*
 .terraform/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
