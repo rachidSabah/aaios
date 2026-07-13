@@ -1,0 +1,122 @@
+# AAiOS default configuration
+# ============================
+#
+# This file is copied to %ProgramData%\AAiOS\config\config.yaml on first
+# install. Edit it to customize your installation.
+#
+# Secrets are NEVER stored here. They live in the Secret Store and are
+# referenced via ${secret:name} placeholders. See docs/architecture/
+# 07-security-model.md §4.
+
+env: production
+
+# Database (PostgreSQL 16 — installed by the AAiOS installer)
+db:
+  url: postgresql+asyncpg://aaios@localhost:5432/aaios
+  pool_size: 10
+  echo: false
+
+# Vector DB (Qdrant — installed by the AAiOS installer)
+qdrant:
+  url: http://localhost:6333
+  timeout_s: 30
+
+# Redis (optional — skip in single-machine mode)
+redis:
+  url: null  # null = use in-process event bus + SQLite cache
+
+# LLM providers
+# Each provider is optional. The system runs in degraded mode if none are
+# configured. Add API keys via `aaios config set-secret` or the dashboard.
+providers:
+  openai:
+    enabled: false
+    api_key: ${secret:openai/api_key}
+    priority: 1
+    models: [gpt-4o, gpt-4o-mini, gpt-4-turbo]
+  anthropic:
+    enabled: false
+    api_key: ${secret:anthropic/api_key}
+    priority: 2
+    models: [claude-3-5-sonnet-20241022, claude-3-5-haiku-20241022]
+  openrouter:
+    enabled: false
+    api_key: ${secret:openrouter/api_key}
+    priority: 3
+  ollama:
+    enabled: false
+    url: http://localhost:11434
+    priority: 10
+  # See docs/architecture/06-tech-stack.md for the full list (13 providers).
+
+# Memory subsystem
+memory:
+  vector_collection_prefix: aaios_
+  embedding_model: text-embedding-3-small
+  context_window_default_tokens: 8000
+  context_window_max_tokens: 32000
+  ranking:
+    rerank_model: cross-encoder/ms-marco-MiniLM-L-6-v2
+    graph_boost_weight: 0.2
+
+# Task Orchestrator
+orchestrator:
+  queue:
+    priorities: [critical, high, normal, low, background]
+    concurrency:
+      critical: 4
+      high: 4
+      normal: 8
+      low: 4
+      background: 2
+    aging_threshold_s: 60
+  retry:
+    max_attempts: 3
+    backoff: exponential
+    initial_delay_s: 1.0
+    max_delay_s: 60.0
+  checkpoint:
+    interval_events: 50
+  approval_gate:
+    default_timeout_s: 300
+    on_timeout: pause
+
+# Security
+security:
+  master_key_file: '%ProgramData%\AAiOS\master.key'
+  audit_log_dir: '%ProgramData%\AAiOS\logs\audit'
+  audit_retention_days: 90
+  secret_rotation:
+    default_interval_days: 90
+  least_privilege:
+    review_interval_days: 30
+
+# Network egress allow-list
+egress:
+  allowed_hosts:
+    - api.openai.com
+    - api.anthropic.com
+    - openrouter.ai
+    - generativelanguage.googleapis.com
+    - api.deepseek.com
+    - api.mistral.ai
+    - api.groq.com
+    - github.com
+    - api.github.com
+    - 'localhost'  # for local MCP servers
+    - '127.0.0.1'
+
+# Telemetry
+otel:
+  enabled: true
+  exporter_otlp_endpoint: http://localhost:4317
+  export_interval_s: 5
+
+# Logging
+logging:
+  level: INFO
+  format: json
+  file:
+    path: '%ProgramData%\AAiOS\logs\aaios.log'
+    max_size_mb: 100
+    keep: 7

@@ -1,0 +1,49 @@
+# CODEOWNERS — see https://docs.github.com/en/repositories/managing-your-repositories-settings-and-features/customizing-your-repository/about-code-owners
+#
+# Each line: <pattern> <owner1> <owner2> ...
+# Owners can be @user or @org/team.
+# The last matching pattern wins.
+
+# Default — any change requires maintainer review
+*                                @rachidSabah
+
+# Architecture — any change to docs/architecture/ requires architect approval
+docs/architecture/               @rachidSabah
+
+# Kernel — the most sensitive area
+core/                            @rachidSabah
+core/gateway/                    @rachidSabah
+core/platform/                   @rachidSabah
+
+# Security — requires security reviewer
+services/security/               @rachidSabah
+core/gateway/                    @rachidSabah
+.github/workflows/               @rachidSabah
+SECURITY.md                      @rachidSabah
+docs/architecture/07-security-model.md  @rachidSabah
+
+# Generic Agent Runtime — the centerpiece
+agents/_types/                   @rachidSabah
+agents/_base/                    @rachidSabah
+docs/architecture/02-generic-agent-runtime.md  @rachidSabah
+
+# CI / CD / release
+.github/                         @rachidSabah
+pyproject.toml                   @rachidSabah
+package.json                     @rachidSabah
+pnpm-workspace.yaml              @rachidSabah
+tasks.ps1                        @rachidSabah
+tasks.sh                         @rachidSabah
+Makefile                         @rachidSabah
+
+# Deployment
+deploy/                          @rachidSabah
+Dockerfile                       @rachidSabah
+docker-compose.yml               @rachidSabah
+
+# Documentation
+docs/                            @rachidSabah
+README.md                        @rachidSabah
+CONTRIBUTING.md                  @rachidSabah
+CODE_OF_CONDUCT.md               @rachidSabah
+CHANGELOG.md                     @rachidSabah

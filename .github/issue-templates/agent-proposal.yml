@@ -1,0 +1,114 @@
+---
+name: Agent proposal
+about: Propose a new GenericAgent implementation (built-in or plugin)
+title: "[agent] "
+labels: ["agent", "triage"]
+assignees: []
+---
+
+## Agent type
+
+<!-- Which of the 16 agent types does this implement?
+     See docs/architecture/02-generic-agent-runtime.md §3. -->
+
+- [ ] SupervisorAgent
+- [ ] PlannerAgent
+- [ ] CodingAgent
+- [ ] DesktopAgent
+- [ ] ResearchAgent
+- [ ] BrowserAgent
+- [ ] MemoryAgent
+- [ ] ReflectionAgent
+- [ ] QAAgent
+- [ ] SecurityAgent
+- [ ] DeploymentAgent
+- [ ] VisionAgent
+- [ ] VoiceAgent
+- [ ] DocumentAgent
+- [ ] WorkflowAgent
+- [ ] CustomAgent (plugin namespace: `custom.<your-namespace>`)
+
+## Implementation name
+
+<!-- The display name of this implementation. E.g. "OpenHands CodingAgent",
+     "AutoHotkey DesktopAgent". -->
+
+## Implementation style
+
+<!-- See 02-generic-agent-runtime.md §2.2 -->
+
+- [ ] In-process (Python class)
+- [ ] Subprocess bridge (wraps an external CLI / daemon)
+- [ ] Remote service (HTTP/gRPC)
+
+## Capabilities advertised
+
+<!-- List the capabilities this agent will advertise in its CapabilityManifest.
+     Use existing namespaces from 04-component-map.md if possible. -->
+
+- `<!-- namespace.description -->`
+- `<!-- namespace.description -->`
+
+## Dependencies
+
+<!-- What does this agent depend on?
+     - External CLI / binary?
+     - LLM provider (routed through Model Router)?
+     - Specific OS features?
+     - Other agents (declared via the Agent Registry dependency graph)? -->
+
+## Permissions required
+
+<!-- What permissions does this agent need? See 07-security-model.md §3.2.
+     Keep this list as small as possible — least privilege. -->
+
+- [ ] `tool.call` (which tools?)
+- [ ] `gateway.fs.read` / `gateway.fs.write` (which paths?)
+- [ ] `gateway.net.request` (which hosts?)
+- [ ] `gateway.shell.exec` (which commands?)
+- [ ] `gateway.desktop.input` (DesktopAgent only — requires per-task approval)
+- [ ] `secret.read` (which secrets?)
+- [ ] Other:
+
+## Sandbox requirements
+
+<!-- How should this agent be sandboxed?
+     - Filesystem scope?
+     - Network egress allow-list?
+     - Resource limits (CPU/memory)? -->
+
+## Track record expectations
+
+<!-- What success rate / cost / latency do you expect this agent to have?
+     The Capability Selector uses track records to pick between competing
+     implementations of the same type. -->
+
+- Expected success rate: <!-- e.g. 95% -->
+- Expected cost per task: <!-- e.g. $0.10 -->
+- Expected latency: <!-- e.g. 3-5 seconds -->
+
+## Open questions
+
+<!-- Anything you're not sure about. The architecture maintainers will
+     help figure these out before implementation. -->
+
+## Implementation plan
+
+<!-- If you're planning to implement this yourself, sketch the file
+     structure under agents/_impls/<your-agent-name>/. -->
+
+```
+agents/_impls/<name>/
+├─ __init__.py
+├─ agent.py          # implements GenericAgent
+├─ capabilities.py   # CapabilityManifest
+├─ bridge.py         # if subprocess bridge
+└─ tests/
+```
+
+## Alignment check
+
+- [ ] This agent will be referenced by name ONLY inside its own package (`agents/_impls/<name>/`)
+- [ ] No code in `core/`, `services/`, `supervisor/`, `orchestrator/`, `surfaces/` will import or reference this agent by name
+- [ ] The agent will satisfy the 11-method `GenericAgent` interface
+- [ ] The agent will be installable as a plugin (separate repo) OR as a built-in (PR to `agents/_impls/`)

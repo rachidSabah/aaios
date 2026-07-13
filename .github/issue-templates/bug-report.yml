@@ -1,0 +1,60 @@
+---
+name: Bug report
+about: Report a defect in AAiOS
+title: "[bug] "
+labels: ["bug", "triage"]
+assignees: []
+---
+
+## Summary
+
+<!-- One-sentence description of the bug. -->
+
+## Environment
+
+- AAiOS version: <!-- run `aaios version` -->
+- OS: <!-- Windows 11 / Windows Server 2022 / Linux distro + version -->
+- Python version: <!-- `python --version` -->
+- Node version (if web-related): <!-- `node --version` -->
+- Installation method: <!-- installer / pip install -e . / Docker / other -->
+
+## Steps to reproduce
+
+1.
+2.
+3.
+
+## Expected behavior
+
+<!-- What you expected to happen. -->
+
+## Actual behavior
+
+<!-- What actually happened. -->
+
+## Logs
+
+<!-- Paste relevant logs. SANITIZE SECRETS FIRST — see SECURITY.md. -->
+<!-- Use ```text fenced code blocks. -->
+
+```
+(paste here)
+```
+
+## `aaios doctor` output
+
+<!-- Run `aaios doctor` and paste the output. -->
+
+```
+(paste here)
+```
+
+## Additional context
+
+<!-- Screenshots, related issues, workarounds tried, etc. -->
+
+## Reproducibility
+
+- [ ] This reproduces on a clean install
+- [ ] This reproduces with no LLM provider configured (offline mode)
+- [ ] I have redacted all secrets from the logs above

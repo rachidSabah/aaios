@@ -1,0 +1,62 @@
+---
+name: Feature request
+about: Suggest a feature for AAiOS
+title: "[feat] "
+labels: ["enhancement", "triage"]
+assignees: []
+---
+
+## Summary
+
+<!-- One-sentence description of the feature. -->
+
+## Motivation
+
+<!-- What problem does this solve? Who is the user? -->
+
+## Proposed solution
+
+<!-- Describe the proposed solution in detail. If there are multiple
+     options, list them with trade-offs. -->
+
+## Alternatives considered
+
+<!-- What alternatives were considered and rejected? Why? -->
+
+## Architecture alignment
+
+<!-- Which architecture document(s) does this touch? -->
+
+- [ ] `docs/architecture/00-overview.md`
+- [ ] `docs/architecture/01-goals-and-principles.md`
+- [ ] `docs/architecture/02-generic-agent-runtime.md`
+- [ ] `docs/architecture/03-system-design.md`
+- [ ] `docs/architecture/04-component-map.md`
+- [ ] `docs/architecture/05-data-flow.md`
+- [ ] `docs/architecture/06-tech-stack.md`
+- [ ] `docs/architecture/07-security-model.md`
+- [ ] `docs/architecture/08-deployment-topology.md`
+- [ ] `docs/architecture/09-roadmap.md`
+
+<!-- Does this require an architecture change? If yes, file an architecture
+     proposal first and link it here. -->
+
+## Roadmap phase
+
+<!-- Which roadmap phase (1-14) does this fall under? See 09-roadmap.md. -->
+
+Phase: <!-- e.g. "Phase 6 — Model Router" -->
+
+## Scope
+
+- [ ] This is a non-trivial change (more than ~50 lines)
+- [ ] I have opened a discussion issue first (recommended for non-trivial changes)
+- [ ] I am willing to submit a PR for this
+
+## Acceptance criteria
+
+<!-- What must be true for this feature to be considered done? -->
+
+- [ ]
+- [ ]
+- [ ]

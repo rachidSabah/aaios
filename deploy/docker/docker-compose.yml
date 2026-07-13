@@ -1,0 +1,218 @@
+# AAiOS Docker Compose — OPTIONAL secondary deployment path
+# ============================================================
+#
+# The primary deployment is Windows-native (Windows Services + Task
+# Scheduler). This Docker Compose stack is provided for users who prefer
+# containers or who deploy to Linux servers.
+#
+# Usage:
+#   docker compose -f deploy/docker/docker-compose.yml up -d
+#   docker compose -f deploy/docker/docker-compose.yml logs -f
+#   docker compose -f deploy/docker/docker-compose.yml down
+#
+# See docs/architecture/08-deployment-topology.md §8 for details.
+
+name: aaios
+
+services:
+  # ---------------------------------------------------------------------------
+  # Reverse proxy — TLS termination
+  # ---------------------------------------------------------------------------
+  nginx:
+    image: nginx:1.27-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx/conf.d:/etc/nginx/conf.d:ro
+      - ./nginx/certs:/etc/nginx/certs:ro
+    depends_on:
+      - api
+      - web
+    networks:
+      - aaios-net
+
+  # ---------------------------------------------------------------------------
+  # Web UI — Next.js
+  # ---------------------------------------------------------------------------
+  web:
+    image: ghcr.io/rachidsabah/aaios-web:latest
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+      target: web-builder
+    restart: unless-stopped
+    environment:
+      - NEXT_PUBLIC_API_BASE=http://api:8000
+      - NODE_ENV=production
+    expose:
+      - "3000"
+    networks:
+      - aaios-net
+    healthcheck:
+      test: ["CMD", "wget", "--spider", "-q", "http://localhost:3000/"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # API server — FastAPI
+  # ---------------------------------------------------------------------------
+  api:
+    image: ghcr.io/rachidsabah/aaios-runtime:latest
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      - AAiOS_ENV=production
+      - AAiOS_DB_URL=postgresql+asyncpg://aaios:${POSTGRES_PASSWORD:-aaios}@postgres:5432/aaios
+      - AAiOS_QDRANT_URL=http://qdrant:6333
+      - AAiOS_REDIS_URL=redis://redis:6379/0
+      - AAiOS_SECRET_KEY=${AAiOS_SECRET_KEY:?set AAiOS_SECRET_KEY in .env}
+    expose:
+      - "8000"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - aaios-net
+    healthcheck:
+      test: ["CMD", "curl", "-fsS", "http://localhost:8000/healthz"]
+      interval: 30s
+      timeout: 5s
+      retries: 3
+
+  # ---------------------------------------------------------------------------
+  # Runtime — Supervisor + Agent Registry + Task Orchestrator
+  # ---------------------------------------------------------------------------
+  runtime:
+    image: ghcr.io/rachidsabah/aaios-runtime:latest
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "supervisor.runtime"]
+    environment:
+      - AAiOS_ENV=production
+      - AAiOS_DB_URL=postgresql+asyncpg://aaios:${POSTGRES_PASSWORD:-aaios}@postgres:5432/aaios
+      - AAiOS_QDRANT_URL=http://qdrant:6333
+      - AAiOS_REDIS_URL=redis://redis:6379/0
+      - AAiOS_SECRET_KEY=${AAiOS_SECRET_KEY:?set AAiOS_SECRET_KEY in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+    volumes:
+      - runtime-data:/var/lib/aaios
+    networks:
+      - aaios-net
+
+  # ---------------------------------------------------------------------------
+  # Worker — background jobs (embeddings, summarization)
+  # ---------------------------------------------------------------------------
+  worker:
+    image: ghcr.io/rachidsabah/aaios-runtime:latest
+    build:
+      context: ../..
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    command: ["python", "-m", "aaios.worker"]
+    environment:
+      - AAiOS_ENV=production
+      - AAiOS_DB_URL=postgresql+asyncpg://aaios:${POSTGRES_PASSWORD:-aaios}@postgres:5432/aaios
+      - AAiOS_QDRANT_URL=http://qdrant:6333
+      - AAiOS_REDIS_URL=redis://redis:6379/0
+      - AAiOS_SECRET_KEY=${AAiOS_SECRET_KEY:?set AAiOS_SECRET_KEY in .env}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      qdrant:
+        condition: service_started
+      redis:
+        condition: service_started
+    networks:
+      - aaios-net
+
+  # ---------------------------------------------------------------------------
+  # PostgreSQL
+  # ---------------------------------------------------------------------------
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      - POSTGRES_USER=aaios
+      - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-aaios}
+      - POSTGRES_DB=aaios
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    networks:
+      - aaios-net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U aaios -d aaios"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ---------------------------------------------------------------------------
+  # Qdrant — vector memory
+  # ---------------------------------------------------------------------------
+  qdrant:
+    image: qdrant/qdrant:v1.10.1
+    restart: unless-stopped
+    volumes:
+      - qdrant-data:/qdrant/storage
+    networks:
+      - aaios-net
+    expose:
+      - "6333"
+
+  # ---------------------------------------------------------------------------
+  # Redis — pub/sub + cache
+  # ---------------------------------------------------------------------------
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory 200mb --maxmemory-policy allkeys-lru
+    volumes:
+      - redis-data:/data
+    networks:
+      - aaios-net
+    expose:
+      - "6379"
+
+  # ---------------------------------------------------------------------------
+  # OpenTelemetry Collector
+  # ---------------------------------------------------------------------------
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    restart: unless-stopped
+    command: ["--config=/etc/otel/config.yaml"]
+    volumes:
+      - ./otel/config.yaml:/etc/otel/config.yaml:ro
+    networks:
+      - aaios-net
+    expose:
+      - "4317"
+      - "4318"
+
+# ---------------------------------------------------------------------------
+# Volumes & networks
+# ---------------------------------------------------------------------------
+volumes:
+  postgres-data:
+  qdrant-data:
+  redis-data:
+  runtime-data:
+
+networks:
+  aaios-net:
+    driver: bridge

@@ -1,0 +1,64 @@
+# Git
+.git
+.gitignore
+.github
+
+# Python
+.venv
+__pycache__
+*.pyc
+*.pyo
+*.pyd
+*.egg-info
+.pytest_cache
+.mypy_cache
+.ruff_cache
+build
+dist
+coverage
+
+# Node
+node_modules
+.next
+out
+.pnpm-store
+*.tsbuildinfo
+next-env.d.ts
+
+# Editor
+.vscode
+.idea
+*.swp
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Project-specific data (NEVER bake into image)
+data
+logs
+*.log
+master.key
+
+# Docs (large, not needed at runtime — but keep README and LICENSE)
+docs
+CHANGELOG.md
+CODE_OF_CONDUCT.md
+CONTRIBUTING.md
+SECURITY.md
+
+# Tests (not needed in runtime image)
+tests
+
+# Dev scripts
+scripts
+deploy/windows
+tasks.ps1
+tasks.sh
+Makefile
+
+# Env
+.env
+.env.*
+!.env.example
