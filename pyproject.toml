@@ -76,11 +76,11 @@ windows = [
   "pywin32>=306; platform_system=='Windows'",
   "pywinauto>=0.6.8; platform_system=='Windows'",
   "pyautogui>=0.9.54; platform_system=='Windows'",
-  "psutil>=6.0,<7",
+  "psutil>=6.0,<8",
 ]
 # Linux-specific dependencies (installed automatically on Linux)
 linux = [
-  "psutil>=6.0,<7",
+  "psutil>=6.0,<8",
   # Linux desktop automation (Phase 1.1)
   "python-xlib>=0.33; platform_system=='Linux'",
 ]
