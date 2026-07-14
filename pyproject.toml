@@ -207,6 +207,9 @@ ignore = [
   "SIM110",                          # use all() instead of for loop — readable as-is
   "N806",                            # variable in function should be lowercase — WHITE/GRAY/BLACK are conventional
   "ERA001",                          # commented-out code — false positive on section dividers (---)
+  "PTH123",                          # open() vs Path.open() — fine for key file reads
+  "SIM108",                          # ternary operator — if/else is more readable
+  "S105",                            # hardcoded password — false positive on StrEnum values
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -325,7 +328,7 @@ exclude_dirs = ["tests", "scripts", "surfaces/web"]
 # B108: hardcoded /tmp directory — LinuxPlatform.temp_dir returns /tmp/aaios
 #   intentionally (Linux is v1.1; Windows uses %TEMP%).
 # B701: jinja2 autoescape=False — prompts are not HTML; escaping would corrupt them.
-skips = ["B404", "B603", "B604", "B108", "B701", "B101"]
+skips = ["B404", "B603", "B604", "B108", "B701", "B101", "B105"]
 targets = ["core", "services", "agents", "supervisor", "orchestrator", "surfaces"]
 
 # ---------------------------------------------------------------------------
