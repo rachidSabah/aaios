@@ -1,0 +1,9 @@
+{
+    "name": "openhands-agent",
+    "version": "0.1.0",
+    "description": "OpenHands coding agent — a CodingAgent implementation (scaffold)",
+    "vendor": "Third-party",
+    "provides_agents": ["openhands_plugin.agent.OpenHandsAgent"],
+    "requires_permissions": ["gateway.fs.read", "gateway.fs.write", "gateway.shell.exec"],
+    "entry_point": "openhands_plugin"
+}

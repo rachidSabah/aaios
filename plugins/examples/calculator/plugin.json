@@ -1,0 +1,8 @@
+{
+    "name": "calculator",
+    "version": "1.0.0",
+    "description": "A simple calculator tool",
+    "vendor": "AAiOS",
+    "provides_tools": ["calculator_plugin.register_tools"],
+    "entry_point": "calculator_plugin"
+}

@@ -207,6 +207,7 @@ ignore = [
   "SIM110",                          # use all() instead of for loop — readable as-is
   "N806",                            # variable in function should be lowercase — WHITE/GRAY/BLACK are conventional
   "ERA001",                          # commented-out code — false positive on section dividers (---)
+  "D417",                            # missing arg descriptions in docstring — example plugins are illustrative
   "PTH123",                          # open() vs Path.open() — fine for key file reads
   "SIM108",                          # ternary operator — if/else is more readable
   "S105",                            # hardcoded password — false positive on StrEnum values

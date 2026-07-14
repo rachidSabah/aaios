@@ -1,0 +1,10 @@
+{
+    "name": "weather",
+    "version": "1.0.0",
+    "description": "Get current weather for any city",
+    "vendor": "AAiOS",
+    "provides_tools": ["weather_plugin.register_tools"],
+    "requires_permissions": ["gateway.net.request"],
+    "requires_api_keys": ["weather/api_key"],
+    "entry_point": "weather_plugin"
+}
