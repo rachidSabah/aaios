@@ -220,23 +220,33 @@ Write-Host @"
 ║            Installation Complete!                ║
 ╠══════════════════════════════════════════════════╣
 ║                                                  ║
-║  Repository: $InstallDir\aaios          
+║  Repository: $InstallDir\aaios
 ║  Config:    $env:ProgramData\AAiOS\config\config.yaml
 ║  Data:      $env:ProgramData\AAiOS\data\
 ║  Logs:      $env:ProgramData\AAiOS\logs\
 ║                                                  ║
-║  Next steps:                                     ║
-║  1. Set an LLM API key:                          ║
-║     $env:OPENAI_API_KEY = 'sk-...'              
-║                                                  ║
-║  2. Start the API server:                        ║
-║     cd $InstallDir\aaios         
-║     .\.venv\Scripts\Activate.ps1                 
-║     python -m uvicorn surfaces.api.app:create_app --factory
-║                                                  ║
-║  3. Open http://127.0.0.1:8000/docs              ║
-║                                                  ║
-║  Or run: aaios dev                               ║
+║  AAiOS is ready to run in LIVE mode.             ║
+║  No mock. No demo. Fully functional.             ║
 ║                                                  ║
 ╚══════════════════════════════════════════════════╝
 "@ -ForegroundColor Green
+
+# Offer to start immediately
+$startNow = Read-Host "`nStart AAiOS now? (Y/n)"
+if ($startNow -ne 'n') {
+    Write-Host "`nStarting AAiOS in LIVE mode..." -ForegroundColor Green
+    Set-Location "$InstallDir\aaios"
+    & .\.venv\Scripts\python.exe scripts\start.py
+} else {
+    Write-Host "`nTo start later:" -ForegroundColor Yellow
+    Write-Host "  cd $InstallDir\aaios"
+    Write-Host "  .\.venv\Scripts\Activate.ps1"
+    Write-Host "  aaios start"
+    Write-Host ""
+    Write-Host "  Or with a custom port:" -ForegroundColor Dim
+    Write-Host "  aaios start --port 9000"
+    Write-Host ""
+    Write-Host "  Set an API key first (optional):" -ForegroundColor Dim
+    Write-Host "  `$env:OPENAI_API_KEY = 'sk-...'"
+    Write-Host "  `$env:ANTHROPIC_API_KEY = 'sk-ant-...'"
+}

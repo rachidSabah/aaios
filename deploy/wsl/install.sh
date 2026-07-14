@@ -115,15 +115,33 @@ echo ""; echo -e "${YELLOW}Running doctor...${NC}"; python -m surfaces.cli docto
 echo -e "${GREEN}"
 echo "╔══════════════════════════════════════════════════╗"
 echo "║            Installation Complete!                ║"
-echo "╠══════════════════════════════════════════════════╣"
+echo "╠══════════════════════════════════════════════════╣
 echo "║                                                  ║"
-echo "║  Next steps:                                     ║"
-echo "║  1. export OPENAI_API_KEY='sk-...'               ║"
-echo "║  2. source .venv/bin/activate                    ║"
-echo "║  3. python -m uvicorn surfaces.api.app:create_app --factory"
-echo "║  4. Open http://127.0.0.1:8000/docs              ║"
+echo "║  AAiOS is ready to run in LIVE mode.             ║"
+echo "║  No mock. No demo. Fully functional.             ║"
 echo "║                                                  ║"
 echo "╚══════════════════════════════════════════════════╝"
 echo -e "${NC}"
 echo "Repo:   $INSTALL_DIR"
 echo "Config: $CONFIG_DIR/config.yaml"
+echo ""
+
+# Offer to start immediately
+read -p "Start AAiOS now? [Y/n] " -r
+if [[ ! $REPLY =~ ^[Nn]$ ]]; then
+    echo -e "\n${GREEN}Starting AAiOS in LIVE mode...${NC}"
+    source .venv/bin/activate
+    python scripts/start.py
+else
+    echo -e "\n${YELLOW}To start later:${NC}"
+    echo "  cd $INSTALL_DIR"
+    echo "  source .venv/bin/activate"
+    echo "  aaios start"
+    echo ""
+    echo "  Or with a custom port:"
+    echo "  aaios start --port 9000"
+    echo ""
+    echo "  Set an API key first (optional):"
+    echo "  export OPENAI_API_KEY='sk-...'"
+    echo "  export ANTHROPIC_API_KEY='sk-ant-...'"
+fi

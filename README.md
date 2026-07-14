@@ -24,7 +24,14 @@ irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/inst
 curl -fsSL https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/wsl/install.sh | bash
 ```
 
-Both scripts auto-install all dependencies (Python 3.12, Node.js 22, pnpm, git), clone the repo, set up the virtual environment, **detect and bind AI agents** (Claude Code CLI + Hermes daemon — auto-installs if not found), and run `aaios doctor` to verify.
+Both scripts auto-install all dependencies (Python 3.12, Node.js 22, pnpm, git), clone the repo, set up the virtual environment, **detect and bind AI agents** (Claude Code CLI + Hermes daemon — auto-installs if not found), run `aaios doctor` to verify, and then **offer to start AAiOS immediately in LIVE mode**.
+
+After install, start AAiOS anytime with:
+```bash
+aaios start
+```
+
+This boots the kernel, security, model router, memory, agent registry, orchestrator, supervisor, and the API server — all in real mode, no mock, no demo.
 
 ### Claude Code via Proxy (Free Models)
 

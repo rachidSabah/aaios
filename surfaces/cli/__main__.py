@@ -18,6 +18,7 @@ Commands:
 
 from __future__ import annotations
 
+import os
 import platform
 from importlib import metadata
 from typing import Any
@@ -131,7 +132,7 @@ def run(
     result = _api_post("/api/v1/tasks", {"goal": goal, "priority": priority})
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
     console.print(f"[green]Task submitted:[/green] {result.get('task_id', '?')}")
     console.print(f"  Status: {result.get('status', '?')}")
 
@@ -142,7 +143,7 @@ def tasks() -> None:
     result = _api_get("/api/v1/tasks")
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
     tasks_list = result.get("tasks", [])
     if not tasks_list:
@@ -170,7 +171,7 @@ def agents() -> None:
     result = _api_get("/api/v1/agents")
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
     agents_list = result.get("agents", [])
     if not agents_list:
@@ -210,7 +211,7 @@ def capabilities() -> None:
     result = _api_get("/api/v1/capabilities")
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
     caps = result.get("capabilities", [])
     if not caps:
@@ -226,7 +227,7 @@ def providers() -> None:
     result = _api_get("/api/v1/providers")
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
     providers_list = result.get("providers", [])
     if not providers_list:
@@ -264,7 +265,7 @@ def models(
     result = _api_get(path)
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
     models_list = result.get("models", [])
     if not models_list:
@@ -304,7 +305,7 @@ def costs() -> None:
     result = _api_get("/api/v1/costs")
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
     total = result.get("total_cost_usd", 0.0)
     by_provider = result.get("by_provider", {})
@@ -336,7 +337,7 @@ def memory_recall(
     )
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
     items = result.get("items", [])
     if not items:
@@ -372,7 +373,7 @@ def memory_remember(
     )
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
     console.print(f"[green]Remembered:[/green] {result.get('item_id', '?')}")
 
 
@@ -394,7 +395,7 @@ def audit(
     result = _api_get(path)
     if "error" in result:
         console.print(f"[red]Error:[/red] {result['error']}")
-        raise typer.Exit(1)
+        raise typer.Exit(1)  # noqa: B904
 
     entries = result.get("entries", [])
     if not entries:
@@ -429,6 +430,35 @@ def dev() -> None:
     console.print("  Starting API server on http://127.0.0.1:8000 ...")
     console.print("  Starting Web UI on http://127.0.0.1:3000 ...")
     console.print("\n[dim]Run: tasks dev[/dim]")
+
+
+@app.command()
+def start(
+    host: str = typer.Option("127.0.0.1", "--host", "-h", help="Bind host"),
+    port: int = typer.Option(8000, "--port", "-p", help="Bind port"),
+) -> None:
+    """Start AAiOS in LIVE mode — boots everything and serves immediately.
+
+    No mock mode. No demo features. Fully live.
+
+    Boots: kernel, security, model router, memory, agent registry,
+    orchestrator, supervisor, and the FastAPI API server.
+    """
+    console.print("[green]Starting AAiOS in LIVE mode...[/green]")
+    import subprocess
+    import sys
+
+    cmd = [sys.executable, "scripts/start.py", "--host", host, "--port", str(port)]
+    env = dict(os.environ)
+
+    try:
+        subprocess.run(cmd, env=env, check=True)  # noqa: S603
+    except KeyboardInterrupt:
+        console.print("\n[yellow]AAiOS shutting down...[/yellow]")
+    except FileNotFoundError:
+        console.print("[red]Error:[/red] Could not find scripts/start.py")
+        console.print("Make sure you are in the AAiOS repository root.")
+        raise typer.Exit(1)  # noqa: B904
 
 
 def main() -> None:
