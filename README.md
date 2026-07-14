@@ -3,7 +3,7 @@
 > A **Windows-first**, modular, production-grade operating system for autonomous AI agents — orchestrating multiple LLM providers, multiple **generic** agents, MCP servers, vector memory, knowledge graphs, plugins, and workflows behind a single supervisor. Built around a **Generic Agent Runtime** where Claude Code, Hermes, and any future agent (OpenHands, Cline, Roo Code, Gemini CLI, Codex CLI, custom) are all just replaceable implementations.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Status: Phase 1 — Architecture (refactored)](https://img.shields.io/badge/Phase-1%20Architecture%20(refactored)-orange)](docs/architecture/09-roadmap.md)
+[![Status: v1.0.0 Released](https://img.shields.io/badge/Status-v1.0.0%20Released-brightgreen)](https://github.com/rachidSabah/aaios/releases)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
 [![Windows 11](https://img.shields.io/badge/Platform-Windows%2011%20first-blue.svg)](https://www.microsoft.com/windows/)
@@ -114,20 +114,20 @@ This repository is being built phase-by-phase. The current state is:
 
 | Phase | Status | Description |
 |-------|--------|-------------|
-| 1 | ✅ **In review (refactored)** | Architecture design — Generic Agent Runtime, 16 agent types, Windows-first, 10 architecture docs |
-| 2 | ⏳ Pending approval | Repository structure, GitHub scaffolding, Windows+Linux CI matrix |
-| 3 | ⏳ Pending | Core framework (kernel + Gateway + platform adapters) |
-| 4 | ⏳ Pending | Generic Agent Runtime + Agent Registry |
-| 5 | ⏳ Pending | Task Orchestrator |
-| 6 | ⏳ Pending | Model Router (13 providers) |
-| 7 | ⏳ Pending | Memory subsystem |
-| 8 | ⏳ Pending | Supervisor + Planner + Reflection + QA |
-| 9 | ⏳ Pending | First CodingAgent implementation (Claude Code) |
-| 10 | ⏳ Pending | First DesktopAgent implementation (Hermes) |
-| 11 | ⏳ Pending | Plugins + MCP + Plugin/Agent SDK |
-| 12 | ⏳ Pending | Dashboard + CLI + API |
-| 13 | ⏳ Pending | Testing matrix |
-| 14 | ⏳ Pending | Windows deployment + CI/CD + v1.0.0 release |
+| 1 | ✅ Complete | Architecture design — Generic Agent Runtime, 16 agent types, Windows-first, 10 architecture docs |
+| 2 | ✅ Complete | Repository structure, GitHub scaffolding, Windows+Linux CI matrix |
+| 3 | ✅ Complete | Core framework (kernel + Gateway + platform adapters) |
+| 4 | ✅ Complete | Generic Agent Runtime + Agent Registry |
+| 5 | ✅ Complete | Task Orchestrator (queue, DAG, checkpoint, resume, scheduling, approval gates) |
+| 6 | ✅ Complete | Model Router (13 providers with failover, cost tracking, rate limiting) |
+| 7 | ✅ Complete | Memory subsystem (vector, graph, RAG, compression, context windows) |
+| 8 | ✅ Complete | Supervisor + Planner + Reflection + QA + Security Layer |
+| 9 | ✅ Complete | First CodingAgent (Claude Code) — subprocess bridge + JSON-RPC + sandbox |
+| 10 | ✅ Complete | First DesktopAgent (Hermes) — 14 capabilities (desktop + browser) |
+| 11 | ✅ Complete | Plugins + MCP + Plugin/Agent SDK + 3 example plugins |
+| 12 | ✅ Complete | Dashboard + CLI + API (30 routes, 12 CLI commands, Next.js dashboard) |
+| 13 | ✅ Complete | Testing matrix (597 tests: unit, integration, e2e, stress, performance, security) |
+| 14 | ✅ Complete | Windows deployment + CI/CD + documentation + v1.0.0 release |
 
 See [`docs/architecture/09-roadmap.md`](docs/architecture/09-roadmap.md) for the full plan.
 

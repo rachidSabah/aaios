@@ -7,6 +7,117 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 once v1.0.0 is released. Until then, the API and on-disk formats may change
 without notice between `0.1.x` releases.
 
+## [1.0.0] — 2026-07-14
+
+### Added — Full v1.0.0 release
+
+The complete Agentic AI Operating System — a Windows-first, modular runtime
+for orchestrating generic AI agents. 14 phases, 597 tests, 199 source files.
+
+#### Core Architecture (Phases 1-3)
+- 5-layer kernel: Event Bus (typed async pub/sub with persistence), State Manager
+  (event-sourced with snapshots), Config Manager (5-layer loader with hot-reload),
+  Logging (structlog JSON), Telemetry (OpenTelemetry), DI Container, Tool Registry,
+  Prompt Registry, Gateway (the only I/O surface — INV-02)
+- 10 architecture documents (docs/architecture/)
+- 12 design invariants (INV-01 through INV-12), enforced in CI
+
+#### Generic Agent Runtime (Phase 4)
+- GenericAgent Protocol (11 methods, runtime_checkable)
+- 16 agent type Protocols (Supervisor, Planner, Coding, Desktop, Research, Browser,
+  Memory, Reflection, QA, Security, Deployment, Vision, Voice, Document, Workflow, Custom)
+- 3 implementation styles (InProcess, SubprocessBridge, RemoteService)
+- Agent Registry (capability-based discovery, hot-reload, health monitoring, versioning,
+  dependency resolution with cycle detection)
+- MockAgent for testing
+
+#### Task Orchestrator (Phase 5)
+- Priority queue (5 levels + aging to prevent starvation)
+- DAG execution with parallelism (asyncio.gather with semaphore)
+- Retry policies (constant/linear/exponential backoff)
+- Checkpointing (analog of INV-04 for the Orchestrator)
+- Cancellation (cooperative + cascade)
+- Scheduler (ONE_TIME, CRON, INTERVAL with max_runs + until)
+- Background worker pool (ThreadPool + ProcessPool)
+- Human approval gates (pre_step/post_step/pre_commit with timeout)
+- Workflow Engine (saved reusable workflows with variable substitution)
+
+#### Model Router (Phase 6)
+- 13 LLM providers (OpenAI, Anthropic, Google, OpenRouter, DeepSeek, GLM, NVIDIA,
+  Ollama, LM Studio, Azure OpenAI, Mistral, Groq, Custom)
+- Automatic failover (retryable errors → next provider)
+- Cost tracking (per-task, per-user, per-provider)
+- Rate limiting (per-provider token bucket)
+- Streaming (SSE multiplexer)
+- Tool calling (JSON Schema)
+- Health monitoring (auto-degrade at 2 failures, auto-disable at 5)
+- Context caching (Anthropic prompt caching)
+
+#### Memory Subsystem (Phase 7)
+- 5 memory scopes (short_term, long_term, semantic, conversation, project)
+- Vector store (cosine similarity, metadata filtering)
+- Knowledge graph (NetworkX-backed, BFS traversal)
+- Embeddings (hash-based for tests, sentence-transformers for production)
+- RAG pipeline (hybrid vector + graph + keyword + rerank + context window budgeting)
+- Compression/summarization (extractive, background scheduler)
+- Context windows (per-task bounded, LRU+relevance eviction)
+- Memory ranking (weighted: vector 40% + graph 20% + keyword 20% + recency 10% + user_pref 5%)
+
+#### Supervisor + Security (Phase 8)
+- DefaultSupervisor (the main loop: goal → plan → dispatch → reflect → correct → QA → commit)
+- LlmPlanner (decomposes goals into DAG plans via Model Router)
+- CapabilitySelector (scores agents: track_record 40%, load 20%, cost 20%, latency 15%, user_pref 5%)
+- DefaultReflectionAgent (ACCEPT/REJECT/NEEDS_CORRECTION)
+- DefaultSelfCorrectionAgent (max 3 attempts)
+- DefaultQAAgent (PASS/FAIL)
+- Security Layer: RBAC (owner/admin/operator/viewer) + ABAC, EncryptedSecretStore
+  (Fernet AES-128-CBC + HMAC-SHA256, rotation with grace period), hash-chained audit log
+  (SHA-256, tamper detection), SecurityManager (implements Gateway protocols)
+
+#### Agent Implementations (Phases 9-10)
+- ClaudeCodeCodingAgent: subprocess bridge to coding CLI, JSON-RPC protocol,
+  9 capabilities (code.read/write/refactor/review, test.run, git.commit/push/branch,
+  shell.execute), project-scoped filesystem sandbox, mock mode for testing
+- HermesDesktopAgent: subprocess bridge to desktop daemon, 14 capabilities
+  (9 desktop: ui.click, ui.find_element, input.type_text, input.key_press,
+  screen.screenshot, screen.ocr, app.open, app.close, file.manage +
+  5 browser: navigate, click, input, extract, screenshot), mock mode
+
+#### Plugins + MCP (Phase 11)
+- PluginManager (discovery, install, enable/disable, hot-reload, uninstall)
+- MCPManager (discover, register, connect/disconnect, reload, call_tool)
+- Plugin SDK (PluginManifestBuilder fluent API, ToolPlugin, AgentPlugin base classes)
+- Agent SDK (scaffold_agent generates complete plugin directory with 3 templates)
+- 3 example plugins (weather, calculator with safe AST evaluation, openhands scaffold)
+
+#### Dashboard + CLI + API (Phase 12)
+- FastAPI server with 30 routes (REST + WebSocket)
+- Typer CLI with 12 commands (version, doctor, run, tasks, agents, capabilities,
+  providers, models, costs, memory_recall, memory_remember, audit)
+- Next.js 16 dashboard (live agents, providers, health, quick links, dark mode)
+
+#### Testing (Phase 13)
+- 597 tests across 5 categories: unit (545), integration (14), e2e (8),
+  stress (8), performance (5), security (21)
+- All tests pass with no network access (all offline, all HTTP/subprocess mocked)
+- Architecture invariants (INV-02, INV-09) enforced by tests
+
+#### Deployment (Phase 14)
+- Windows installer scaffolding (Inno Setup)
+- Docker Compose deployment (nginx + web + api + runtime + worker + postgres + qdrant + redis + otel)
+- GitHub Actions CI (Windows + Linux matrix, ruff, mypy, bandit, pytest, pip-audit)
+- GitHub Actions release (semantic-release, auto-changelog, Docker push, GitHub Release)
+- Documentation: installation, deployment, developer guide, architecture (10 docs)
+
+### Security
+- Zero-trust architecture (all I/O through Gateway)
+- RBAC + ABAC policy engine (fail-closed DENY by default)
+- Encrypted secrets at rest (Fernet, PBKDF2 600k iterations)
+- Hash-chained audit log (tamper-evident)
+- Secret rotation with grace period
+- INV-02: no I/O imports outside gateway/model_router (CI-enforced)
+- INV-09: no agent names in core (CI-enforced)
+
 ## [Unreleased]
 
 ### Added — Phase 2 (repository structure)
