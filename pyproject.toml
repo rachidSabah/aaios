@@ -57,7 +57,7 @@ dependencies = [
   "dependency-injector>=4.41,<5",
   # --- Crypto & auth ---
   "cryptography>=43.0,<44",
-  "argon2-cffi>=23.1,<24",
+  "argon2-cffi>=23.1,<26",
   "authlib>=1.3,<2",
   "itsdangerous>=2.2,<3",
   # --- Vector DB ---
