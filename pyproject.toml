@@ -65,7 +65,7 @@ dependencies = [
   # --- Knowledge graph (in-process default) ---
   "networkx>=3.3,<4",
   # --- Embeddings (local fallback) ---
-  "sentence-transformers>=3.1,<4",
+  "sentence-transformers>=3.1,<6",
   # --- Agent subprocess bridging ---
   # (stdlib subprocess + pywin32 on Windows)
 ]
