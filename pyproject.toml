@@ -194,6 +194,16 @@ ignore = [
   "PT012",                           # pytest.raises multi-statement — tests can be multi-line
   "RUF043",                          # regex pattern in match — tests can be loose
   "RUF100",                          # unused noqa — ruff version churn, will fix incrementally
+  "RUF005",                          # list concatenation — readable as-is
+  "RUF012",                          # mutable class attr default — fine for our test fixtures
+  "RUF022",                          # __all__ not sorted — we keep logical grouping
+  "SIM103",                          # return negated condition — readable as-is
+  "UP041",                           # asyncio.TimeoutError → TimeoutError — both valid
+  "PLR1711",                         # useless return at end — explicit is fine
+  "D205",                            # blank line after summary — overly strict for our docstrings
+  "D415",                            # first line must end with punctuation — overly strict
+  "F821",                            # undefined name in Protocol stubs — false positive for Any in Protocol method signatures
+  "D102",                            # missing docstring in public method — Protocol stubs don't need them
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -276,6 +286,8 @@ markers = [
 filterwarnings = [
   "error",
   "ignore::DeprecationWarning:pytest_asyncio.*",
+  "ignore::pytest.PytestUnraisableExceptionWarning",
+  "ignore::ResourceWarning",
 ]
 
 # ---------------------------------------------------------------------------

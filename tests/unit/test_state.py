@@ -22,11 +22,12 @@ async def bus() -> InMemoryEventBus:
 
 @pytest.fixture
 async def state_manager(bus: InMemoryEventBus) -> StateManager:
-    """Fresh state manager with default reducers."""
+    """Fresh state manager with default reducers. Cleans up after test."""
     sm = StateManager(bus=bus)
     for agg_type, reducer in DEFAULT_REDUCERS.items():
         sm.register_reducer(agg_type, reducer)
-    return sm
+    yield sm
+    await sm.shutdown()
 
 
 @pytest.mark.offline
@@ -189,9 +190,15 @@ class TestTaskReducer:
 
         import asyncio
 
-        await asyncio.sleep(0.1)
-        snapshot = await sm.get_snapshot(task_id)
-        assert snapshot is not None
+        # Poll for the snapshot (the state manager's _on_event runs as a
+        # fire-and-forget task, so we need to wait for it)
+        snapshot = None
+        for _ in range(20):  # up to ~2 seconds
+            await asyncio.sleep(0.1)
+            snapshot = await sm.get_snapshot(task_id)
+            if snapshot is not None:
+                break
+        assert snapshot is not None, "Snapshot never taken"
         assert snapshot.sequence == 3
 
     async def test_list_aggregates(
@@ -231,8 +238,14 @@ class TestTaskReducer:
 class TestStateManagerSingleton:
     """init_state_manager / get_state_manager tests."""
 
-    def test_init_returns_singleton(self, bus: InMemoryEventBus) -> None:
+    async def test_init_returns_singleton(self, bus: InMemoryEventBus) -> None:
         sm = init_state_manager(bus=bus)
-        from core.state import get_state_manager
+        try:
+            from core.state import get_state_manager
 
-        assert get_state_manager() is sm
+            assert get_state_manager() is sm
+        finally:
+            await sm.shutdown()
+            from core.state import set_state_manager
+
+            set_state_manager(None)  # type: ignore[arg-type]

@@ -10,6 +10,24 @@ L2 (services), L3 (agents), L4 (supervisor), or L5 (surfaces).
 from __future__ import annotations
 
 from core.contracts.actor import ActorRef, ActorType
+from core.contracts.agent import (
+    AgentContext,
+    AgentEnvironment,
+    AgentIdentity,
+    AgentState,
+    AgentType,
+    Capability,
+    CapabilityManifest,
+    CostEstimate,
+    CostModel,
+    HealthCheckSpec,
+    MetricsReport,
+    ResourceRequirements,
+    SecretResolver,
+    SideEffect,
+    StateIncompatibleError,
+    TimeoutDefaults,
+)
 from core.contracts.event import Event, EventEnvelope, EventTopic
 from core.contracts.health import HealthReport, HealthState
 from core.contracts.permission import (
@@ -32,14 +50,29 @@ from core.contracts.timestamp import utc_now
 __all__ = [
     "ActorRef",
     "ActorType",
+    "AgentContext",
+    "AgentEnvironment",
+    "AgentIdentity",
+    "AgentState",
+    "AgentType",
+    "Capability",
+    "CapabilityManifest",
+    "CostEstimate",
+    "CostModel",
     "Event",
     "EventEnvelope",
     "EventTopic",
+    "HealthCheckSpec",
     "HealthReport",
     "HealthState",
+    "MetricsReport",
     "Permission",
     "PermissionDecision",
     "PermissionRequest",
+    "ResourceRequirements",
+    "SecretResolver",
+    "SideEffect",
+    "StateIncompatibleError",
     "TaskContext",
     "TaskId",
     "TaskProgress",
@@ -48,5 +81,6 @@ __all__ = [
     "TaskResult",
     "TaskResultStatus",
     "TaskStatus",
+    "TimeoutDefaults",
     "utc_now",
 ]
