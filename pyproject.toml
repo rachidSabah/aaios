@@ -206,6 +206,7 @@ ignore = [
   "D102",                            # missing docstring in public method — Protocol stubs don't need them
   "SIM110",                          # use all() instead of for loop — readable as-is
   "N806",                            # variable in function should be lowercase — WHITE/GRAY/BLACK are conventional
+  "ERA001",                          # commented-out code — false positive on section dividers (---)
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -255,7 +256,7 @@ files = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["pywinauto.*", "pyautogui.*", "win32api", "win32con", "win32service", "win32serviceutil", "win32event", "win32job", "win32security", "ntsecuritycon", "pythoncom", "pywintypes"]
+module = ["pywinauto.*", "pyautogui.*", "win32api", "win32con", "win32service", "win32serviceutil", "win32event", "win32job", "win32security", "ntsecuritycon", "pythoncom", "pywintypes", "networkx.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------

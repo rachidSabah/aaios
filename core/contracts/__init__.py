@@ -30,6 +30,18 @@ from core.contracts.agent import (
 )
 from core.contracts.event import Event, EventEnvelope, EventTopic
 from core.contracts.health import HealthReport, HealthState
+from core.contracts.memory import (
+    GraphEdge,
+    GraphNode,
+    KnowledgeGraphProtocol,
+    MemoryItem,
+    MemoryQuery,
+    MemoryQueryResult,
+    MemoryScope,
+    MemoryScopeType,
+    MemoryVector,
+    RankedItem,
+)
 from core.contracts.model import (
     ModelInfo,
     ModelMessage,
@@ -82,9 +94,12 @@ __all__ = [
     "Event",
     "EventEnvelope",
     "EventTopic",
+    "GraphEdge",
+    "GraphNode",
     "HealthCheckSpec",
     "HealthReport",
     "HealthState",
+    "KnowledgeGraphProtocol",
     "ModelInfo",
     "ModelMessage",
     "ModelProvider",
@@ -93,6 +108,12 @@ __all__ = [
     "ModelRole",
     "ModelStreamChunk",
     "MetricsReport",
+    "MemoryItem",
+    "MemoryQuery",
+    "MemoryQueryResult",
+    "MemoryScope",
+    "MemoryScopeType",
+    "MemoryVector",
     "Permission",
     "PermissionDecision",
     "PermissionRequest",
@@ -103,6 +124,7 @@ __all__ = [
     "ProviderStatus",
     "ProviderType",
     "RateLimitError",
+    "RankedItem",
     "ResourceRequirements",
     "SecretResolver",
     "SideEffect",
