@@ -5,12 +5,13 @@ agents live in plugins/ (Phase 11) and are loaded at runtime.
 
 Phase 4: mock_agent.py — for testing the registry without real LLM calls
 Phase 9: claude_code/ — ClaudeCodeCodingAgent (subprocess bridge)
-Phase 10: hermes/ — HermesDesktopAgent (future)
+Phase 10: hermes/ — HermesDesktopAgent (subprocess bridge)
 """
 
 from __future__ import annotations
 
 from agents._impls.claude_code import ClaudeCodeCodingAgent
+from agents._impls.hermes import HermesDesktopAgent
 from agents._impls.mock_agent import MockAgent
 
-__all__ = ["ClaudeCodeCodingAgent", "MockAgent"]
+__all__ = ["ClaudeCodeCodingAgent", "HermesDesktopAgent", "MockAgent"]
