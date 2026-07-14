@@ -10,6 +10,24 @@
 
 ---
 
+## One-Click Install
+
+### Windows 11 (PowerShell)
+
+```powershell
+irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/install.ps1 | iex
+```
+
+### WSL2 / Linux (Bash)
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/wsl/install.sh | bash
+```
+
+Both scripts auto-install all dependencies (Python 3.12, Node.js 22, pnpm, git), clone the repo, set up the virtual environment, install packages, and run `aaios doctor` to verify.
+
+---
+
 ## What this is
 
 AAiOS is an **enterprise-grade, open-source Agentic AI Operating System**. It is not a chatbot wrapper. It is a fully modular runtime that lets you compose multiple AI models, multiple specialized agents, persistent memory, external tool servers (MCP), and user-defined workflows into a single autonomous system — supervised by a reflection-driven planner that can correct its own mistakes, with every decision observable and replayable.
