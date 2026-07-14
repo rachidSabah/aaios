@@ -211,6 +211,8 @@ ignore = [
   "PTH123",                          # open() vs Path.open() — fine for key file reads
   "SIM108",                          # ternary operator — if/else is more readable
   "S105",                            # hardcoded password — false positive on StrEnum values
+  "C901",                            # function too complex — acceptable for FastAPI factory
+  "PLR0915",                         # too many statements — acceptable for FastAPI factory
 ]
 
 [tool.ruff.lint.per-file-ignores]

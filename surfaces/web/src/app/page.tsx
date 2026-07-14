@@ -6,37 +6,78 @@ export default async function HomePage() {
     error: err instanceof Error ? err.message : String(err),
   }));
 
+  const agents = await fetch(`${process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:8000'}/api/v1/agents`, {
+    cache: 'no-store',
+  })
+    .then((res) => res.json())
+    .catch(() => ({ agents: [] }));
+
+  const providers = await fetch(`${process.env.NEXT_PUBLIC_API_BASE ?? 'http://127.0.0.1:8000'}/api/v1/providers`, {
+    cache: 'no-store',
+  })
+    .then((res) => res.json())
+    .catch(() => ({ providers: [] }));
+
   return (
     <main
       style={{
-        maxWidth: '900px',
+        maxWidth: '1200px',
         margin: '0 auto',
-        padding: '4rem 1.5rem',
+        padding: '2rem 1.5rem',
       }}
     >
-      <header style={{ marginBottom: '3rem' }}>
+      <header style={{ marginBottom: '2rem' }}>
         <h1
           style={{
-            fontSize: '2.5rem',
+            fontSize: '2rem',
             fontWeight: 700,
             margin: 0,
             color: 'var(--color-fg)',
           }}
         >
-          Agentic AI Operating System
+          AAiOS Dashboard
         </h1>
-        <p
-          style={{
-            fontSize: '1.125rem',
-            color: 'var(--color-muted)',
-            marginTop: '0.5rem',
-          }}
-        >
-          Windows-first. Modular. Capability-based. v0.1.0-dev (Phase 2 —
-          repository structure)
+        <p style={{ color: 'var(--color-muted)', marginTop: '0.25rem' }}>
+          Agentic AI Operating System — v0.1.0-dev (Phase 12)
         </p>
       </header>
 
+      {/* Health status */}
+      <section
+        style={{
+          backgroundColor: 'var(--color-card)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '0.5rem',
+          padding: '1rem 1.5rem',
+          marginBottom: '1.5rem',
+          display: 'flex',
+          alignItems: 'center',
+          gap: '1rem',
+        }}
+      >
+        <div
+          style={{
+            width: '12px',
+            height: '12px',
+            borderRadius: '50%',
+            backgroundColor:
+              health.status === 'ok' ? '#22c55e' : '#ef4444',
+          }}
+        />
+        <div>
+          <strong>API Server:</strong>{' '}
+          <span style={{ color: health.status === 'ok' ? '#22c55e' : '#ef4444' }}>
+            {health.status}
+          </span>
+          {'status' in health && (
+            <span style={{ color: 'var(--color-muted)', marginLeft: '0.5rem' }}>
+              v{(health as { version?: string }).version ?? '?'}
+            </span>
+          )}
+        </div>
+      </section>
+
+      {/* Agents */}
       <section
         style={{
           backgroundColor: 'var(--color-card)',
@@ -46,92 +87,126 @@ export default async function HomePage() {
           marginBottom: '1.5rem',
         }}
       >
-        <h2
-          style={{
-            fontSize: '1.25rem',
-            fontWeight: 600,
-            marginTop: 0,
-            marginBottom: '1rem',
-          }}
-        >
-          API health
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: 0, marginBottom: '1rem' }}>
+          Registered Agents ({agents.agents?.length ?? 0})
         </h2>
-        <dl style={{ margin: 0, display: 'grid', gap: '0.5rem' }}>
-          <div>
-            <dt
-              style={{
-                display: 'inline-block',
-                width: '120px',
-                color: 'var(--color-muted)',
-              }}
-            >
-              Status:
-            </dt>
-            <dd
-              style={{
-                display: 'inline',
-                margin: 0,
-                color:
-                  health.status === 'ok'
-                    ? 'var(--color-accent)'
-                    : '#dc2626',
-                fontWeight: 600,
-              }}
-            >
-              {health.status}
-            </dd>
-          </div>
-          {'version' in health && (
-            <div>
-              <dt
-                style={{
-                  display: 'inline-block',
-                  width: '120px',
-                  color: 'var(--color-muted)',
-                }}
-              >
-                Version:
-              </dt>
-              <dd style={{ display: 'inline', margin: 0 }}>
-                {health.version}
-              </dd>
-            </div>
-          )}
-          {'error' in health && (
-            <div>
-              <dt
-                style={{
-                  display: 'inline-block',
-                  width: '120px',
-                  color: 'var(--color-muted)',
-                }}
-              >
-                Error:
-              </dt>
-              <dd style={{ display: 'inline', margin: 0, color: '#dc2626' }}>
-                {health.error}
-              </dd>
-            </div>
-          )}
-        </dl>
+        {agents.agents && agents.agents.length > 0 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Agent</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Type</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Health</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Capabilities</th>
+              </tr>
+            </thead>
+            <tbody>
+              {agents.agents.map((agent: Record<string, unknown>) => (
+                <tr key={agent.agent_id as string} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '0.5rem' }}>{agent.implementation_name as string}</td>
+                  <td style={{ padding: '0.5rem', color: 'var(--color-muted)' }}>{agent.agent_type as string}</td>
+                  <td style={{ padding: '0.5rem' }}>
+                    <span style={{ color: agent.health === 'healthy' ? '#22c55e' : '#ef4444' }}>
+                      {agent.health as string}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.5rem', color: 'var(--color-muted)' }}>
+                    {(agent.capabilities as string[])?.slice(0, 3).join(', ')}
+                    {(agent.capabilities as string[])?.length > 3 ? '...' : ''}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>
+            No agents registered. Start the API server and register agents.
+          </p>
+        )}
       </section>
 
+      {/* Providers */}
       <section
         style={{
-          color: 'var(--color-muted)',
-          fontSize: '0.875rem',
-          lineHeight: 1.6,
+          backgroundColor: 'var(--color-card)',
+          border: '1px solid var(--color-border)',
+          borderRadius: '0.5rem',
+          padding: '1.5rem',
+          marginBottom: '1.5rem',
         }}
       >
-        <p>
-          This is a Phase 2 stub of the AAiOS dashboard. The full dashboard
-          (tasks, agents, memory, plugins, marketplace, providers, workflows,
-          prompts, logs, audit, telemetry, settings) lands in Phase 12.
-        </p>
-        <p style={{ marginTop: '0.75rem' }}>
-          See <code>docs/architecture/09-roadmap.md</code> for the build plan.
-        </p>
+        <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginTop: 0, marginBottom: '1rem' }}>
+          LLM Providers ({providers.providers?.length ?? 0})
+        </h2>
+        {providers.providers && providers.providers.length > 0 ? (
+          <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.875rem' }}>
+            <thead>
+              <tr style={{ borderBottom: '1px solid var(--color-border)' }}>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Provider</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Status</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Success Rate</th>
+                <th style={{ textAlign: 'left', padding: '0.5rem' }}>Avg Latency</th>
+              </tr>
+            </thead>
+            <tbody>
+              {providers.providers.map((p: Record<string, unknown>) => (
+                <tr key={p.provider as string} style={{ borderBottom: '1px solid var(--color-border)' }}>
+                  <td style={{ padding: '0.5rem' }}>{p.provider as string}</td>
+                  <td style={{ padding: '0.5rem' }}>
+                    <span style={{ color: p.status === 'healthy' ? '#22c55e' : '#ef4444' }}>
+                      {p.status as string}
+                    </span>
+                  </td>
+                  <td style={{ padding: '0.5rem' }}>{((p.success_rate as number) * 100).toFixed(1)}%</td>
+                  <td style={{ padding: '0.5rem' }}>{(p.avg_latency_s as number).toFixed(2)}s</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        ) : (
+          <p style={{ color: 'var(--color-muted)', fontSize: '0.875rem' }}>
+            No providers configured.
+          </p>
+        )}
       </section>
+
+      {/* Quick links */}
+      <section
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(200px, 1fr))',
+          gap: '1rem',
+        }}
+      >
+        {[
+          { label: 'Tasks', desc: 'View active tasks' },
+          { label: 'Memory', desc: 'Explore memory' },
+          { label: 'Plugins', desc: 'Manage plugins' },
+          { label: 'Audit Log', desc: 'Security audit trail' },
+          { label: 'Costs', desc: 'Cost analytics' },
+          { label: 'Settings', desc: 'Configuration' },
+        ].map((card) => (
+          <div
+            key={card.label}
+            style={{
+              backgroundColor: 'var(--color-card)',
+              border: '1px solid var(--color-border)',
+              borderRadius: '0.5rem',
+              padding: '1rem',
+              cursor: 'pointer',
+            }}
+          >
+            <div style={{ fontWeight: 600, fontSize: '0.9rem' }}>{card.label}</div>
+            <div style={{ color: 'var(--color-muted)', fontSize: '0.75rem', marginTop: '0.25rem' }}>
+              {card.desc}
+            </div>
+          </div>
+        ))}
+      </section>
+
+      <footer style={{ marginTop: '2rem', color: 'var(--color-muted)', fontSize: '0.75rem' }}>
+        Phase 12 dashboard stub — full dashboard lands with Phase 12 completion.
+      </footer>
     </main>
   );
 }

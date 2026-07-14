@@ -193,10 +193,11 @@ class MCPManager:
 
     async def unregister(self, name: str) -> bool:
         """Unregister a server."""
+        # Disconnect first (without holding the lock — disconnect acquires it)
+        await self.disconnect(name)
         async with self._lock:
             if name not in self._servers:
                 return False
-            await self.disconnect(name)
             del self._servers[name]
             _log.info("mcp.unregistered", name=name)
             return True
