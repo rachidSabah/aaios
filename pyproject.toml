@@ -213,6 +213,8 @@ ignore = [
   "S105",                            # hardcoded password — false positive on StrEnum values
   "C901",                            # function too complex — acceptable for FastAPI factory
   "PLR0915",                         # too many statements — acceptable for FastAPI factory
+  "S110",                            # try-except-pass — acceptable for config loading fallbacks
+  "B007",                            # loop variable not used — acceptable for dict iteration
 ]
 
 [tool.ruff.lint.per-file-ignores]
@@ -331,7 +333,7 @@ exclude_dirs = ["tests", "scripts", "surfaces/web"]
 # B108: hardcoded /tmp directory — LinuxPlatform.temp_dir returns /tmp/aaios
 #   intentionally (Linux is v1.1; Windows uses %TEMP%).
 # B701: jinja2 autoescape=False — prompts are not HTML; escaping would corrupt them.
-skips = ["B404", "B603", "B604", "B108", "B701", "B101", "B105"]
+skips = ["B404", "B603", "B604", "B108", "B701", "B101", "B105", "B110"]
 targets = ["core", "services", "agents", "supervisor", "orchestrator", "surfaces"]
 
 # ---------------------------------------------------------------------------

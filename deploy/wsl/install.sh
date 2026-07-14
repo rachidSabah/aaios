@@ -93,6 +93,16 @@ ok "Python packages installed"
 step "Node.js environment..."
 command -v pnpm &>/dev/null && { pnpm install 2>/dev/null; ok "Node packages installed"; } || warn "pnpm not available"
 
+step "Detecting and binding AI agents..."
+# Check for proxy URL (env var or CLI arg)
+CLAUDE_PROXY="${ANTHROPIC_BASE_URL:-}"
+CLAUDE_KEY="${ANTHROPIC_API_KEY:-}"
+BIND_ARGS="--install-missing"
+[ -n "$CLAUDE_PROXY" ] && BIND_ARGS="$BIND_ARGS --claude-proxy-url $CLAUDE_PROXY"
+[ -n "$CLAUDE_KEY" ] && BIND_ARGS="$BIND_ARGS --claude-api-key $CLAUDE_KEY"
+python scripts/bind_agents.py $BIND_ARGS 2>&1 | while read -r line; do echo "  $line"; done
+ok "Agent detection and binding complete"
+
 step "Configuration..."
 CONFIG_DIR="${HOME}/.config/aaios"; DATA_DIR="${HOME}/.local/share/aaios"; LOG_DIR="${DATA_DIR}/logs"
 mkdir -p "$CONFIG_DIR" "$DATA_DIR" "$LOG_DIR"

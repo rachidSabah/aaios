@@ -24,7 +24,27 @@ irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/inst
 curl -fsSL https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/wsl/install.sh | bash
 ```
 
-Both scripts auto-install all dependencies (Python 3.12, Node.js 22, pnpm, git), clone the repo, set up the virtual environment, install packages, and run `aaios doctor` to verify.
+Both scripts auto-install all dependencies (Python 3.12, Node.js 22, pnpm, git), clone the repo, set up the virtual environment, **detect and bind AI agents** (Claude Code CLI + Hermes daemon — auto-installs if not found), and run `aaios doctor` to verify.
+
+### Claude Code via Proxy (Free Models)
+
+If you're running Claude Code through a proxy (not the official Anthropic API), set the proxy URL before installing:
+
+```bash
+# WSL/Linux
+export ANTHROPIC_BASE_URL=http://localhost:8080/v1
+export ANTHROPIC_API_KEY=your-proxy-key
+curl -fsSL https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/wsl/install.sh | bash
+```
+
+```powershell
+# Windows
+$env:ANTHROPIC_BASE_URL = "http://localhost:8080/v1"
+$env:ANTHROPIC_API_KEY = "your-proxy-key"
+irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/install.ps1 | iex
+```
+
+AAiOS will auto-detect the proxy URL and configure the Claude Code agent to use it instead of the official Anthropic API.
 
 ---
 

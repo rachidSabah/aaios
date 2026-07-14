@@ -65,6 +65,8 @@ class ClaudeCodeCodingAgent(SubprocessBridgeAgent):
         project_root: Path | str | None = None,
         cli_binary: str | None = None,
         mock_mode: bool = False,
+        proxy_url: str | None = None,
+        api_key: str | None = None,
     ) -> None:
         identity = AgentIdentity(
             agent_id="claude-code-v1",
@@ -74,14 +76,59 @@ class ClaudeCodeCodingAgent(SubprocessBridgeAgent):
             vendor="Anthropic",
         )
         super().__init__(identity)
+
+        # Load agent config if available (written by bind_agents)
+        agent_config = self._load_agent_config()
+        if agent_config:
+            cfg = agent_config.get("claude_code", {})
+            if not cli_binary and cfg.get("binary_path"):
+                cli_binary = cfg["binary_path"]
+            if not mock_mode and cfg.get("mock_mode") is not None:
+                mock_mode = cfg["mock_mode"]
+            if not proxy_url and cfg.get("api_base_url"):
+                proxy_url = cfg["api_base_url"]
+
+        # Environment variable fallbacks
+        if not proxy_url:
+            proxy_url = os.environ.get("ANTHROPIC_BASE_URL")
+        if not api_key:
+            api_key = os.environ.get("ANTHROPIC_API_KEY")
+
         self._cli_binary = cli_binary or self._find_cli_binary()
         self._mock_mode = mock_mode or (self._cli_binary is None)
+        self._proxy_url = proxy_url
+        self._api_key = api_key
         self._sandbox: FilesystemSandbox | None = None
         self._project_root: Path | None = None
         if project_root is not None:
             self._sandbox = FilesystemSandbox(project_root)
             self._project_root = self._sandbox.root
         self._manifest: CapabilityManifest = build_manifest()
+
+    @staticmethod
+    def _load_agent_config() -> dict[str, Any] | None:
+        """Load agent configuration written by bind_agents.
+
+        Checks:
+        1. %ProgramData%/AAiOS/config/agents.json (Windows native)
+        2. ~/.config/aaios/agents.json (Linux/WSL)
+        3. ./config/agents.json (development)
+        """
+        import json
+
+        candidates = [
+            Path(os.environ.get("ProgramData", "/etc")) / "AAiOS" / "config" / "agents.json",
+            Path.home() / ".config" / "aaios" / "agents.json",
+            Path("config") / "agents.json",
+        ]
+        for path in candidates:
+            if path.is_file():
+                try:
+                    data: dict[str, Any] = json.loads(path.read_text(encoding="utf-8"))
+                    return data
+                except Exception:
+                    pass
+        return None
 
     @staticmethod
     def _find_cli_binary() -> str | None:
@@ -110,6 +157,14 @@ class ClaudeCodeCodingAgent(SubprocessBridgeAgent):
         # Phase 14 will route this through the gateway.
         assert self._cli_binary is not None
         try:
+            # Build environment for the subprocess (includes proxy config)
+            env = dict(os.environ)
+            if self._proxy_url:
+                env["ANTHROPIC_BASE_URL"] = self._proxy_url
+                _log.info("claude_code.using_proxy", proxy_url=self._proxy_url)
+            if self._api_key:
+                env["ANTHROPIC_API_KEY"] = self._api_key
+
             self._process = await asyncio.create_subprocess_exec(
                 self._cli_binary,
                 "--json-rpc",  # enable JSON-RPC mode
@@ -117,11 +172,13 @@ class ClaudeCodeCodingAgent(SubprocessBridgeAgent):
                 stdout=asyncio.subprocess.PIPE,
                 stderr=asyncio.subprocess.PIPE,
                 cwd=str(self._project_root) if self._project_root else None,
+                env=env,
             )
             _log.info(
                 "claude_code.subprocess_started",
                 agent_id=self._identity.agent_id,
                 pid=self._process.pid,
+                proxy=self._proxy_url or "official-api",
             )
             self._health = HealthReport.healthy()
         except Exception as e:

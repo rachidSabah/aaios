@@ -152,7 +152,33 @@ Write-Step "Setting up Node.js environment..."
 pnpm install 2>&1 | Out-Null
 Write-OK "Node.js packages installed"
 
-# --- Step 5: Configuration ---
+# --- Step 5: Agent Detection & Binding ---
+Write-Step "Detecting and binding AI agents..."
+
+# Check for --claude-proxy-url argument
+$claudeProxy = $null
+$claudeKey = $null
+$args | ForEach-Object {
+    if ($_ -match '--claude-proxy-url=(.+)') { $claudeProxy = $matches[1] }
+    if ($_ -match '--claude-api-key=(.+)') { $claudeKey = $matches[1] }
+}
+# Also check environment
+if (-not $claudeProxy -and $env:ANTHROPIC_BASE_URL) { $claudeProxy = $env:ANTHROPIC_BASE_URL }
+if (-not $claudeKey -and $env:ANTHROPIC_API_KEY) { $claudeKey = $env:ANTHROPIC_API_KEY }
+
+$bindArgs = @("scripts/bind_agents.py", "--install-missing")
+if ($claudeProxy) {
+    $bindArgs += @("--claude-proxy-url", $claudeProxy)
+    Write-Host "  Claude Code proxy: $claudeProxy" -ForegroundColor Yellow
+}
+if ($claudeKey) {
+    $bindArgs += @("--claude-api-key", $claudeKey)
+}
+
+python $bindArgs 2>&1 | ForEach-Object { Write-Host "  $_" }
+Write-OK "Agent detection and binding complete"
+
+# --- Step 6: Configuration ---
 Write-Step "Setting up configuration..."
 
 $configDir = "$env:ProgramData\AAiOS\config"
