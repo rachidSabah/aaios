@@ -484,7 +484,8 @@ def create_app() -> FastAPI:
             return {
                 "total_cost_usd": round(router.cost_ledger.get_total_cost(), 6),
                 "by_provider": {
-                    k: round(v, 6) for k, v in router.cost_ledger.get_cost_by_provider().items()  # type: ignore[union-attr]
+                    k: round(v, 6)
+                    for k, v in router.cost_ledger.get_cost_by_provider().items()  # type: ignore[union-attr]
                 },
             }
         except RuntimeError:
