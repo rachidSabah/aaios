@@ -1116,4 +1116,112 @@ def create_app() -> FastAPI:
         results = await mgr.search_missions(req.query, limit=req.limit)
         return {"results": results, "count": len(results)}
 
+    # --- Intelligence endpoints (v3.1) ---
+
+    _intelligence_manager: Any = None
+
+    def _get_intelligence_manager() -> Any:
+        nonlocal _intelligence_manager
+        if _intelligence_manager is None:
+            from services.intelligence import IntelligenceManager
+            _intelligence_manager = IntelligenceManager()
+        return _intelligence_manager
+
+    @app.get("/api/v1/intelligence/health", tags=["intelligence"])
+    async def intelligence_health() -> dict[str, Any]:
+        """Get enterprise health score."""
+        mgr = _get_intelligence_manager()
+        health = await mgr.compute_health()
+        return health.to_dict()
+
+    @app.get("/api/v1/intelligence/forecast", tags=["intelligence"])
+    async def intelligence_forecast() -> dict[str, Any]:
+        """Get predictive forecasts."""
+        mgr = _get_intelligence_manager()
+        forecasts = await mgr.forecast()
+        return {"forecasts": [f.to_dict() for f in forecasts], "count": len(forecasts)}
+
+    @app.get("/api/v1/intelligence/optimization", tags=["intelligence"])
+    async def intelligence_optimization() -> dict[str, Any]:
+        """Get optimization recommendations."""
+        mgr = _get_intelligence_manager()
+        recs = await mgr.optimize()
+        return {"recommendations": [r.to_dict() for r in recs], "count": len(recs)}
+
+    @app.get("/api/v1/intelligence/risks", tags=["intelligence"])
+    async def intelligence_risks() -> dict[str, Any]:
+        """Get risk assessments + heat map."""
+        mgr = _get_intelligence_manager()
+        risks = await mgr.assess_risks()
+        heat_map = mgr.risk.heat_map(risks)
+        return {
+            "risks": [r.to_dict() for r in risks],
+            "count": len(risks),
+            "heat_map": heat_map,
+        }
+
+    @app.get("/api/v1/intelligence/capacity", tags=["intelligence"])
+    async def intelligence_capacity() -> dict[str, Any]:
+        """Get capacity forecasts."""
+        mgr = _get_intelligence_manager()
+        caps = await mgr.forecast_capacity()
+        return {"capacity": [c.to_dict() for c in caps], "count": len(caps)}
+
+    @app.get("/api/v1/intelligence/reliability", tags=["intelligence"])
+    async def intelligence_reliability() -> dict[str, Any]:
+        """Get reliability metrics."""
+        mgr = _get_intelligence_manager()
+        metrics = await mgr.collect_metrics()
+        health = await mgr.compute_health()
+        return {
+            "avg_agent_reliability": metrics.avg_agent_reliability,
+            "avg_provider_reliability": metrics.avg_provider_reliability,
+            "reliability_score": health.reliability,
+            "agent_efficiency": health.agent_efficiency,
+            "provider_efficiency": health.provider_efficiency,
+        }
+
+    @app.get("/api/v1/intelligence/quality", tags=["intelligence"])
+    async def intelligence_quality() -> dict[str, Any]:
+        """Get quality metrics."""
+        mgr = _get_intelligence_manager()
+        metrics = await mgr.collect_metrics()
+        health = await mgr.compute_health()
+        return {
+            "workflow_quality": health.workflow_quality,
+            "execution_success": health.execution_success,
+            "innovation": health.innovation,
+            "total_wbs_nodes": metrics.total_wbs_nodes,
+            "completed_wbs_nodes": metrics.completed_wbs_nodes,
+            "total_artifacts": metrics.total_artifacts,
+        }
+
+    @app.get("/api/v1/intelligence/cost", tags=["intelligence"])
+    async def intelligence_cost() -> dict[str, Any]:
+        """Get cost analysis + forecast."""
+        mgr = _get_intelligence_manager()
+        analysis = await mgr.analyze_cost()
+        forecast = await mgr.forecast_cost()
+        return {"analysis": analysis.to_dict(), "forecast": forecast.to_dict()}
+
+    @app.get("/api/v1/intelligence/digital-twin", tags=["intelligence"])
+    async def intelligence_digital_twin() -> dict[str, Any]:
+        """Get digital twin snapshot."""
+        mgr = _get_intelligence_manager()
+        twin = await mgr.digital_twin_snapshot()
+        return twin.to_dict()
+
+    @app.get("/api/v1/intelligence/report/{report_type}", tags=["intelligence"])
+    async def intelligence_report(report_type: str) -> dict[str, Any]:
+        """Generate an intelligence report."""
+        mgr = _get_intelligence_manager()
+        report = await mgr.generate_report(report_type)
+        return report.to_dict()
+
+    @app.get("/api/v1/intelligence/all", tags=["intelligence"])
+    async def intelligence_all() -> dict[str, Any]:
+        """Get all intelligence data in one response."""
+        mgr = _get_intelligence_manager()
+        return await mgr.get_all_intelligence()
+
     return app

@@ -1119,5 +1119,218 @@ def mission_list(
     console.print(table)
 
 
+# --- Intelligence commands (v3.1) ---
+
+intelligence_app = typer.Typer(help="Enterprise Intelligence — health, forecasts, optimization, risks.")
+app.add_typer(intelligence_app, name="intelligence")
+
+
+@intelligence_app.command("health")
+def intelligence_health() -> None:
+    """Show enterprise health score."""
+    try:
+        data = _api_get("/api/v1/intelligence/health")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    grade = data.get("grade", "?")
+    score = data.get("overall_score", 0)
+    status = data.get("status", "?")
+    color = "green" if score >= 0.8 else "yellow" if score >= 0.6 else "red"
+    console.print(Panel.fit(
+        f"[{color}]Enterprise Health: {grade} ({score:.2f}) — {status}[/{color}]\n\n"
+        f"[cyan]Operational:[/cyan]         {data.get('operational', 0):.2f}\n"
+        f"[cyan]Mission:[/cyan]             {data.get('mission', 0):.2f}\n"
+        f"[cyan]Agent Efficiency:[/cyan]   {data.get('agent_efficiency', 0):.2f}\n"
+        f"[cyan]Provider Efficiency:[/cyan]{data.get('provider_efficiency', 0):.2f}\n"
+        f"[cyan]Workflow Quality:[/cyan]   {data.get('workflow_quality', 0):.2f}\n"
+        f"[cyan]Execution Success:[/cyan]  {data.get('execution_success', 0):.2f}\n"
+        f"[cyan]Risk Level:[/cyan]         {data.get('risk_level', 0):.2f}\n"
+        f"[cyan]Reliability:[/cyan]        {data.get('reliability', 0):.2f}\n"
+        f"[cyan]Cost Efficiency:[/cyan]    {data.get('cost_efficiency', 0):.2f}\n"
+        f"[cyan]Learning Velocity:[/cyan]  {data.get('learning_velocity', 0):.2f}\n"
+        f"[cyan]Innovation:[/cyan]         {data.get('innovation', 0):.2f}",
+        title="Enterprise Health Score",
+    ))
+
+
+@intelligence_app.command("analyze")
+def intelligence_analyze() -> None:
+    """Show full intelligence analysis."""
+    try:
+        data = _api_get("/api/v1/intelligence/all")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    health = data.get("health", {})
+    console.print(f"[cyan]Health:[/cyan] {health.get('grade', '?')} ({health.get('overall_score', 0):.2f})")
+    console.print(f"[cyan]Forecasts:[/cyan] {len(data.get('forecasts', []))}")
+    for f in data.get("forecasts", [])[:5]:
+        console.print(f"  {f.get('forecast_type', '')}: {f.get('probability', 0):.0%} — {f.get('prediction', '')[:60]}")
+    console.print(f"\n[cyan]Recommendations:[/cyan] {len(data.get('recommendations', []))}")
+    for r in data.get("recommendations", [])[:5]:
+        console.print(f"  [{r.get('priority', '')}] {r.get('title', '')[:60]}")
+    console.print(f"\n[cyan]Risks:[/cyan] {len(data.get('risks', []))}")
+    for r in data.get("risks", [])[:5]:
+        console.print(f"  [{r.get('level', '')}] {r.get('description', '')[:60]}")
+
+
+@intelligence_app.command("forecast")
+def intelligence_forecast() -> None:
+    """Show predictive forecasts."""
+    try:
+        data = _api_get("/api/v1/intelligence/forecast")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    forecasts = data.get("forecasts", [])
+    if not forecasts:
+        console.print("[yellow]No forecasts available.[/yellow]")
+        return
+    table = Table(title=f"Forecasts ({len(forecasts)})")
+    table.add_column("Type", style="cyan")
+    table.add_column("Probability", style="yellow")
+    table.add_column("Confidence", style="magenta")
+    table.add_column("Prediction", style="white")
+    table.add_column("Horizon", style="green")
+    for f in forecasts:
+        prob = f.get("probability", 0)
+        color = "red" if prob > 0.5 else "yellow" if prob > 0.3 else "green"
+        table.add_row(
+            f.get("forecast_type", ""),
+            f"[{color}]{prob:.0%}[/{color}]",
+            f.get("confidence", ""),
+            str(f.get("prediction", ""))[:50],
+            f.get("time_horizon", ""),
+        )
+    console.print(table)
+
+
+@intelligence_app.command("optimize")
+def intelligence_optimize() -> None:
+    """Show optimization recommendations."""
+    try:
+        data = _api_get("/api/v1/intelligence/optimization")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    recs = data.get("recommendations", [])
+    if not recs:
+        console.print("[yellow]No optimization recommendations available.[/yellow]")
+        return
+    table = Table(title=f"Optimization Recommendations ({len(recs)})")
+    table.add_column("Priority", style="red")
+    table.add_column("Type", style="cyan")
+    table.add_column("Title", style="white")
+    table.add_column("Impact", style="yellow")
+    table.add_column("Improvement", style="green")
+    for r in recs:
+        table.add_row(
+            r.get("priority", ""),
+            r.get("optimization_type", ""),
+            str(r.get("title", ""))[:50],
+            f"{r.get('estimated_impact', 0):.0%}",
+            str(r.get("expected_improvement", ""))[:30],
+        )
+    console.print(table)
+
+
+@intelligence_app.command("risks")
+def intelligence_risks() -> None:
+    """Show risk assessments + heat map."""
+    try:
+        data = _api_get("/api/v1/intelligence/risks")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    risks = data.get("risks", [])
+    heat_map = data.get("heat_map", {})
+    console.print(f"[cyan]Risk Heat Map:[/cyan] {heat_map.get('total_risks', 0)} total risks")
+    by_level = heat_map.get("by_level", {})
+    for level in ["critical", "high", "medium", "low", "negligible"]:
+        count = by_level.get(level, 0)
+        if count:
+            color = "red" if level in ("critical", "high") else "yellow" if level == "medium" else "green"
+            console.print(f"  [{color}]{level}[/{color}]: {count}")
+    if risks:
+        table = Table(title=f"Risk Details ({len(risks)})")
+        table.add_column("Level", style="red")
+        table.add_column("Type", style="cyan")
+        table.add_column("Description", style="white")
+        table.add_column("Score", style="yellow")
+        table.add_column("Mitigation", style="green")
+        for r in risks[:15]:
+            table.add_row(
+                r.get("level", ""),
+                r.get("risk_type", ""),
+                str(r.get("description", ""))[:40],
+                f"{r.get('risk_score', 0):.2f}",
+                str(r.get("mitigation", ""))[:40],
+            )
+        console.print(table)
+
+
+@intelligence_app.command("capacity")
+def intelligence_capacity() -> None:
+    """Show capacity forecasts."""
+    try:
+        data = _api_get("/api/v1/intelligence/capacity")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    caps = data.get("capacity", [])
+    if not caps:
+        console.print("[yellow]No capacity data available.[/yellow]")
+        return
+    table = Table(title=f"Capacity Forecasts ({len(caps)})")
+    table.add_column("Resource", style="cyan")
+    table.add_column("Usage", style="white")
+    table.add_column("Capacity", style="white")
+    table.add_column("Util %", style="yellow")
+    table.add_column("7d Projection", style="magenta")
+    table.add_column("30d Projection", style="red")
+    table.add_column("Exhaustion ETA", style="red")
+    for c in caps:
+        util = c.get("utilization_pct", 0)
+        color = "red" if util > 80 else "yellow" if util > 60 else "green"
+        table.add_row(
+            c.get("resource", ""),
+            f"{c.get('current_usage', 0):.1f}",
+            f"{c.get('current_capacity', 0):.1f}",
+            f"[{color}]{util:.0f}%[/{color}]",
+            f"{c.get('projected_usage_7d', 0):.1f}",
+            f"{c.get('projected_usage_30d', 0):.1f}",
+            c.get("exhaustion_eta", "—")[:19] if c.get("exhaustion_eta") else "—",
+        )
+    console.print(table)
+
+
+@intelligence_app.command("report")
+def intelligence_report(
+    report_type: str = typer.Argument("daily_executive", help="Report type: daily_executive, weekly_operations, monthly_performance, reliability, optimization, risk, mission"),
+) -> None:
+    """Generate an intelligence report."""
+    try:
+        data = _api_get(f"/api/v1/intelligence/report/{report_type}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    health = data.get("health_score", {})
+    console.print(Panel.fit(
+        f"[cyan]Report Type:[/cyan] {data.get('report_type', '')}\n"
+        f"[cyan]Generated:[/cyan]  {data.get('generated_at', '')[:19]}\n"
+        f"[cyan]Period:[/cyan]     {data.get('period_start', '')[:19]} → {data.get('period_end', '')[:19]}\n"
+        f"[cyan]Health:[/cyan]     {health.get('grade', '?')} ({health.get('overall_score', 0):.2f})\n"
+        f"\n[cyan]Summary:[/cyan]\n{data.get('summary', '')}\n"
+        f"\n[cyan]Key Findings:[/cyan]",
+        title="Intelligence Report",
+    ))
+    for finding in data.get("key_findings", []):
+        console.print(f"  • {finding}")
+    console.print(f"\n[cyan]Action Items:[/cyan]")
+    for action in data.get("action_items", []):
+        console.print(f"  → {action}")
+
+
 if __name__ == "__main__":
     main()
