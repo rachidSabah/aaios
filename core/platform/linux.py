@@ -66,8 +66,13 @@ class LinuxPlatform:
 
     @property
     def temp_dir(self) -> Path:
-        """Return the system temp directory for AAiOS (``/tmp/aaios``)."""
-        return Path("/tmp/aaios")
+        """Return the system temp directory for AAiOS (``/tmp/aaios``).
+
+        ``/tmp`` is the conventional Linux temp dir. The path is constructed
+        from ``tempfile.gettempdir()`` so it respects the ``TMPDIR`` env var.
+        """
+        import tempfile
+        return Path(tempfile.gettempdir()) / "aaios"  # nosec B108 — respects TMPDIR
 
     def normalize_path(self, path: str | Path) -> Path:
         """Normalize a path to POSIX form."""
