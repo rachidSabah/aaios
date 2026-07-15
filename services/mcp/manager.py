@@ -148,27 +148,102 @@ class MCPManager:
             return config.name
 
     async def connect(self, name: str) -> bool:
-        """Connect to an MCP server (spawn the subprocess + handshake).
+        """Connect to an MCP server — spawn subprocess + JSON-RPC initialize.
 
-        Phase 11: records the connection but doesn't actually spawn the
-        subprocess (that requires the Gateway's process.spawn method,
-        which lands in Phase 14). The server is marked as CONNECTED for
-        mock/testing purposes.
+        Spawns the MCP server process, sends the MCP initialize request,
+        discovers tools via tools/list, and registers them.
         """
         async with self._lock:
             info = self._servers.get(name)
             if info is None:
                 return False
+            if info.state == MCPServerState.CONNECTED:
+                return True
             try:
-                # Phase 11 mock: just mark as connected
-                # Phase 14 will spawn the subprocess via gateway.process.spawn()
-                info.state = MCPServerState.CONNECTED
-                # Mock: discover some tools
-                info.tools = ["mock_tool_1", "mock_tool_2"]
+                import asyncio
+                import json
+                import os
+
+                config = info.config
+                env = dict(os.environ)
+                env.update(config.env)
+
+                # Spawn the MCP server subprocess
+                proc = await asyncio.create_subprocess_exec(
+                    config.command,
+                    *config.args,
+                    stdin=asyncio.subprocess.PIPE,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    env=env,
+                )
+                info.process = proc
+
+                # Send MCP initialize request (JSON-RPC over stdio)
+                init_req = {
+                    "jsonrpc": "2.0",
+                    "id": "1",
+                    "method": "initialize",
+                    "params": {
+                        "protocolVersion": "2024-11-05",
+                        "capabilities": {},
+                        "clientInfo": {"name": "aaios", "version": "1.0.0"},
+                    },
+                }
+                assert proc.stdin is not None
+                proc.stdin.write((json.dumps(init_req) + "\n").encode())
+                await proc.stdin.drain()
+
+                # Read initialize response (with timeout)
+                assert proc.stdout is not None
+                try:
+                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=10.0)
+                    if not line:
+                        raise RuntimeError("MCP server closed stdout before responding")
+                    init_resp = json.loads(line.decode().strip())
+                    if "error" in init_resp:
+                        raise RuntimeError(f"MCP initialize error: {init_resp['error']}")
+
+                    # Send initialized notification
+                    notif = {"jsonrpc": "2.0", "method": "notifications/initialized"}
+                    proc.stdin.write((json.dumps(notif) + "\n").encode())
+                    await proc.stdin.drain()
+                except TimeoutError:
+                    raise RuntimeError("MCP server initialize timed out (10s)") from None
+
+                # Discover tools via tools/list
+                tools_req = {
+                    "jsonrpc": "2.0",
+                    "id": "2",
+                    "method": "tools/list",
+                    "params": {},
+                }
+                proc.stdin.write((json.dumps(tools_req) + "\n").encode())
+                await proc.stdin.drain()
+
+                try:
+                    line = await asyncio.wait_for(proc.stdout.readline(), timeout=10.0)
+                    if line:
+                        tools_resp = json.loads(line.decode().strip())
+                        tools_data = tools_resp.get("result", {}).get("tools", [])
+                        info.tools = [t.get("name", "unknown") for t in tools_data]
+                    else:
+                        info.tools = []
+                except TimeoutError:
+                    info.tools = []
+
                 info.resources = []
                 info.prompts = []
-                _log.info("mcp.connected", name=name, tools=len(info.tools))
+                info.state = MCPServerState.CONNECTED
+                info.error = None
+                _log.info(
+                    "mcp.connected",
+                    name=name,
+                    pid=proc.pid,
+                    tools=len(info.tools),
+                )
                 return True
+
             except Exception as e:
                 info.state = MCPServerState.ERROR
                 info.error = str(e)
@@ -176,11 +251,24 @@ class MCPManager:
                 return False
 
     async def disconnect(self, name: str) -> bool:
-        """Disconnect from an MCP server."""
+        """Disconnect from an MCP server — terminate the subprocess."""
         async with self._lock:
             info = self._servers.get(name)
             if info is None:
                 return False
+            # Terminate the subprocess if running
+            if info.process is not None and info.process.returncode is None:
+                try:
+                    info.process.terminate()
+                    import asyncio
+
+                    try:
+                        await asyncio.wait_for(info.process.wait(), timeout=5.0)
+                    except TimeoutError:
+                        info.process.kill()
+                except Exception:
+                    pass
+            info.process = None
             info.state = MCPServerState.DISCONNECTED
             info.tools = []
             _log.info("mcp.disconnected", name=name)
@@ -218,19 +306,44 @@ class MCPManager:
         }
 
     async def call_tool(self, server_name: str, tool_name: str, args: dict[str, Any]) -> Any:
-        """Call a tool on an MCP server.
+        """Call a tool on an MCP server via JSON-RPC.
 
-        Phase 11: returns a mock result. Phase 14 will make the real call
-        via JSON-RPC to the server subprocess.
+        Sends a tools/call request to the connected MCP server subprocess
+        and returns the result.
         """
         info = self._servers.get(server_name)
         if info is None or info.state != MCPServerState.CONNECTED:
             raise RuntimeError(f"MCP server {server_name} not connected")
         if tool_name not in info.tools:
             raise ValueError(f"Tool {tool_name} not found on server {server_name}")
-        # Phase 11 mock
-        _log.info("mcp.call_tool", server=server_name, tool=tool_name)
-        return {"mock": True, "server": server_name, "tool": tool_name, "args": args}
+        if info.process is None or info.process.returncode is not None:
+            raise RuntimeError(f"MCP server {server_name} process not running")
+
+        import asyncio
+        import json
+
+        req = {
+            "jsonrpc": "2.0",
+            "id": str(id(args)),  # unique enough for correlation
+            "method": "tools/call",
+            "params": {"name": tool_name, "arguments": args},
+        }
+        assert info.process.stdin is not None
+        info.process.stdin.write((json.dumps(req) + "\n").encode())
+        await info.process.stdin.drain()
+
+        assert info.process.stdout is not None
+        try:
+            line = await asyncio.wait_for(info.process.stdout.readline(), timeout=30.0)
+            if not line:
+                raise RuntimeError("MCP server closed stdout")
+            resp = json.loads(line.decode().strip())
+            if "error" in resp:
+                raise RuntimeError(f"MCP tool call error: {resp['error']}")
+            _log.info("mcp.call_tool", server=server_name, tool=tool_name)
+            return resp.get("result", {})
+        except TimeoutError:
+            raise RuntimeError(f"MCP tool call timed out (30s): {tool_name}") from None
 
     async def shutdown(self) -> None:
         """Disconnect all servers."""

@@ -8,13 +8,15 @@ export const metadata: Metadata = {
     'Windows-first, modular runtime for orchestrating generic AI agents.',
   applicationName: 'AAiOS',
   authors: [{ name: 'AAiOS Contributors' }],
-  license: 'Apache-2.0',
   robots: { index: false, follow: false },
 };
 
 const navItems = [
   { href: '/', label: 'Overview' },
   { href: '/missions', label: 'Missions' },
+  { href: '/workflows', label: 'Workflows' },
+  { href: '/monitoring', label: 'Monitoring' },
+  { href: '/analytics', label: 'Analytics' },
   { href: '/experience', label: 'Experience' },
   { href: '/learning', label: 'Learning' },
 ];
@@ -27,7 +29,13 @@ export default function RootLayout({
   return (
     <html lang="en">
       <body>
-        <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
           <header
             style={{
               borderBottom: '1px solid var(--color-border)',

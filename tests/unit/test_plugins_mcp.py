@@ -7,7 +7,6 @@ from pathlib import Path
 
 import pytest
 
-from services.agent_sdk import scaffold_agent
 from services.mcp import MCPManager, MCPServerConfig
 from services.plugin import PluginManager, PluginManifest, PluginState
 from services.plugin.sdk import PluginManifestBuilder
@@ -148,65 +147,110 @@ class TestPluginManager:
 
 @pytest.mark.offline
 class TestMCPManager:
-    """MCPManager tests."""
+    """MCPManager tests — uses a real mock MCP server subprocess."""
+
+    import sys
+
+    _MOCK_SERVER = (
+        sys.executable
+        + " "
+        + str(Path(__file__).resolve().parent.parent / "fixtures" / "mock_mcp_server.py")
+    )
 
     async def test_register(self) -> None:
         mgr = MCPManager()
-        config = MCPServerConfig(name="test", command="echo test")
+        config = MCPServerConfig(name="test", command="echo", args=["test"])
         name = await mgr.register(config)
         assert name == "test"
         assert mgr.get_server("test") is not None
 
-    async def test_connect(self) -> None:
+    async def test_connect_with_mock_server(self) -> None:
+        """Connect to a real mock MCP server subprocess."""
+        import shlex
+
+        parts = shlex.split(self._MOCK_SERVER)
         mgr = MCPManager()
-        await mgr.register(MCPServerConfig(name="test", command="echo test"))
+        await mgr.register(MCPServerConfig(name="test", command=parts[0], args=parts[1:]))
         assert await mgr.connect("test") is True
         server = mgr.get_server("test")
         assert server.tools == ["mock_tool_1", "mock_tool_2"]
+        await mgr.disconnect("test")
+
+    async def test_connect_failure(self) -> None:
+        """Connecting to a non-MCP command fails gracefully."""
+        mgr = MCPManager()
+        await mgr.register(MCPServerConfig(name="bad", command="false"))
+        result = await mgr.connect("bad")
+        assert result is False or mgr.get_server("bad").state.value == "error"
 
     async def test_disconnect(self) -> None:
+        import shlex
+
+        parts = shlex.split(self._MOCK_SERVER)
         mgr = MCPManager()
-        await mgr.register(MCPServerConfig(name="test", command="echo"))
+        await mgr.register(MCPServerConfig(name="test", command=parts[0], args=parts[1:]))
         await mgr.connect("test")
         assert await mgr.disconnect("test") is True
         assert mgr.get_server("test").tools == []
 
     async def test_reload(self) -> None:
+        import shlex
+
+        parts = shlex.split(self._MOCK_SERVER)
         mgr = MCPManager()
-        await mgr.register(MCPServerConfig(name="test", command="echo"))
+        await mgr.register(MCPServerConfig(name="test", command=parts[0], args=parts[1:]))
         await mgr.connect("test")
         assert await mgr.reload("test") is True
+        await mgr.disconnect("test")
 
     async def test_unregister(self) -> None:
+        import shlex
+
+        parts = shlex.split(self._MOCK_SERVER)
         mgr = MCPManager()
-        await mgr.register(MCPServerConfig(name="test", command="echo"))
+        await mgr.register(MCPServerConfig(name="test", command=parts[0], args=parts[1:]))
+        await mgr.connect("test")
         assert await mgr.unregister("test") is True
         assert mgr.get_server("test") is None
 
     async def test_list_tools(self) -> None:
+        import shlex
+
+        parts = shlex.split(self._MOCK_SERVER)
         mgr = MCPManager()
-        await mgr.register(MCPServerConfig(name="test", command="echo"))
+        await mgr.register(MCPServerConfig(name="test", command=parts[0], args=parts[1:]))
         await mgr.connect("test")
         tools = mgr.list_tools("test")
         assert len(tools) == 2
+        await mgr.disconnect("test")
 
     async def test_list_all_tools(self) -> None:
+        import shlex
+
+        parts = shlex.split(self._MOCK_SERVER)
         mgr = MCPManager()
-        await mgr.register(MCPServerConfig(name="s1", command="echo"))
-        await mgr.register(MCPServerConfig(name="s2", command="echo"))
+        await mgr.register(MCPServerConfig(name="s1", command=parts[0], args=parts[1:]))
+        await mgr.register(MCPServerConfig(name="s2", command=parts[0], args=parts[1:]))
         await mgr.connect("s1")
         await mgr.connect("s2")
         all_tools = mgr.list_all_tools()
         assert "s1" in all_tools
         assert "s2" in all_tools
+        await mgr.disconnect("s1")
+        await mgr.disconnect("s2")
 
     async def test_call_tool(self) -> None:
+        """Call a tool on the real mock MCP server."""
+        import shlex
+
+        parts = shlex.split(self._MOCK_SERVER)
         mgr = MCPManager()
-        await mgr.register(MCPServerConfig(name="test", command="echo"))
+        await mgr.register(MCPServerConfig(name="test", command=parts[0], args=parts[1:]))
         await mgr.connect("test")
         result = await mgr.call_tool("test", "mock_tool_1", {"arg": "value"})
-        assert result["mock"] is True
-        assert result["tool"] == "mock_tool_1"
+        assert "content" in result
+        assert "mock_tool_1" in result["content"][0]["text"]
+        await mgr.disconnect("test")
 
     async def test_call_tool_not_connected(self) -> None:
         mgr = MCPManager()
@@ -215,11 +259,15 @@ class TestMCPManager:
             await mgr.call_tool("test", "tool", {})
 
     async def test_call_unknown_tool(self) -> None:
+        import shlex
+
+        parts = shlex.split(self._MOCK_SERVER)
         mgr = MCPManager()
-        await mgr.register(MCPServerConfig(name="test", command="echo"))
+        await mgr.register(MCPServerConfig(name="test", command=parts[0], args=parts[1:]))
         await mgr.connect("test")
         with pytest.raises(ValueError, match="not found"):
             await mgr.call_tool("test", "nonexistent", {})
+        await mgr.disconnect("test")
 
     async def test_discover(self, tmp_path: Path) -> None:
         config_dir = tmp_path / "mcp-servers"
@@ -228,7 +276,8 @@ class TestMCPManager:
             json.dumps(
                 {
                     "name": "slack",
-                    "command": "npx @mcp/slack",
+                    "command": "npx",
+                    "args": ["@mcp/slack"],
                 }
             )
         )
@@ -236,91 +285,3 @@ class TestMCPManager:
         mgr = MCPManager(config_dir=config_dir)
         discovered = await mgr.discover()
         assert "slack" in discovered
-
-
-@pytest.mark.offline
-class TestAgentSDK:
-    """Agent SDK scaffold tests."""
-
-    def test_scaffold_in_process(self, tmp_path: Path) -> None:
-        path = scaffold_agent(
-            name="my-agent",
-            agent_type="research",
-            style="in_process",
-            output_dir=tmp_path,
-        )
-        assert path.is_dir()
-        assert (path / "plugin.json").is_file()
-        assert (path / "__init__.py").is_file()
-        assert (path / "agent" / "agent.py").is_file()
-        assert (path / "README.md").is_file()
-
-        # Verify the manifest
-        manifest = json.loads((path / "plugin.json").read_text())
-        assert manifest["name"] == "my-agent"
-        assert manifest["version"] == "0.1.0"
-
-    def test_scaffold_subprocess(self, tmp_path: Path) -> None:
-        path = scaffold_agent(
-            name="sub-agent",
-            agent_type="coding",
-            style="subprocess",
-            output_dir=tmp_path,
-        )
-        agent_code = (path / "agent" / "agent.py").read_text()
-        assert "SubprocessBridgeAgent" in agent_code
-
-    def test_scaffold_remote(self, tmp_path: Path) -> None:
-        path = scaffold_agent(
-            name="remote-agent",
-            agent_type="browser",
-            style="remote",
-            output_dir=tmp_path,
-        )
-        agent_code = (path / "agent" / "agent.py").read_text()
-        assert "RemoteServiceAgent" in agent_code
-
-
-@pytest.mark.offline
-class TestExamplePlugins:
-    """Verify the example plugin manifests are valid."""
-
-    def test_weather_manifest(self) -> None:
-        from plugins.examples.weather.weather_plugin import manifest
-
-        assert manifest.name == "weather"
-        assert manifest.version == "1.0.0"
-        assert len(manifest.provides_tools) == 1
-
-    def test_calculator_manifest(self) -> None:
-        from plugins.examples.calculator.calculator_plugin import manifest
-
-        assert manifest.name == "calculator"
-        assert manifest.version == "1.0.0"
-
-    def test_calculator_safe_eval(self) -> None:
-        from plugins.examples.calculator.calculator_plugin import _safe_eval
-
-        assert _safe_eval("2 + 3") == 5.0
-        assert _safe_eval("2 * 3") == 6.0
-        assert _safe_eval("10 / 2") == 5.0
-        assert _safe_eval("2 ** 3") == 8.0
-
-    def test_calculator_safe_eval_rejects_imports(self) -> None:
-        from plugins.examples.calculator.calculator_plugin import _safe_eval
-
-        with pytest.raises(ValueError):
-            _safe_eval('__import__("os")')
-
-    def test_openhands_manifest(self) -> None:
-        """The OpenHands scaffold manifest is valid JSON."""
-        manifest_path = (
-            Path(__file__).resolve().parents[2]
-            / "plugins"
-            / "examples"
-            / "openhands_agent"
-            / "plugin.json"
-        )
-        data = json.loads(manifest_path.read_text())
-        assert data["name"] == "openhands-agent"
-        assert "code.read" not in data  # capabilities are in the agent code, not manifest

@@ -27,7 +27,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,10 +35,14 @@ from pydantic import BaseModel, Field
 
 from core.contracts.memory.item import MemoryScope, MemoryScopeType
 from core.logging import get_logger
-from services.experience import (
-    ExperienceFilter,
-    ExperienceRecord,
-    LearningEngine,
+from services.dashboard import (
+    Analytics,
+    MetricsCollector,
+    WorkflowEdge,
+    WorkflowNode,
+    WorkflowNotFoundError,
+    WorkflowStore,
+    WorkflowValidationError,
 )
 
 _log = get_logger(__name__)
@@ -112,99 +116,35 @@ class ApprovalRespondRequest(BaseModel):
     modified_inputs: dict[str, Any] | None = None
 
 
-# --- Experience & Learning request models (v2.1) ---
+# --- Dashboard request models (v2.0) ---
 
 
-class ExperienceSearchRequest(BaseModel):
-    """Request body for POST /api/v1/experience/search."""
+class WorkflowCreateRequest(BaseModel):
+    """Request body for POST /api/v1/workflows."""
 
-    query: str
-    search_type: str | None = None
-    limit: int = Field(default=10, ge=1, le=100)
-
-
-class ExperienceReplayRequest(BaseModel):
-    """Request body for POST /api/v1/experience/{id}/replay."""
-
-    mode: str = "dry_run"  # dry_run, re_execute, compare
-    comparison_agent_id: str | None = None
-
-
-class ExperienceRecordRequest(BaseModel):
-    """Manual experience recording (for testing/ingestion)."""
-
-    task_id: str
-    agent_id: str
-    agent_type: str
-    provider: str | None = None
-    model: str | None = None
-    capabilities: list[str] = Field(default_factory=list)
-    goal: str = ""
-    input_summary: str = ""
-    output_summary: str = ""
-    outcome: str = "success"
-    success: bool = True
-    execution_time_s: float = 0.0
-    latency_s: float = 0.0
-    cost_usd: float = 0.0
-    reflection_score: float = 0.0
-    qa_score: float = 0.0
-    confidence: float = 0.0
-    retries: int = 0
-    failure_reason: str | None = None
-    recovery_action: str | None = None
-    workflow_id: str | None = None
-
-
-# --- Mission & Organization request models (v3.0) ---
-
-
-class MissionCreateRequest(BaseModel):
-    """Request body for POST /api/v1/missions."""
-
-    title: str
+    name: str
     description: str = ""
-    objectives: list[str] = Field(default_factory=list)
-    deliverables: list[str] = Field(default_factory=list)
-    priority: str = "normal"
-    budget_total_usd: float = 0.0
-    deadline: str | None = None
-    owner: str | None = None
+    nodes: list[dict[str, Any]] = Field(default_factory=list)
+    edges: list[dict[str, Any]] = Field(default_factory=list)
     tags: list[str] = Field(default_factory=list)
-    decompose: bool = True
-    decomposition_strategy: str = "objective_per_project"
 
 
-class MissionUpdateRequest(BaseModel):
-    """Request body for PATCH /api/v1/missions/{id}."""
+class WorkflowUpdateRequest(BaseModel):
+    """Request body for PUT /api/v1/workflows/{id}."""
 
-    title: str | None = None
+    name: str | None = None
     description: str | None = None
-    priority: str | None = None
-    deadline: str | None = None
-    owner: str | None = None
+    nodes: list[dict[str, Any]] | None = None
+    edges: list[dict[str, Any]] | None = None
     tags: list[str] | None = None
-    budget_total_usd: float | None = None
 
 
-class WBSNodeCreateRequest(BaseModel):
-    """Request body for POST /api/v1/missions/{id}/wbs."""
+class RecordEventRequest(BaseModel):
+    """Request body for POST /api/v1/monitor/record."""
 
-    node_type: str = "task"
-    title: str
-    description: str = ""
-    parent_id: str | None = None
-    depends_on: list[str] = Field(default_factory=list)
-    capabilities_required: list[str] = Field(default_factory=list)
-    assigned_agent_id: str | None = None
-    assigned_provider: str | None = None
-
-
-class MissionSearchRequest(BaseModel):
-    """Request body for POST /api/v1/missions/search."""
-
-    query: str
-    limit: int = Field(default=10, ge=1, le=100)
+    topic: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    correlation_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -703,46 +643,226 @@ def create_app() -> FastAPI:
         except WebSocketDisconnect:
             pass
 
+    # --- Dashboard endpoints (v2.0) ---
+
+    # Lazy singletons for the dashboard service
+    _workflow_store: WorkflowStore | None = None
+    _metrics_collector: MetricsCollector | None = None
+    _analytics: Analytics | None = None
+
+    def _get_workflow_store() -> WorkflowStore:
+        nonlocal _workflow_store
+        if _workflow_store is None:
+            _workflow_store = WorkflowStore()
+        return _workflow_store
+
+    def _get_metrics_collector() -> MetricsCollector:
+        nonlocal _metrics_collector
+        if _metrics_collector is None:
+            _metrics_collector = MetricsCollector()
+            # Try to subscribe to the global event bus, if initialized
+            try:
+                from core.event_bus import get_bus
+
+                bus = get_bus()
+                # Subscribe in a background task (subscribe is async)
+                asyncio.create_task(_metrics_collector.subscribe(bus))
+            except RuntimeError:
+                pass  # bus not initialized — collector works in manual mode
+        return _metrics_collector
+
+    def _get_analytics() -> Analytics:
+        nonlocal _analytics
+        if _analytics is None:
+            _analytics = Analytics(_get_metrics_collector())
+        return _analytics
+
+    @app.get("/api/v1/workflows", tags=["dashboard"])
+    async def list_workflows() -> dict[str, Any]:
+        """List all saved workflows."""
+        store = _get_workflow_store()
+        workflows = await store.list()
+        return {
+            "workflows": [w.to_dict() for w in workflows],
+            "count": len(workflows),
+        }
+
+    @app.post("/api/v1/workflows", tags=["dashboard"])
+    async def create_workflow(req: WorkflowCreateRequest) -> dict[str, Any]:
+        """Create a new workflow."""
+        store = _get_workflow_store()
+        try:
+            nodes = [WorkflowNode.from_dict(n) for n in req.nodes]
+            edges = [WorkflowEdge.from_dict(e) for e in req.edges]
+            wf = await store.create(
+                name=req.name,
+                description=req.description,
+                nodes=nodes,
+                edges=edges,
+                tags=req.tags,
+            )
+            return wf.to_dict()
+        except WorkflowValidationError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+
+    @app.get("/api/v1/workflows/{workflow_id}", tags=["dashboard"])
+    async def get_workflow(workflow_id: str) -> dict[str, Any]:
+        """Get a workflow by ID."""
+        store = _get_workflow_store()
+        try:
+            wf = await store.get(workflow_id)
+            return wf.to_dict()
+        except WorkflowNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.put("/api/v1/workflows/{workflow_id}", tags=["dashboard"])
+    async def update_workflow(
+        workflow_id: str,
+        req: WorkflowUpdateRequest,
+    ) -> dict[str, Any]:
+        """Update a workflow."""
+        store = _get_workflow_store()
+        try:
+            changes: dict[str, Any] = {}
+            if req.name is not None:
+                changes["name"] = req.name
+            if req.description is not None:
+                changes["description"] = req.description
+            if req.nodes is not None:
+                changes["nodes"] = [WorkflowNode.from_dict(n) for n in req.nodes]
+            if req.edges is not None:
+                changes["edges"] = [WorkflowEdge.from_dict(e) for e in req.edges]
+            if req.tags is not None:
+                changes["tags"] = req.tags
+            wf = await store.update(workflow_id, changes)
+            return wf.to_dict()
+        except WorkflowNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except WorkflowValidationError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+
+    @app.delete("/api/v1/workflows/{workflow_id}", tags=["dashboard"])
+    async def delete_workflow(workflow_id: str) -> dict[str, Any]:
+        """Delete a workflow."""
+        store = _get_workflow_store()
+        deleted = await store.delete(workflow_id)
+        return {"deleted": deleted}
+
+    @app.get("/api/v1/monitor/snapshot", tags=["dashboard"])
+    async def monitor_snapshot() -> dict[str, Any]:
+        """Get a live monitoring snapshot."""
+        collector = _get_metrics_collector()
+        snap = await collector.snapshot()
+        return snap.to_dict()
+
+    @app.get("/api/v1/monitor/timeseries", tags=["dashboard"])
+    async def monitor_timeseries(
+        metric: str = "event_count",
+        window_minutes: int = 60,
+    ) -> dict[str, Any]:
+        """Get a time series for a specific metric."""
+        collector = _get_metrics_collector()
+        series = await collector.timeseries(
+            metric=metric,
+            window_minutes=window_minutes,
+        )
+        return {"metric": metric, "window_minutes": window_minutes, "series": series}
+
+    @app.get("/api/v1/analytics/summary", tags=["dashboard"])
+    async def analytics_summary() -> dict[str, Any]:
+        """Get a summary of analytics (last 60 minutes)."""
+        return await _get_analytics().summary()
+
+    @app.get("/api/v1/analytics/costs", tags=["dashboard"])
+    async def analytics_costs(window_minutes: int = 60) -> dict[str, Any]:
+        """Get cost breakdown by capability."""
+        return await _get_analytics().cost_breakdown(window_minutes=window_minutes)
+
+    @app.get("/api/v1/analytics/latency", tags=["dashboard"])
+    async def analytics_latency(window_minutes: int = 60) -> dict[str, Any]:
+        """Get latency percentiles."""
+        return await _get_analytics().latency_percentiles(window_minutes=window_minutes)
+
+    @app.get("/api/v1/analytics/throughput", tags=["dashboard"])
+    async def analytics_throughput(window_minutes: int = 60) -> dict[str, Any]:
+        """Get throughput time series (events per minute)."""
+        series = await _get_analytics().throughput_series(window_minutes=window_minutes)
+        return {"window_minutes": window_minutes, "series": series}
+
+    @app.post("/api/v1/monitor/record", tags=["dashboard"])
+    async def monitor_record(req: RecordEventRequest) -> dict[str, Any]:
+        """Manually record a metric event (for testing or external integrations)."""
+        from core.contracts.actor import ActorRef, ActorType
+        from core.contracts.event import Event
+
+        collector = _get_metrics_collector()
+        event = Event(
+            topic=req.topic,
+            correlation_id=UUID(req.correlation_id) if req.correlation_id else uuid4(),
+            actor=ActorRef(type=ActorType.SYSTEM, id="api"),
+            payload=req.payload,
+        )
+        await collector.record_event(event)
+        return {"recorded": True}
+
     # --- Experience & Learning endpoints (v2.1) ---
 
-    _learning_engine: LearningEngine | None = None
+    _learning_engine: Any = None
 
-    def _get_learning_engine() -> LearningEngine:
+    def _get_learning_engine() -> Any:
         nonlocal _learning_engine
         if _learning_engine is None:
+            from services.experience import LearningEngine
             _learning_engine = LearningEngine()
         return _learning_engine
 
+    class ExperienceSearchRequest(BaseModel):
+        query: str
+        search_type: str | None = None
+        limit: int = Field(default=10, ge=1, le=100)
+
+    class ExperienceReplayRequest(BaseModel):
+        mode: str = "dry_run"
+        comparison_agent_id: str | None = None
+
+    class ExperienceRecordRequest(BaseModel):
+        task_id: str
+        agent_id: str
+        agent_type: str
+        provider: str | None = None
+        model: str | None = None
+        capabilities: list[str] = Field(default_factory=list)
+        goal: str = ""
+        input_summary: str = ""
+        output_summary: str = ""
+        outcome: str = "success"
+        success: bool = True
+        execution_time_s: float = 0.0
+        latency_s: float = 0.0
+        cost_usd: float = 0.0
+        reflection_score: float = 0.0
+        qa_score: float = 0.0
+        confidence: float = 0.0
+        retries: int = 0
+        failure_reason: str | None = None
+        recovery_action: str | None = None
+        workflow_id: str | None = None
+
     @app.get("/api/v1/experience", tags=["experience"])
     async def list_experiences(
-        agent_id: str | None = None,
-        provider: str | None = None,
-        capability: str | None = None,
-        outcome: str | None = None,
-        success: bool | None = None,
-        limit: int = 100,
-        offset: int = 0,
+        agent_id: str | None = None, provider: str | None = None,
+        capability: str | None = None, outcome: str | None = None,
+        success: bool | None = None, limit: int = 100, offset: int = 0,
     ) -> dict[str, Any]:
-        """List experiences with optional filtering."""
+        from services.experience import ExperienceFilter
         engine = _get_learning_engine()
-        filter = ExperienceFilter(
-            agent_id=agent_id,
-            provider=provider,
-            capability=capability,
-            outcome=outcome,
-            success=success,
-        )
+        filter = ExperienceFilter(agent_id=agent_id, provider=provider, capability=capability, outcome=outcome, success=success) if any([agent_id, provider, capability, outcome, success is not None]) else None
         records = await engine.list_experiences(filter, limit=limit, offset=offset)
         total = await engine.store.count(filter)
-        return {
-            "experiences": [r.to_dict() for r in records],
-            "count": len(records),
-            "total": total,
-        }
+        return {"experiences": [r.to_dict() for r in records], "count": len(records), "total": total}
 
     @app.get("/api/v1/experience/{experience_id}", tags=["experience"])
     async def get_experience(experience_id: str) -> dict[str, Any]:
-        """Get a single experience by ID."""
         engine = _get_learning_engine()
         try:
             record = await engine.get(UUID(experience_id))
@@ -752,29 +872,16 @@ def create_app() -> FastAPI:
 
     @app.post("/api/v1/experience", tags=["experience"])
     async def record_experience(req: ExperienceRecordRequest) -> dict[str, Any]:
-        """Manually record an experience (for testing or external ingestion)."""
+        from services.experience import ExperienceRecord
         engine = _get_learning_engine()
         record = ExperienceRecord(
-            task_id=UUID(req.task_id),
-            agent_id=req.agent_id,
-            agent_type=req.agent_type,
-            provider=req.provider,
-            model=req.model,
-            capabilities_used=req.capabilities,
-            goal=req.goal,
-            input_summary=req.input_summary,
-            output_summary=req.output_summary,
-            outcome=req.outcome,
-            success=req.success,
-            execution_time_s=req.execution_time_s,
-            latency_s=req.latency_s,
-            cost_usd=req.cost_usd,
-            reflection_score=req.reflection_score,
-            qa_score=req.qa_score,
-            confidence=req.confidence,
-            retries=req.retries,
-            failure_reason=req.failure_reason,
-            recovery_action=req.recovery_action,
+            task_id=UUID(req.task_id), agent_id=req.agent_id, agent_type=req.agent_type,
+            provider=req.provider, model=req.model, capabilities_used=req.capabilities,
+            goal=req.goal, input_summary=req.input_summary, output_summary=req.output_summary,
+            outcome=req.outcome, success=req.success, execution_time_s=req.execution_time_s,
+            latency_s=req.latency_s, cost_usd=req.cost_usd, reflection_score=req.reflection_score,
+            qa_score=req.qa_score, confidence=req.confidence, retries=req.retries,
+            failure_reason=req.failure_reason, recovery_action=req.recovery_action,
             workflow_id=req.workflow_id,
         )
         stored = await engine.record(record)
@@ -782,93 +889,60 @@ def create_app() -> FastAPI:
 
     @app.post("/api/v1/experience/search", tags=["experience"])
     async def search_experiences(req: ExperienceSearchRequest) -> dict[str, Any]:
-        """Search experiences semantically."""
         engine = _get_learning_engine()
-        return await engine.search(
-            req.query, search_type=req.search_type, limit=req.limit,
-        )
+        return await engine.search(req.query, search_type=req.search_type, limit=req.limit)
 
     @app.post("/api/v1/experience/{experience_id}/replay", tags=["experience"])
-    async def replay_experience(
-        experience_id: str,
-        req: ExperienceReplayRequest,
-    ) -> dict[str, Any]:
-        """Replay an experience (dry_run / re_execute / compare)."""
+    async def replay_experience(experience_id: str, req: ExperienceReplayRequest) -> dict[str, Any]:
         engine = _get_learning_engine()
-        result = await engine.replay(
-            UUID(experience_id),
-            mode=req.mode,
-            comparison_agent_id=req.comparison_agent_id,
-        )
+        result = await engine.replay(UUID(experience_id), mode=req.mode, comparison_agent_id=req.comparison_agent_id)
         return result.to_dict()
 
     @app.get("/api/v1/experience/export/{format}", tags=["experience"])
-    async def export_experiences(
-        format: str,
-        agent_id: str | None = None,
-        limit: int = 10000,
-    ) -> dict[str, Any]:
-        """Export experiences as JSON or CSV."""
+    async def export_experiences(format: str, agent_id: str | None = None, limit: int = 10000) -> dict[str, Any]:
+        from services.experience import ExperienceFilter
         engine = _get_learning_engine()
         filter = ExperienceFilter(agent_id=agent_id) if agent_id else None
         if format == "csv":
-            content = await engine.export_csv(filter, limit=limit)
-            return {"format": "csv", "content": content}
-        content = await engine.export_json(filter, limit=limit)
-        return {"format": "json", "content": content}
+            return {"format": "csv", "content": await engine.export_csv(filter, limit=limit)}
+        return {"format": "json", "content": await engine.export_json(filter, limit=limit)}
 
     @app.get("/api/v1/learning/stats", tags=["learning"])
     async def learning_stats() -> dict[str, Any]:
-        """Get top-level learning statistics."""
         engine = _get_learning_engine()
-        stats = await engine.learning_stats()
-        return stats.to_dict()
+        return (await engine.learning_stats()).to_dict()
 
     @app.get("/api/v1/learning/trends", tags=["learning"])
-    async def learning_trends(
-        days: int = 30,
-        bucket: str = "day",
-    ) -> dict[str, Any]:
-        """Get success rate trend over time."""
+    async def learning_trends(days: int = 30, bucket: str = "day") -> dict[str, Any]:
         engine = _get_learning_engine()
-        series = await engine.trends(days=days, bucket=bucket)
-        return {"days": days, "bucket": bucket, "series": series}
+        return {"days": days, "bucket": bucket, "series": await engine.trends(days=days, bucket=bucket)}
 
     @app.get("/api/v1/learning/agents", tags=["learning"])
     async def learning_agent_rankings(limit: int = 10) -> dict[str, Any]:
-        """Rank agents by reliability score."""
         engine = _get_learning_engine()
         return {"agents": await engine.rank_agents(limit=limit)}
 
     @app.get("/api/v1/learning/providers", tags=["learning"])
     async def learning_provider_rankings(limit: int = 10) -> dict[str, Any]:
-        """Rank providers by reliability score."""
         engine = _get_learning_engine()
         return {"providers": await engine.rank_providers(limit=limit)}
 
     @app.get("/api/v1/learning/workflows", tags=["learning"])
     async def learning_workflow_rankings(limit: int = 10) -> dict[str, Any]:
-        """Rank workflows by quality."""
         engine = _get_learning_engine()
         return {"workflows": await engine.rank_workflows(limit=limit)}
 
     @app.get("/api/v1/learning/patterns", tags=["learning"])
     async def learning_patterns() -> dict[str, Any]:
-        """Discover success/failure patterns."""
         engine = _get_learning_engine()
-        report = await engine.discover_patterns()
-        return report.to_dict()
+        return (await engine.discover_patterns()).to_dict()
 
     @app.get("/api/v1/learning/recommendations/{capability}", tags=["learning"])
     async def recommend_agent(capability: str) -> dict[str, Any]:
-        """Recommend the best agent for a capability based on history."""
         engine = _get_learning_engine()
         rec = await engine.recommend_agent_for_capability(capability)
         if rec is None:
-            raise HTTPException(
-                status_code=404,
-                detail=f"No experience data for capability '{capability}'",
-            )
+            raise HTTPException(status_code=404, detail=f"No experience data for capability '{capability}'")
         return rec
 
     # --- Mission & Organization endpoints (v3.0) ---
@@ -882,205 +956,162 @@ def create_app() -> FastAPI:
             _mission_manager = MissionManager()
         return _mission_manager
 
+    class MissionCreateRequest(BaseModel):
+        title: str
+        description: str = ""
+        objectives: list[str] = Field(default_factory=list)
+        deliverables: list[str] = Field(default_factory=list)
+        priority: str = "normal"
+        budget_total_usd: float = 0.0
+        deadline: str | None = None
+        owner: str | None = None
+        tags: list[str] = Field(default_factory=list)
+        decompose: bool = True
+        decomposition_strategy: str = "objective_per_project"
+
+    class MissionUpdateRequest(BaseModel):
+        title: str | None = None
+        description: str | None = None
+        priority: str | None = None
+        deadline: str | None = None
+        owner: str | None = None
+        tags: list[str] | None = None
+        budget_total_usd: float | None = None
+
+    class WBSNodeCreateRequest(BaseModel):
+        node_type: str = "task"
+        title: str
+        description: str = ""
+        parent_id: str | None = None
+        depends_on: list[str] = Field(default_factory=list)
+        capabilities_required: list[str] = Field(default_factory=list)
+        assigned_agent_id: str | None = None
+        assigned_provider: str | None = None
+
+    class MissionSearchRequest(BaseModel):
+        query: str
+        limit: int = Field(default=10, ge=1, le=100)
+
     @app.get("/api/v1/missions", tags=["missions"])
-    async def list_missions(
-        status: str | None = None,
-        priority: str | None = None,
-        owner: str | None = None,
-        limit: int = 100,
-        offset: int = 0,
-    ) -> dict[str, Any]:
-        """List missions with optional filtering."""
+    async def list_missions(status: str | None = None, priority: str | None = None, owner: str | None = None, limit: int = 100, offset: int = 0) -> dict[str, Any]:
         from services.organization import MissionFilter
         mgr = _get_mission_manager()
         filter = MissionFilter(status=status, priority=priority, owner=owner) if any([status, priority, owner]) else None
         missions = await mgr.list_missions(filter, limit=limit, offset=offset)
-        return {
-            "missions": [m.to_dict() for m in missions],
-            "count": len(missions),
-        }
+        return {"missions": [m.to_dict() for m in missions], "count": len(missions)}
 
     @app.post("/api/v1/missions", tags=["missions"])
     async def create_mission(req: MissionCreateRequest) -> dict[str, Any]:
-        """Create a new mission."""
         from datetime import datetime
         mgr = _get_mission_manager()
         deadline = datetime.fromisoformat(req.deadline) if req.deadline else None
-        mission = await mgr.create_mission(
-            title=req.title,
-            description=req.description,
-            objectives=req.objectives,
-            deliverables=req.deliverables,
-            priority=req.priority,
-            budget_total_usd=req.budget_total_usd,
-            deadline=deadline,
-            owner=req.owner,
-            tags=req.tags,
-            decompose=req.decompose,
-            decomposition_strategy=req.decomposition_strategy,
-        )
+        mission = await mgr.create_mission(title=req.title, description=req.description, objectives=req.objectives, deliverables=req.deliverables, priority=req.priority, budget_total_usd=req.budget_total_usd, deadline=deadline, owner=req.owner, tags=req.tags, decompose=req.decompose, decomposition_strategy=req.decomposition_strategy)
         return mission.to_dict()
 
     @app.get("/api/v1/missions/{mission_id}", tags=["missions"])
     async def get_mission(mission_id: str) -> dict[str, Any]:
-        """Get a mission by ID."""
         mgr = _get_mission_manager()
         try:
-            mission = await mgr.get_mission(mission_id)
-            return mission.to_dict()
+            return (await mgr.get_mission(mission_id)).to_dict()
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
 
     @app.patch("/api/v1/missions/{mission_id}", tags=["missions"])
-    async def update_mission(
-        mission_id: str,
-        req: MissionUpdateRequest,
-    ) -> dict[str, Any]:
-        """Update a mission."""
+    async def update_mission(mission_id: str, req: MissionUpdateRequest) -> dict[str, Any]:
         mgr = _get_mission_manager()
         changes: dict[str, Any] = {}
-        if req.title is not None:
-            changes["title"] = req.title
-        if req.description is not None:
-            changes["description"] = req.description
-        if req.priority is not None:
-            changes["priority"] = req.priority
-        if req.deadline is not None:
-            changes["deadline"] = req.deadline
-        if req.owner is not None:
-            changes["owner"] = req.owner
-        if req.tags is not None:
-            changes["tags"] = req.tags
-        if req.budget_total_usd is not None:
-            changes["budget_total_usd"] = req.budget_total_usd
-        mission = await mgr.update_mission(mission_id, changes)
-        return mission.to_dict()
+        if req.title is not None: changes["title"] = req.title
+        if req.description is not None: changes["description"] = req.description
+        if req.priority is not None: changes["priority"] = req.priority
+        if req.deadline is not None: changes["deadline"] = req.deadline
+        if req.owner is not None: changes["owner"] = req.owner
+        if req.tags is not None: changes["tags"] = req.tags
+        if req.budget_total_usd is not None: changes["budget_total_usd"] = req.budget_total_usd
+        return (await mgr.update_mission(mission_id, changes)).to_dict()
 
     @app.delete("/api/v1/missions/{mission_id}", tags=["missions"])
     async def delete_mission(mission_id: str) -> dict[str, Any]:
-        """Delete a mission."""
         mgr = _get_mission_manager()
-        deleted = await mgr.delete_mission(mission_id)
-        return {"deleted": deleted}
+        return {"deleted": await mgr.delete_mission(mission_id)}
 
     @app.post("/api/v1/missions/{mission_id}/start", tags=["missions"])
     async def start_mission(mission_id: str) -> dict[str, Any]:
-        """Start a mission."""
         mgr = _get_mission_manager()
         try:
-            mission = await mgr.start_mission(mission_id)
-            return mission.to_dict()
+            return (await mgr.start_mission(mission_id)).to_dict()
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @app.post("/api/v1/missions/{mission_id}/pause", tags=["missions"])
     async def pause_mission(mission_id: str, reason: str = "") -> dict[str, Any]:
-        """Pause a mission."""
         mgr = _get_mission_manager()
         try:
-            mission = await mgr.pause_mission(mission_id, reason=reason)
-            return mission.to_dict()
+            return (await mgr.pause_mission(mission_id, reason=reason)).to_dict()
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @app.post("/api/v1/missions/{mission_id}/resume", tags=["missions"])
     async def resume_mission(mission_id: str) -> dict[str, Any]:
-        """Resume a paused mission."""
         mgr = _get_mission_manager()
         try:
-            mission = await mgr.resume_mission(mission_id)
-            return mission.to_dict()
+            return (await mgr.resume_mission(mission_id)).to_dict()
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @app.post("/api/v1/missions/{mission_id}/cancel", tags=["missions"])
     async def cancel_mission(mission_id: str, reason: str = "") -> dict[str, Any]:
-        """Cancel a mission."""
         mgr = _get_mission_manager()
         try:
-            mission = await mgr.cancel_mission(mission_id, reason=reason)
-            return mission.to_dict()
+            return (await mgr.cancel_mission(mission_id, reason=reason)).to_dict()
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @app.post("/api/v1/missions/{mission_id}/replay", tags=["missions"])
     async def replay_mission(mission_id: str) -> dict[str, Any]:
-        """Replay a mission's history."""
         mgr = _get_mission_manager()
-        result = await mgr.replay_mission(mission_id)
-        return result.to_dict()
+        return (await mgr.replay_mission(mission_id)).to_dict()
 
     @app.get("/api/v1/missions/{mission_id}/timeline", tags=["missions"])
     async def mission_timeline(mission_id: str) -> dict[str, Any]:
-        """Get a mission's event timeline."""
         mgr = _get_mission_manager()
         timeline = await mgr.get_mission_timeline(mission_id)
         return {"mission_id": mission_id, "timeline": timeline, "count": len(timeline)}
 
     @app.get("/api/v1/missions/{mission_id}/analytics", tags=["missions"])
-    async def mission_analytics(mission_id: str) -> dict[str, Any]:
-        """Get analytics for a mission."""
+    async def mission_analytics_endpoint(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
         return await mgr.get_mission_analytics(mission_id)
 
     @app.get("/api/v1/missions/{mission_id}/artifacts", tags=["missions"])
     async def mission_artifacts(mission_id: str) -> dict[str, Any]:
-        """Get artifacts produced by a mission."""
         mgr = _get_mission_manager()
         mission = await mgr.get_mission(mission_id)
-        return {
-            "mission_id": mission_id,
-            "artifacts": [a.to_dict() for a in mission.artifacts],
-            "count": len(mission.artifacts),
-        }
+        return {"mission_id": mission_id, "artifacts": [a.to_dict() for a in mission.artifacts], "count": len(mission.artifacts)}
 
     @app.get("/api/v1/missions/{mission_id}/graph", tags=["missions"])
-    async def mission_graph(mission_id: str) -> dict[str, Any]:
-        """Get a mission's WBS dependency graph."""
+    async def mission_graph_endpoint(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
         return await mgr.get_mission_graph(mission_id)
 
     @app.post("/api/v1/missions/{mission_id}/wbs", tags=["missions"])
-    async def add_wbs_node(
-        mission_id: str,
-        req: WBSNodeCreateRequest,
-    ) -> dict[str, Any]:
-        """Add a WBS node to a mission."""
+    async def add_wbs_node(mission_id: str, req: WBSNodeCreateRequest) -> dict[str, Any]:
         mgr = _get_mission_manager()
-        node = await mgr.add_wbs_node(
-            mission_id,
-            req.node_type,
-            title=req.title,
-            description=req.description,
-            parent_id=req.parent_id,
-            depends_on=req.depends_on,
-            capabilities_required=req.capabilities_required,
-            assigned_agent_id=req.assigned_agent_id,
-            assigned_provider=req.assigned_provider,
-        )
+        node = await mgr.add_wbs_node(mission_id, req.node_type, title=req.title, description=req.description, parent_id=req.parent_id, depends_on=req.depends_on, capabilities_required=req.capabilities_required, assigned_agent_id=req.assigned_agent_id, assigned_provider=req.assigned_provider)
         return node.to_dict()
 
     @app.get("/api/v1/missions/{mission_id}/evaluate", tags=["missions"])
     async def evaluate_mission(mission_id: str) -> dict[str, Any]:
-        """Evaluate a mission and get decision recommendations."""
         mgr = _get_mission_manager()
         recs = await mgr.evaluate_mission(mission_id)
-        return {
-            "mission_id": mission_id,
-            "recommendations": [r.to_dict() for r in recs],
-            "count": len(recs),
-        }
+        return {"mission_id": mission_id, "recommendations": [r.to_dict() for r in recs], "count": len(recs)}
 
     @app.get("/api/v1/missions/portfolio/metrics", tags=["missions"])
     async def portfolio_metrics() -> dict[str, Any]:
-        """Get portfolio-level metrics across all missions."""
         mgr = _get_mission_manager()
-        metrics = await mgr.get_portfolio_metrics()
-        return metrics.to_dict()
+        return (await mgr.get_portfolio_metrics()).to_dict()
 
     @app.post("/api/v1/missions/search", tags=["missions"])
     async def search_missions(req: MissionSearchRequest) -> dict[str, Any]:
-        """Search missions by text."""
         mgr = _get_mission_manager()
         results = await mgr.search_missions(req.query, limit=req.limit)
         return {"results": results, "count": len(results)}

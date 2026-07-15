@@ -99,7 +99,7 @@ class ShellGateway:
                 stderr=f"Timed out after {timeout}s",
                 duration_s=duration,
                 command=command,
-                shell=chosen_shell,
+                shell=chosen_shell,  # nosec B604 — audit record, not subprocess
             )
         except OSError as e:
             duration = time.monotonic() - start
@@ -120,7 +120,7 @@ class ShellGateway:
             stderr=stderr[: self.MAX_OUTPUT_BYTES],
             duration_s=duration,
             command=command,
-            shell=chosen_shell,
+            shell=chosen_shell,  # nosec B604 — audit record, not subprocess
         )
 
     def _exec_sync(

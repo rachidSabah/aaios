@@ -33,7 +33,7 @@ class Gateway:
         """Return a Gateway wired with the default singleton sub-gateways."""
         return cls(
             fs=get_fs_gateway(),
-            shell=get_shell_gateway(),
+            shell=get_shell_gateway(),  # nosec B604 — class field name, not subprocess
             net=get_net_gateway(),
         )
 

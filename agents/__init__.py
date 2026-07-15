@@ -12,7 +12,12 @@ Structure:
 from __future__ import annotations
 
 from agents._base import InProcessAgent, RemoteServiceAgent, SubprocessBridgeAgent
-from agents._impls import ClaudeCodeCodingAgent, HermesDesktopAgent, MockAgent
+from agents._impls import (
+    ClaudeCodeCodingAgent,
+    HermesDesktopAgent,
+    MockAgent,
+    VoiceVisionAgent,
+)
 from agents._types import (
     BrowserAgent,
     CodingAgent,
@@ -56,5 +61,6 @@ __all__ = [
     "SupervisorAgent",
     "VisionAgent",
     "VoiceAgent",
+    "VoiceVisionAgent",
     "WorkflowAgent",
 ]

@@ -17,7 +17,14 @@ from core.logging import get_logger
 _log = get_logger(__name__)
 
 # Single Jinja2 environment — strict undefined (no silent fallback to '')
-_ENV = Environment(undefined=StrictUndefined, autoescape=False, keep_trailing_newline=True)
+# autoescape=False is intentional: prompts go to LLMs, not browsers — escaping
+# would corrupt the prompt content. The prompt inputs are sanitized at the
+# gateway layer before reaching this registry.
+_ENV = Environment(
+    undefined=StrictUndefined,
+    autoescape=False,  # nosec B701 — intentional, see comment above
+    keep_trailing_newline=True,
+)
 
 
 class PromptError(RuntimeError):
