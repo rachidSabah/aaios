@@ -1690,5 +1690,98 @@ def cognitive_health() -> None:
     ))
 
 
+# --- Knowledge Platform commands (v5.1) ---
+
+knowledge_app = typer.Typer(help="Knowledge & Memory Platform — enterprise knowledge management.")
+app.add_typer(knowledge_app, name="knowledge")
+
+
+@knowledge_app.command("search")
+def knowledge_search(
+    query: str = typer.Argument(..., help="Search query"),
+    limit: int = typer.Option(10, "--limit"),
+) -> None:
+    """Search knowledge entries."""
+    try:
+        data = _api_post("/api/v1/knowledge/search", body={"query": query, "limit": limit})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    results = data.get("results", [])
+    if not results:
+        console.print("[yellow]No results found.[/yellow]")
+        return
+    for r in results:
+        console.print(f"  [{r.get('match_type', '')}] {r.get('title', '')} (score: {r.get('score', 0):.3f})")
+        console.print(f"    {r.get('content_snippet', '')[:100]}")
+
+
+@knowledge_app.command("rag")
+def knowledge_rag(
+    query: str = typer.Argument(..., help="RAG query"),
+    max_results: int = typer.Option(5, "--max"),
+) -> None:
+    """RAG retrieval."""
+    try:
+        data = _api_post("/api/v1/knowledge/rag", body={"query": query, "max_results": max_results})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[cyan]Confidence:[/cyan] {data.get('confidence', 0):.2f}")
+    console.print(f"[cyan]Tokens:[/cyan]     {data.get('token_count', 0)}")
+    console.print(f"[cyan]Sources:[/cyan]    {len(data.get('sources', []))}")
+    console.print(f"\n[cyan]Context:[/cyan]\n{data.get('context', '')[:2000]}")
+    if data.get("citations"):
+        console.print(f"\n[cyan]Citations:[/cyan]")
+        for c in data["citations"]:
+            console.print(f"  {c.get('source', '')}: {c.get('title', '')} (score: {c.get('score', 0):.3f})")
+
+
+@knowledge_app.command("memory")
+def knowledge_memory() -> None:
+    """Show memory statistics."""
+    try:
+        data = _api_get("/api/v1/knowledge/memory")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[cyan]Memory Types:[/cyan] {data.get('memory_types', 0)}")
+    console.print(f"[cyan]Total Records:[/cyan] {data.get('total', 0)}")
+    for mt, count in data.items():
+        if mt not in ("total", "memory_types"):
+            console.print(f"  {mt}: {count}")
+
+
+@knowledge_app.command("graph")
+def knowledge_graph() -> None:
+    """Show knowledge graph summary."""
+    try:
+        data = _api_get("/api/v1/knowledge/graph")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[cyan]Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges")
+
+
+@knowledge_app.command("stats")
+def knowledge_stats() -> None:
+    """Show knowledge platform statistics."""
+    try:
+        data = _api_get("/api/v1/knowledge/statistics")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[cyan]Entries:[/cyan]      {data.get('entries', 0)}\n"
+        f"[cyan]Versions:[/cyan]     {data.get('versions', 0)}\n"
+        f"[cyan]Collections:[/cyan]  {data.get('collections', 0)}\n"
+        f"[cyan]Workspaces:[/cyan]   {data.get('workspaces', 0)}\n"
+        f"[cyan]Graph nodes:[/cyan]  {data.get('graph_nodes', 0)}\n"
+        f"[cyan]Graph edges:[/cyan]  {data.get('graph_edges', 0)}\n"
+        f"[cyan]Memory total:[/cyan] {data.get('memory', {}).get('total', 0)}",
+        title="Knowledge Platform Statistics",
+    ))
+
+
 if __name__ == "__main__":
     main()

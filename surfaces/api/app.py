@@ -1488,4 +1488,147 @@ def create_app() -> FastAPI:
         mgr = _get_cognitive_manager()
         return await mgr.get_all()
 
+    # --- Knowledge Platform endpoints (v5.1) ---
+
+    _knowledge_platform: Any = None
+
+    def _get_knowledge_platform() -> Any:
+        nonlocal _knowledge_platform
+        if _knowledge_platform is None:
+            from services.knowledge import KnowledgePlatform
+            _knowledge_platform = KnowledgePlatform()
+        return _knowledge_platform
+
+    @app.get("/api/v1/knowledge", tags=["knowledge"])
+    async def knowledge_list(
+        workspace_id: str | None = None,
+        collection_id: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """List knowledge entries."""
+        platform = _get_knowledge_platform()
+        entries = await platform.list_entries(
+            workspace_id=workspace_id, collection_id=collection_id,
+            status=status, limit=limit,
+        )
+        return {"entries": [e.to_dict() for e in entries], "count": len(entries)}
+
+    @app.post("/api/v1/knowledge", tags=["knowledge"])
+    async def knowledge_create(body: dict[str, Any]) -> dict[str, Any]:
+        """Create a knowledge entry."""
+        from services.knowledge import KnowledgeEntry
+        platform = _get_knowledge_platform()
+        entry = KnowledgeEntry(**body)
+        created = await platform.create_entry(entry)
+        return created.to_dict()
+
+    @app.get("/api/v1/knowledge/{entry_id}", tags=["knowledge"])
+    async def knowledge_get(entry_id: str) -> dict[str, Any]:
+        """Get a knowledge entry."""
+        platform = _get_knowledge_platform()
+        entry = await platform.get_entry(entry_id)
+        if entry is None:
+            raise HTTPException(status_code=404, detail="Entry not found")
+        return entry.to_dict()
+
+    @app.get("/api/v1/knowledge/{entry_id}/versions", tags=["knowledge"])
+    async def knowledge_versions(entry_id: str) -> dict[str, Any]:
+        """Get version history for a knowledge entry."""
+        platform = _get_knowledge_platform()
+        versions = await platform.get_versions(entry_id)
+        return {"versions": [v.to_dict() for v in versions], "count": len(versions)}
+
+    @app.post("/api/v1/knowledge/search", tags=["knowledge"])
+    async def knowledge_search(body: dict[str, Any]) -> dict[str, Any]:
+        """Search knowledge entries."""
+        platform = _get_knowledge_platform()
+        query = body.get("query", "")
+        results = await platform.search(
+            query,
+            workspace_id=body.get("workspace_id"),
+            collection_id=body.get("collection_id"),
+            limit=body.get("limit", 10),
+        )
+        return {"results": results, "count": len(results)}
+
+    @app.post("/api/v1/knowledge/rag", tags=["knowledge"])
+    async def knowledge_rag(body: dict[str, Any]) -> dict[str, Any]:
+        """RAG retrieval."""
+        from services.knowledge import RetrievalRequest
+        platform = _get_knowledge_platform()
+        request = RetrievalRequest(
+            query=body.get("query", ""),
+            max_results=body.get("max_results", 10),
+            workspace_id=body.get("workspace_id"),
+            include_citations=body.get("include_citations", True),
+        )
+        return await platform.rag(request)
+
+    @app.get("/api/v1/knowledge/graph", tags=["knowledge"])
+    async def knowledge_graph() -> dict[str, Any]:
+        """Get knowledge graph snapshot."""
+        platform = _get_knowledge_platform()
+        return await platform.graph_snapshot()
+
+    @app.get("/api/v1/knowledge/graph/search", tags=["knowledge"])
+    async def knowledge_graph_search(q: str) -> dict[str, Any]:
+        """Search the knowledge graph."""
+        platform = _get_knowledge_platform()
+        results = await platform.graph_search(q)
+        return {"results": results, "count": len(results)}
+
+    @app.get("/api/v1/knowledge/graph/impact/{node_id}", tags=["knowledge"])
+    async def knowledge_graph_impact(node_id: str) -> dict[str, Any]:
+        """Impact analysis for a graph node."""
+        platform = _get_knowledge_platform()
+        return await platform.graph_impact(node_id)
+
+    @app.get("/api/v1/knowledge/collections", tags=["knowledge"])
+    async def knowledge_collections(workspace_id: str | None = None) -> dict[str, Any]:
+        """List knowledge collections."""
+        platform = _get_knowledge_platform()
+        collections = await platform.list_collections(workspace_id)
+        return {"collections": [c.to_dict() for c in collections], "count": len(collections)}
+
+    @app.get("/api/v1/knowledge/workspaces", tags=["knowledge"])
+    async def knowledge_workspaces() -> dict[str, Any]:
+        """List knowledge workspaces."""
+        platform = _get_knowledge_platform()
+        workspaces = await platform.list_workspaces()
+        return {"workspaces": [w.to_dict() for w in workspaces], "count": len(workspaces)}
+
+    @app.get("/api/v1/knowledge/statistics", tags=["knowledge"])
+    async def knowledge_stats() -> dict[str, Any]:
+        """Get knowledge platform statistics."""
+        platform = _get_knowledge_platform()
+        return await platform.stats()
+
+    @app.get("/api/v1/knowledge/memory", tags=["knowledge"])
+    async def knowledge_memory_stats() -> dict[str, Any]:
+        """Get memory platform statistics."""
+        platform = _get_knowledge_platform()
+        return await platform.memory_stats()
+
+    @app.post("/api/v1/knowledge/memory", tags=["knowledge"])
+    async def knowledge_memory_store(body: dict[str, Any]) -> dict[str, Any]:
+        """Store a memory record."""
+        from services.knowledge import MemoryRecord
+        platform = _get_knowledge_platform()
+        record = MemoryRecord(**body)
+        stored = await platform.store_memory(record)
+        return stored.to_dict()
+
+    @app.post("/api/v1/knowledge/memory/search", tags=["knowledge"])
+    async def knowledge_memory_search(body: dict[str, Any]) -> dict[str, Any]:
+        """Search memory records."""
+        platform = _get_knowledge_platform()
+        results = await platform.search_memory(
+            body.get("query", ""),
+            memory_types=body.get("memory_types"),
+            tags=body.get("tags"),
+            limit=body.get("limit", 50),
+        )
+        return {"results": results, "count": len(results)}
+
     return app
