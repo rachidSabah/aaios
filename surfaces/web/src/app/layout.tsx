@@ -1,4 +1,5 @@
 import type { Metadata } from 'next';
+import Link from 'next/link';
 import './globals.css';
 
 export const metadata: Metadata = {
@@ -10,6 +11,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false },
 };
 
+const navItems = [
+  { href: '/', label: 'Overview' },
+  { href: '/workflows', label: 'Workflows' },
+  { href: '/monitoring', label: 'Monitoring' },
+  { href: '/analytics', label: 'Analytics' },
+];
+
 export default function RootLayout({
   children,
 }: {
@@ -17,7 +25,55 @@ export default function RootLayout({
 }) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <div
+          style={{
+            minHeight: '100vh',
+            display: 'flex',
+            flexDirection: 'column',
+          }}
+        >
+          <header
+            style={{
+              borderBottom: '1px solid var(--color-border)',
+              padding: '0.75rem 1.5rem',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '2rem',
+              backgroundColor: 'var(--color-card)',
+            }}
+          >
+            <Link
+              href="/"
+              style={{
+                fontWeight: 700,
+                fontSize: '1rem',
+                color: 'var(--color-fg)',
+                textDecoration: 'none',
+              }}
+            >
+              AAiOS
+            </Link>
+            <nav style={{ display: 'flex', gap: '1.25rem' }}>
+              {navItems.map((item) => (
+                <Link
+                  key={item.href}
+                  href={item.href}
+                  style={{
+                    color: 'var(--color-muted)',
+                    textDecoration: 'none',
+                    fontSize: '0.875rem',
+                    fontWeight: 500,
+                  }}
+                >
+                  {item.label}
+                </Link>
+              ))}
+            </nav>
+          </header>
+          <main style={{ flex: 1 }}>{children}</main>
+        </div>
+      </body>
     </html>
   );
 }

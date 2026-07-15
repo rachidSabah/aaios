@@ -27,7 +27,7 @@ from __future__ import annotations
 import asyncio
 from datetime import UTC, datetime
 from typing import Any
-from uuid import UUID
+from uuid import UUID, uuid4
 
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,6 +35,15 @@ from pydantic import BaseModel, Field
 
 from core.contracts.memory.item import MemoryScope, MemoryScopeType
 from core.logging import get_logger
+from services.dashboard import (
+    Analytics,
+    MetricsCollector,
+    WorkflowEdge,
+    WorkflowNode,
+    WorkflowNotFoundError,
+    WorkflowStore,
+    WorkflowValidationError,
+)
 
 _log = get_logger(__name__)
 
@@ -105,6 +114,37 @@ class ApprovalRespondRequest(BaseModel):
 
     decision: str  # approved, denied, modified
     modified_inputs: dict[str, Any] | None = None
+
+
+# --- Dashboard request models (v2.0) ---
+
+
+class WorkflowCreateRequest(BaseModel):
+    """Request body for POST /api/v1/workflows."""
+
+    name: str
+    description: str = ""
+    nodes: list[dict[str, Any]] = Field(default_factory=list)
+    edges: list[dict[str, Any]] = Field(default_factory=list)
+    tags: list[str] = Field(default_factory=list)
+
+
+class WorkflowUpdateRequest(BaseModel):
+    """Request body for PUT /api/v1/workflows/{id}."""
+
+    name: str | None = None
+    description: str | None = None
+    nodes: list[dict[str, Any]] | None = None
+    edges: list[dict[str, Any]] | None = None
+    tags: list[str] | None = None
+
+
+class RecordEventRequest(BaseModel):
+    """Request body for POST /api/v1/monitor/record."""
+
+    topic: str
+    payload: dict[str, Any] = Field(default_factory=dict)
+    correlation_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -602,5 +642,167 @@ def create_app() -> FastAPI:
                 await asyncio.sleep(30)
         except WebSocketDisconnect:
             pass
+
+    # --- Dashboard endpoints (v2.0) ---
+
+    # Lazy singletons for the dashboard service
+    _workflow_store: WorkflowStore | None = None
+    _metrics_collector: MetricsCollector | None = None
+    _analytics: Analytics | None = None
+
+    def _get_workflow_store() -> WorkflowStore:
+        nonlocal _workflow_store
+        if _workflow_store is None:
+            _workflow_store = WorkflowStore()
+        return _workflow_store
+
+    def _get_metrics_collector() -> MetricsCollector:
+        nonlocal _metrics_collector
+        if _metrics_collector is None:
+            _metrics_collector = MetricsCollector()
+            # Try to subscribe to the global event bus, if initialized
+            try:
+                from core.event_bus import get_bus
+
+                bus = get_bus()
+                # Subscribe in a background task (subscribe is async)
+                asyncio.create_task(_metrics_collector.subscribe(bus))
+            except RuntimeError:
+                pass  # bus not initialized — collector works in manual mode
+        return _metrics_collector
+
+    def _get_analytics() -> Analytics:
+        nonlocal _analytics
+        if _analytics is None:
+            _analytics = Analytics(_get_metrics_collector())
+        return _analytics
+
+    @app.get("/api/v1/workflows", tags=["dashboard"])
+    async def list_workflows() -> dict[str, Any]:
+        """List all saved workflows."""
+        store = _get_workflow_store()
+        workflows = await store.list()
+        return {
+            "workflows": [w.to_dict() for w in workflows],
+            "count": len(workflows),
+        }
+
+    @app.post("/api/v1/workflows", tags=["dashboard"])
+    async def create_workflow(req: WorkflowCreateRequest) -> dict[str, Any]:
+        """Create a new workflow."""
+        store = _get_workflow_store()
+        try:
+            nodes = [WorkflowNode.from_dict(n) for n in req.nodes]
+            edges = [WorkflowEdge.from_dict(e) for e in req.edges]
+            wf = await store.create(
+                name=req.name,
+                description=req.description,
+                nodes=nodes,
+                edges=edges,
+                tags=req.tags,
+            )
+            return wf.to_dict()
+        except WorkflowValidationError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+
+    @app.get("/api/v1/workflows/{workflow_id}", tags=["dashboard"])
+    async def get_workflow(workflow_id: str) -> dict[str, Any]:
+        """Get a workflow by ID."""
+        store = _get_workflow_store()
+        try:
+            wf = await store.get(workflow_id)
+            return wf.to_dict()
+        except WorkflowNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.put("/api/v1/workflows/{workflow_id}", tags=["dashboard"])
+    async def update_workflow(
+        workflow_id: str,
+        req: WorkflowUpdateRequest,
+    ) -> dict[str, Any]:
+        """Update a workflow."""
+        store = _get_workflow_store()
+        try:
+            changes: dict[str, Any] = {}
+            if req.name is not None:
+                changes["name"] = req.name
+            if req.description is not None:
+                changes["description"] = req.description
+            if req.nodes is not None:
+                changes["nodes"] = [WorkflowNode.from_dict(n) for n in req.nodes]
+            if req.edges is not None:
+                changes["edges"] = [WorkflowEdge.from_dict(e) for e in req.edges]
+            if req.tags is not None:
+                changes["tags"] = req.tags
+            wf = await store.update(workflow_id, changes)
+            return wf.to_dict()
+        except WorkflowNotFoundError as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+        except WorkflowValidationError as e:
+            raise HTTPException(status_code=422, detail=str(e)) from e
+
+    @app.delete("/api/v1/workflows/{workflow_id}", tags=["dashboard"])
+    async def delete_workflow(workflow_id: str) -> dict[str, Any]:
+        """Delete a workflow."""
+        store = _get_workflow_store()
+        deleted = await store.delete(workflow_id)
+        return {"deleted": deleted}
+
+    @app.get("/api/v1/monitor/snapshot", tags=["dashboard"])
+    async def monitor_snapshot() -> dict[str, Any]:
+        """Get a live monitoring snapshot."""
+        collector = _get_metrics_collector()
+        snap = await collector.snapshot()
+        return snap.to_dict()
+
+    @app.get("/api/v1/monitor/timeseries", tags=["dashboard"])
+    async def monitor_timeseries(
+        metric: str = "event_count",
+        window_minutes: int = 60,
+    ) -> dict[str, Any]:
+        """Get a time series for a specific metric."""
+        collector = _get_metrics_collector()
+        series = await collector.timeseries(
+            metric=metric,
+            window_minutes=window_minutes,
+        )
+        return {"metric": metric, "window_minutes": window_minutes, "series": series}
+
+    @app.get("/api/v1/analytics/summary", tags=["dashboard"])
+    async def analytics_summary() -> dict[str, Any]:
+        """Get a summary of analytics (last 60 minutes)."""
+        return await _get_analytics().summary()
+
+    @app.get("/api/v1/analytics/costs", tags=["dashboard"])
+    async def analytics_costs(window_minutes: int = 60) -> dict[str, Any]:
+        """Get cost breakdown by capability."""
+        return await _get_analytics().cost_breakdown(window_minutes=window_minutes)
+
+    @app.get("/api/v1/analytics/latency", tags=["dashboard"])
+    async def analytics_latency(window_minutes: int = 60) -> dict[str, Any]:
+        """Get latency percentiles."""
+        return await _get_analytics().latency_percentiles(window_minutes=window_minutes)
+
+    @app.get("/api/v1/analytics/throughput", tags=["dashboard"])
+    async def analytics_throughput(window_minutes: int = 60) -> dict[str, Any]:
+        """Get throughput time series (events per minute)."""
+        series = await _get_analytics().throughput_series(window_minutes=window_minutes)
+        return {"window_minutes": window_minutes, "series": series}
+
+    @app.post("/api/v1/monitor/record", tags=["dashboard"])
+    async def monitor_record(req: RecordEventRequest) -> dict[str, Any]:
+        """Manually record a metric event (for testing or external integrations)."""
+        from core.contracts.actor import ActorRef, ActorType
+        from core.contracts.event import Event
+
+        collector = _get_metrics_collector()
+        event = Event(
+            topic=req.topic,
+            correlation_id=UUID(req.correlation_id) if req.correlation_id else uuid4(),
+            actor=ActorRef(type=ActorType.SYSTEM, id="api"),
+            payload=req.payload,
+        )
+        await collector.record_event(event)
+        return {"recorded": True}
 
     return app

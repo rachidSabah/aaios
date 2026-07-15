@@ -38,7 +38,7 @@ export default async function HomePage() {
           AAiOS Dashboard
         </h1>
         <p style={{ color: 'var(--color-muted)', marginTop: '0.25rem' }}>
-          Agentic AI Operating System — v0.1.0-dev (Phase 12)
+          Agentic AI Operating System — v2.0 (Dashboard Agent)
         </p>
       </header>
 
@@ -205,7 +205,7 @@ export default async function HomePage() {
       </section>
 
       <footer style={{ marginTop: '2rem', color: 'var(--color-muted)', fontSize: '0.75rem' }}>
-        Phase 12 dashboard stub — full dashboard lands with Phase 12 completion.
+        AAiOS v2.0 — Dashboard Agent with workflow builder, live monitoring, and analytics.
       </footer>
     </main>
   );
