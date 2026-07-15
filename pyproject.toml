@@ -224,6 +224,8 @@ ignore = [
 "scripts/**" = ["S", "D"]
 "surfaces/web/**" = []
 "surfaces/cli/**" = ["B008"]                   # typer.Option in defaults is the standard pattern
+"services/execution/handlers.py" = ["PLR0912", "S310", "ASYNC210"]  # git branches, urllib in REST handler
+"services/execution/manager.py" = ["E741"]     # log variable l
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

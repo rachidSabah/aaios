@@ -1327,9 +1327,206 @@ def intelligence_report(
     ))
     for finding in data.get("key_findings", []):
         console.print(f"  • {finding}")
-    console.print(f"\n[cyan]Action Items:[/cyan]")
+    console.print("\n[cyan]Action Items:[/cyan]")
     for action in data.get("action_items", []):
         console.print(f"  → {action}")
+
+
+# --- Execution commands (v4.0) ---
+
+exec_app = typer.Typer(help="Autonomous Execution — run real-world operations safely.")
+app.add_typer(exec_app, name="exec")
+
+
+@exec_app.command("run")
+def exec_run(
+    domain: str = typer.Option("terminal", "--domain", help="Execution domain (terminal, filesystem, git, etc.)"),
+    action: str = typer.Option(..., "--action", help="Action to execute"),
+    param: list[str] = typer.Option([], "--param", help="key=value parameter (repeatable)"),
+    description: str = typer.Option("", "--description"),
+    timeout: float = typer.Option(120.0, "--timeout"),
+) -> None:
+    """Run an execution."""
+    params: dict[str, Any] = {}
+    for p in param:
+        if "=" in p:
+            k, v = p.split("=", 1)
+            params[k] = v
+    body: dict[str, Any] = {
+        "domain": domain, "action": action, "parameters": params,
+        "description": description, "timeout_s": timeout,
+    }
+    try:
+        data = _api_post("/api/v1/execution", body=body)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    status_color = "green" if data.get("succeeded") else "red"
+    console.print(Panel.fit(
+        f"[{status_color}]Status:[/{status_color}] {data.get('status', '')}\n"
+        f"[cyan]Exit code:[/cyan]  {data.get('exit_code', '—')}\n"
+        f"[cyan]Duration:[/cyan]   {data.get('duration_s', 0):.3f}s\n"
+        f"[cyan]Error:[/cyan]      {data.get('error', '—')}",
+        title=f"Execution {data.get('execution_id', '')[:8]}",
+    ))
+    if data.get("stdout"):
+        console.print(f"\n[cyan]stdout:[/cyan]\n{data['stdout'][:2000]}")
+    if data.get("stderr"):
+        console.print(f"\n[yellow]stderr:[/yellow]\n{data['stderr'][:2000]}")
+
+
+@exec_app.command("cancel")
+def exec_cancel(
+    execution_id: str = typer.Argument(...),
+    reason: str = typer.Option("", "--reason"),
+) -> None:
+    """Cancel an execution."""
+    try:
+        data = _api_post(f"/api/v1/execution/{execution_id}/cancel?reason={reason}", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[yellow]Cancelled:[/yellow] {data.get('status', '')}")
+
+
+@exec_app.command("list")
+def exec_list(
+    domain: str = typer.Option(None, "--domain"),
+    status: str = typer.Option(None, "--status"),
+    limit: int = typer.Option(20, "--limit"),
+) -> None:
+    """List executions."""
+    params: dict[str, Any] = {"limit": limit}
+    if domain:
+        params["domain"] = domain
+    if status:
+        params["status"] = status
+    try:
+        data = _api_get("/api/v1/execution", params=params)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    execs = data.get("executions", [])
+    if not execs:
+        console.print("[yellow]No executions found.[/yellow]")
+        return
+    table = Table(title=f"Executions ({len(execs)})")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Domain", style="magenta")
+    table.add_column("Action", style="white")
+    table.add_column("Status", style="green")
+    table.add_column("Duration", style="yellow")
+    table.add_column("Error", style="red")
+    for e in execs:
+        st = e.get("status", "")
+        color = "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
+        table.add_row(
+            str(e.get("execution_id", ""))[:8],
+            e.get("domain", ""),
+            e.get("action", ""),
+            f"[{color}]{st}[/{color}]",
+            f"{e.get('duration_s', 0):.2f}s",
+            str(e.get("error", ""))[:30],
+        )
+    console.print(table)
+
+
+@exec_app.command("logs")
+def exec_logs(execution_id: str = typer.Argument(...)) -> None:
+    """Show logs for an execution."""
+    try:
+        data = _api_get(f"/api/v1/execution/{execution_id}/logs")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    logs = data.get("logs", [])
+    for log in logs:
+        level = log.get("level", "info")
+        color = {"error": "red", "warning": "yellow", "info": "white", "debug": "cyan"}.get(level, "white")
+        console.print(f"[{color}]{log.get('timestamp', '')[:19]}[/{color}] [{level}] {log.get('message', '')[:200]}")
+
+
+@exec_app.command("replay")
+def exec_replay(execution_id: str = typer.Argument(...)) -> None:
+    """Replay an execution."""
+    try:
+        data = _api_post(f"/api/v1/execution/{execution_id}/replay", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[green]Replayed:[/green] status={data.get('status', '')} id={data.get('execution_id', '')[:8]}")
+
+
+@exec_app.command("approve")
+def exec_approve(
+    execution_id: str = typer.Argument(...),
+    decided_by: str = typer.Option("operator", "--by"),
+    reason: str = typer.Option("Approved via CLI", "--reason"),
+) -> None:
+    """Approve a pending execution."""
+    try:
+        data = _api_post(f"/api/v1/execution/{execution_id}/approve?decided_by={decided_by}&reason={reason}", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[green]Approved:[/green] {data.get('status', '')}")
+
+
+@exec_app.command("history")
+def exec_history(
+    domain: str = typer.Option(None, "--domain"),
+    limit: int = typer.Option(50, "--limit"),
+) -> None:
+    """Show execution history."""
+    params: dict[str, Any] = {"limit": limit}
+    if domain:
+        params["domain"] = domain
+    try:
+        data = _api_get("/api/v1/execution/history", params=params)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    history = data.get("history", [])
+    if not history:
+        console.print("[yellow]No execution history.[/yellow]")
+        return
+    table = Table(title=f"Execution History ({len(history)})")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Domain", style="magenta")
+    table.add_column("Action", style="white")
+    table.add_column("Status", style="green")
+    table.add_column("Duration", style="yellow")
+    for h in history:
+        st = h.get("status", "")
+        color = "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
+        table.add_row(
+            str(h.get("execution_id", ""))[:8],
+            h.get("domain", ""),
+            h.get("action", ""),
+            f"[{color}]{st}[/{color}]",
+            f"{h.get('duration_s', 0):.2f}s",
+        )
+    console.print(table)
+
+
+@exec_app.command("monitor")
+def exec_monitor() -> None:
+    """Show execution overview (pending approvals + recent history)."""
+    try:
+        approvals = _api_get("/api/v1/execution/approvals/pending")
+        history = _api_get("/api/v1/execution/history?limit=10")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    pending = approvals.get("approvals", [])
+    console.print(f"[cyan]Pending Approvals:[/cyan] {len(pending)}")
+    for a in pending:
+        console.print(f"  [{a.get('risk_level', '')}] {a.get('domain', '')}/{a.get('action', '')} — {a.get('description', '')[:60]}")
+    console.print(f"\n[cyan]Recent Executions:[/cyan] {history.get('count', 0)}")
+    for h in history.get("history", [])[:10]:
+        st = h.get("status", "")
+        color = "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
+        console.print(f"  [{color}]{st}[/{color}] {h.get('domain', '')}/{h.get('action', '')} ({h.get('duration_s', 0):.2f}s)")
 
 
 if __name__ == "__main__":

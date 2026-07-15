@@ -1020,13 +1020,20 @@ def create_app() -> FastAPI:
     async def update_mission(mission_id: str, req: MissionUpdateRequest) -> dict[str, Any]:
         mgr = _get_mission_manager()
         changes: dict[str, Any] = {}
-        if req.title is not None: changes["title"] = req.title
-        if req.description is not None: changes["description"] = req.description
-        if req.priority is not None: changes["priority"] = req.priority
-        if req.deadline is not None: changes["deadline"] = req.deadline
-        if req.owner is not None: changes["owner"] = req.owner
-        if req.tags is not None: changes["tags"] = req.tags
-        if req.budget_total_usd is not None: changes["budget_total_usd"] = req.budget_total_usd
+        if req.title is not None:
+            changes["title"] = req.title
+        if req.description is not None:
+            changes["description"] = req.description
+        if req.priority is not None:
+            changes["priority"] = req.priority
+        if req.deadline is not None:
+            changes["deadline"] = req.deadline
+        if req.owner is not None:
+            changes["owner"] = req.owner
+        if req.tags is not None:
+            changes["tags"] = req.tags
+        if req.budget_total_usd is not None:
+            changes["budget_total_usd"] = req.budget_total_usd
         return (await mgr.update_mission(mission_id, changes)).to_dict()
 
     @app.delete("/api/v1/missions/{mission_id}", tags=["missions"])
@@ -1223,5 +1230,152 @@ def create_app() -> FastAPI:
         """Get all intelligence data in one response."""
         mgr = _get_intelligence_manager()
         return await mgr.get_all_intelligence()
+
+    # --- Execution endpoints (v4.0) ---
+
+    _execution_manager: Any = None
+
+    def _get_execution_manager() -> Any:
+        nonlocal _execution_manager
+        if _execution_manager is None:
+            from services.execution import ExecutionManager
+            _execution_manager = ExecutionManager()
+        return _execution_manager
+
+    class ExecutionRunRequest(BaseModel):
+        domain: str = "terminal"
+        action: str = ""
+        parameters: dict[str, Any] = Field(default_factory=dict)
+        description: str = ""
+        requested_by: str = "api"
+        priority: str = "normal"
+        timeout_s: float = 120.0
+        requires_approval: bool = False
+        sandbox_enabled: bool = True
+        tags: list[str] = Field(default_factory=list)
+
+    @app.post("/api/v1/execution", tags=["execution"])
+    async def create_execution(req: ExecutionRunRequest) -> dict[str, Any]:
+        """Submit an execution request."""
+        from services.execution import ExecutionPolicy, ExecutionRequest, SandboxConfig
+        mgr = _get_execution_manager()
+        request = ExecutionRequest(
+            domain=req.domain,
+            action=req.action,
+            parameters=req.parameters,
+            description=req.description,
+            requested_by=req.requested_by,
+            priority=req.priority,
+            timeout_s=req.timeout_s,
+            policy=ExecutionPolicy(
+                requires_approval=req.requires_approval,
+                sandbox_enabled=req.sandbox_enabled,
+                sandbox_config=SandboxConfig(enabled=req.sandbox_enabled),
+            ),
+            tags=req.tags,
+        )
+        result = await mgr.execute(request)
+        return result.to_dict()
+
+    @app.get("/api/v1/execution", tags=["execution"])
+    async def list_executions(
+        domain: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """List executions with optional filtering."""
+        mgr = _get_execution_manager()
+        history = await mgr.get_history(domain=domain, status=status, limit=limit)
+        return {"executions": history, "count": len(history)}
+
+    @app.get("/api/v1/execution/{execution_id}", tags=["execution"])
+    async def get_execution(execution_id: str) -> dict[str, Any]:
+        """Get execution status + result."""
+        mgr = _get_execution_manager()
+        try:
+            result = await mgr.get_status(execution_id)
+            return result.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.post("/api/v1/execution/{execution_id}/cancel", tags=["execution"])
+    async def cancel_execution(execution_id: str, reason: str = "") -> dict[str, Any]:
+        """Cancel an execution."""
+        mgr = _get_execution_manager()
+        try:
+            result = await mgr.cancel(execution_id, reason=reason)
+            return result.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.post("/api/v1/execution/{execution_id}/approve", tags=["execution"])
+    async def approve_execution(
+        execution_id: str,
+        decided_by: str = "operator",
+        reason: str = "",
+    ) -> dict[str, Any]:
+        """Approve a pending execution."""
+        mgr = _get_execution_manager()
+        approvals = await mgr.get_pending_approvals()
+        approval = next((a for a in approvals if a.execution_id == execution_id), None)
+        if approval is None:
+            raise HTTPException(status_code=404, detail="No pending approval for this execution")
+        result = await mgr.approve(approval.approval_id, decided_by, reason)
+        return result.to_dict() if result else {"error": "Approval not found"}
+
+    @app.get("/api/v1/execution/{execution_id}/logs", tags=["execution"])
+    async def get_execution_logs(execution_id: str) -> dict[str, Any]:
+        """Get logs for an execution."""
+        mgr = _get_execution_manager()
+        try:
+            logs = await mgr.get_logs(execution_id)
+            return {"execution_id": execution_id, "logs": [log.to_dict() for log in logs], "count": len(logs)}
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.get("/api/v1/execution/history", tags=["execution"])
+    async def execution_history(
+        domain: str | None = None,
+        status: str | None = None,
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Get execution history."""
+        mgr = _get_execution_manager()
+        history = await mgr.get_history(domain=domain, status=status, limit=limit)
+        return {"history": history, "count": len(history)}
+
+    @app.get("/api/v1/execution/approvals/pending", tags=["execution"])
+    async def pending_approvals() -> dict[str, Any]:
+        """Get pending approval requests."""
+        mgr = _get_execution_manager()
+        approvals = await mgr.get_pending_approvals()
+        return {"approvals": [a.to_dict() for a in approvals], "count": len(approvals)}
+
+    @app.post("/api/v1/execution/{execution_id}/replay", tags=["execution"])
+    async def replay_execution(execution_id: str) -> dict[str, Any]:
+        """Replay an execution."""
+        mgr = _get_execution_manager()
+        try:
+            result = await mgr.replay(execution_id)
+            return result.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.post("/api/v1/execution/{execution_id}/rollback", tags=["execution"])
+    async def rollback_execution(execution_id: str) -> dict[str, Any]:
+        """Rollback an execution."""
+        mgr = _get_execution_manager()
+        try:
+            result = await mgr.rollback(execution_id)
+            return result.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.get("/api/v1/execution/audit/log", tags=["execution"])
+    async def execution_audit_log(limit: int = 100) -> dict[str, Any]:
+        """Get the execution audit log."""
+        mgr = _get_execution_manager()
+        entries = await mgr.get_audit_log(limit=limit)
+        return {"entries": [e.to_dict() for e in entries], "count": len(entries)}
 
     return app
