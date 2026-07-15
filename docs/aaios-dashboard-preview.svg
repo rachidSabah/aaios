@@ -1,0 +1,242 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="750" viewBox="0 0 1200 750" font-family="system-ui, -apple-system, 'Segoe UI', sans-serif">
+  <defs>
+    <linearGradient id="bgGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#0a0a0a" />
+      <stop offset="100%" style="stop-color:#111118" />
+    </linearGradient>
+    <linearGradient id="cardGrad" x1="0%" y1="0%" x2="0%" y2="100%">
+      <stop offset="0%" style="stop-color:#1a1a24" />
+      <stop offset="100%" style="stop-color:#15151c" />
+    </linearGradient>
+    <linearGradient id="accentGrad" x1="0%" y1="0%" x2="100%" y2="0%">
+      <stop offset="0%" style="stop-color:#2563eb" />
+      <stop offset="100%" style="stop-color:#3b82f6" />
+    </linearGradient>
+    <filter id="shadow">
+      <feDropShadow dx="0" dy="2" stdDeviation="4" flood-color="#000" flood-opacity="0.3"/>
+    </filter>
+  </defs>
+
+  <!-- Background -->
+  <rect width="1200" height="750" fill="url(#bgGrad)"/>
+
+  <!-- Top bar -->
+  <rect x="0" y="0" width="1200" height="56" fill="#0d0d12"/>
+  <line x1="0" y1="56" x2="1200" y2="56" stroke="#1e1e2e" stroke-width="1"/>
+
+  <!-- Logo + title in top bar -->
+  <g transform="translate(20, 14)">
+    <polygon points="14,0 28,8 28,24 14,32 0,24 0,8" fill="none" stroke="#3b82f6" stroke-width="1.5"/>
+    <text x="14" y="22" font-size="14" font-weight="bold" fill="#60a5fa" text-anchor="middle">AA</text>
+  </g>
+  <text x="60" y="35" font-size="14" font-weight="600" fill="#fafafa">AAiOS Dashboard</text>
+
+  <!-- Top bar right: status + user -->
+  <circle cx="1140" cy="28" r="5" fill="#22c55e"/>
+  <text x="1150" y="32" font-size="12" fill="#9ca3af">Live</text>
+  <circle cx="1100" cy="28" r="12" fill="#334155"/>
+  <text x="1100" y="32" font-size="10" fill="#9ca3af" text-anchor="middle">RS</text>
+
+  <!-- Left sidebar -->
+  <rect x="0" y="56" width="220" height="694" fill="#0d0d12"/>
+  <line x1="220" y1="56" x2="220" y2="750" stroke="#1e1e2e" stroke-width="1"/>
+
+  <!-- Sidebar nav items -->
+  <g font-size="13" fill="#6b7280">
+    <rect x="8" y="72" width="204" height="36" rx="6" fill="#1a1a2e"/>
+    <text x="28" y="94" fill="#3b82f6" font-weight="500">Dashboard</text>
+    <text x="190" y="94" font-size="10" fill="#3b82f6" text-anchor="end">●</text>
+
+    <text x="28" y="130">Tasks</text>
+    <rect x="170" y="118" width="30" height="16" rx="8" fill="#1e293b"/>
+    <text x="185" y="130" font-size="10" fill="#9ca3af" text-anchor="middle">3</text>
+
+    <text x="28" y="164">Agents</text>
+    <rect x="170" y="152" width="30" height="16" rx="8" fill="#1e293b"/>
+    <text x="185" y="164" font-size="10" fill="#22c55e" text-anchor="middle">2</text>
+
+    <text x="28" y="198">Memory</text>
+    <text x="28" y="232">Plugins</text>
+    <text x="28" y="266">Providers</text>
+    <text x="28" y="300">Models</text>
+    <text x="28" y="334">Workflows</text>
+    <text x="28" y="368">Prompts</text>
+    <text x="28" y="402">Audit Log</text>
+    <text x="28" y="436">Settings</text>
+  </g>
+
+  <!-- Sidebar bottom: version -->
+  <text x="28" y="730" font-size="10" fill="#4b5563">AAiOS v1.0.0</text>
+
+  <!-- Main content area -->
+  <g transform="translate(240, 72)">
+    <!-- Page title -->
+    <text x="0" y="0" font-size="20" font-weight="700" fill="#fafafa">Dashboard</text>
+    <text x="0" y="22" font-size="12" fill="#6b7280">System overview · 2 agents · 2 providers</text>
+
+    <!-- Status cards row -->
+    <g transform="translate(0, 38)">
+      <!-- API Server card -->
+      <rect x="0" y="0" width="280" height="80" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+      <circle cx="24" cy="24" r="6" fill="#22c55e"/>
+      <text x="38" y="28" font-size="13" font-weight="600" fill="#fafafa">API Server</text>
+      <text x="38" y="48" font-size="11" fill="#6b7280">http://127.0.0.1:8000</text>
+      <text x="38" y="64" font-size="10" fill="#22c55e">● Healthy · v1.0.0</text>
+
+      <!-- Agents card -->
+      <rect x="300" y="0" width="280" height="80" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+      <text x="20" y="28" font-size="13" font-weight="600" fill="#fafafa">Registered Agents</text>
+      <text x="20" y="56" font-size="28" font-weight="bold" fill="#3b82f6">2</text>
+      <text x="60" y="56" font-size="11" fill="#6b7280">claude-code-v1</text>
+      <text x="60" y="70" font-size="11" fill="#6b7280">hermes-desktop-v1</text>
+
+      <!-- Providers card -->
+      <rect x="600" y="0" width="280" height="80" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+      <text x="20" y="28" font-size="13" font-weight="600" fill="#fafafa">LLM Providers</text>
+      <text x="20" y="56" font-size="28" font-weight="bold" fill="#3b82f6">2</text>
+      <text x="60" y="56" font-size="11" fill="#6b7280">openai · anthropic</text>
+      <text x="60" y="70" font-size="11" fill="#22c55e">● All healthy</text>
+    </g>
+
+    <!-- Agents table -->
+    <g transform="translate(0, 140)">
+      <rect x="0" y="0" width="930" height="220" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+      <text x="20" y="28" font-size="14" font-weight="600" fill="#fafafa">Registered Agents</text>
+
+      <!-- Table header -->
+      <rect x="0" y="44" width="930" height="28" fill="#111118"/>
+      <text x="20" y="62" font-size="10" fill="#6b7280" font-weight="600">AGENT</text>
+      <text x="260" y="62" font-size="10" fill="#6b7280" font-weight="600">TYPE</text>
+      <text x="380" y="62" font-size="10" fill="#6b7280" font-weight="600">HEALTH</text>
+      <text x="480" y="62" font-size="10" fill="#6b7280" font-weight="600">CAPABILITIES</text>
+
+      <line x1="0" y1="72" x2="930" y2="72" stroke="#1e1e2e"/>
+
+      <!-- Agent row 1: Claude Code -->
+      <text x="20" y="92" font-size="12" font-weight="500" fill="#fafafa">Claude Code</text>
+      <text x="20" y="106" font-size="10" fill="#6b7280">claude-code-v1 · v1.0.0</text>
+
+      <rect x="260" y="82" width="60" height="20" rx="4" fill="#1e293b"/>
+      <text x="290" y="96" font-size="10" fill="#60a5fa" text-anchor="middle">coding</text>
+
+      <circle cx="386" cy="92" r="4" fill="#22c55e"/>
+      <text x="396" y="96" font-size="11" fill="#22c55e">healthy</text>
+
+      <text x="480" y="96" font-size="10" fill="#9ca3af">code.read, code.write, code.refactor, test.run, git.commit...</text>
+
+      <line x1="0" y1="116" x2="930" y2="116" stroke="#1e1e2e"/>
+
+      <!-- Agent row 2: Hermes -->
+      <text x="20" y="136" font-size="12" font-weight="500" fill="#fafafa">Hermes Desktop</text>
+      <text x="20" y="150" font-size="10" fill="#6b7280">hermes-desktop-v1 · v1.0.0</text>
+
+      <rect x="260" y="126" width="68" height="20" rx="4" fill="#1e293b"/>
+      <text x="294" y="140" font-size="10" fill="#f59e0b" text-anchor="middle">desktop</text>
+
+      <circle cx="386" cy="136" r="4" fill="#22c55e"/>
+      <text x="396" y="140" font-size="11" fill="#22c55e">healthy</text>
+
+      <text x="480" y="140" font-size="10" fill="#9ca3af">desktop.ui.click, desktop.screen.screenshot, browser.navigate...</text>
+
+      <line x1="0" y1="160" x2="930" y2="160" stroke="#1e1e2e"/>
+
+      <!-- Agent row 3: Mock (shown greyed) -->
+      <text x="20" y="180" font-size="12" font-weight="500" fill="#4b5563">Mock Agent</text>
+      <text x="20" y="194" font-size="10" fill="#4b5563">mock-agent-v1 · v1.0.0</text>
+
+      <rect x="260" y="170" width="52" height="20" rx="4" fill="#111118"/>
+      <text x="286" y="184" font-size="10" fill="#6b7280" text-anchor="middle">custom</text>
+
+      <circle cx="386" cy="180" r="4" fill="#6b7280"/>
+      <text x="396" y="184" font-size="11" fill="#6b7280">disabled</text>
+
+      <text x="480" y="184" font-size="10" fill="#4b5563">test.echo</text>
+    </g>
+
+    <!-- Providers + Tasks row -->
+    <g transform="translate(0, 380)">
+      <!-- Providers card -->
+      <rect x="0" y="0" width="450" height="160" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+      <text x="20" y="28" font-size="14" font-weight="600" fill="#fafafa">LLM Providers</text>
+
+      <!-- OpenAI row -->
+      <rect x="12" y="40" width="426" height="36" rx="6" fill="#0d0d12"/>
+      <text x="24" y="62" font-size="12" font-weight="500" fill="#fafafa">OpenAI</text>
+      <circle cx="290" cy="58" r="4" fill="#22c55e"/>
+      <text x="300" y="62" font-size="11" fill="#22c55e">healthy</text>
+      <text x="360" y="62" font-size="10" fill="#6b7280">100.0%</text>
+      <text x="420" y="62" font-size="10" fill="#6b7280" text-anchor="end">0.42s</text>
+
+      <!-- Anthropic row -->
+      <rect x="12" y="82" width="426" height="36" rx="6" fill="#0d0d12"/>
+      <text x="24" y="104" font-size="12" font-weight="500" fill="#fafafa">Anthropic</text>
+      <circle cx="290" cy="100" r="4" fill="#22c55e"/>
+      <text x="300" y="104" font-size="11" fill="#22c55e">healthy</text>
+      <text x="360" y="104" font-size="10" fill="#6b7280">100.0%</text>
+      <text x="420" y="104" font-size="10" fill="#6b7280" text-anchor="end">0.51s</text>
+
+      <!-- Ollama (local) -->
+      <rect x="12" y="124" width="426" height="28" rx="6" fill="#0d0d12"/>
+      <text x="24" y="142" font-size="12" fill="#6b7280">Ollama (local)</text>
+      <circle cx="290" cy="138" r="4" fill="#f59e0b"/>
+      <text x="300" y="142" font-size="11" fill="#f59e0b">degraded</text>
+      <text x="360" y="142" font-size="10" fill="#6b7280">—</text>
+      <text x="420" y="142" font-size="10" fill="#6b7280" text-anchor="end">—</text>
+
+      <!-- Recent tasks card -->
+      <rect x="470" y="0" width="460" height="160" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+      <text x="490" y="28" font-size="14" font-weight="600" fill="#fafafa">Recent Tasks</text>
+
+      <!-- Task 1 -->
+      <rect x="482" y="40" width="436" height="32" rx="6" fill="#0d0d12"/>
+      <circle cx="498" cy="56" r="4" fill="#22c55e"/>
+      <text x="510" y="60" font-size="11" fill="#9ca3af">Refactor auth module to use Pydantic v2</text>
+      <rect x="820" y="46" width="80" height="20" rx="4" fill="#052e16"/>
+      <text x="860" y="60" font-size="9" fill="#22c55e" text-anchor="middle">succeeded</text>
+
+      <!-- Task 2 -->
+      <rect x="482" y="78" width="436" height="32" rx="6" fill="#0d0d12"/>
+      <circle cx="498" cy="94" r="4" fill="#3b82f6"/>
+      <text x="510" y="98" font-size="11" fill="#9ca3af">Open sales report and extract Q3 numbers</text>
+      <rect x="820" y="84" width="80" height="20" rx="4" fill="#0c1e3a"/>
+      <text x="860" y="98" font-size="9" fill="#3b82f6" text-anchor="middle">running</text>
+
+      <!-- Task 3 -->
+      <rect x="482" y="116" width="436" height="32" rx="6" fill="#0d0d12"/>
+      <circle cx="498" cy="132" r="4" fill="#f59e0b"/>
+      <text x="510" y="136" font-size="11" fill="#9ca3af">Research best practices for RAG pipelines</text>
+      <rect x="820" y="122" width="80" height="20" rx="4" fill="#2a1a05"/>
+      <text x="860" y="136" font-size="9" fill="#f59e0b" text-anchor="middle">queued</text>
+    </g>
+  </g>
+
+  <!-- Quick links row at bottom -->
+  <g transform="translate(240, 620)">
+    <rect x="0" y="0" width="145" height="56" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+    <text x="72" y="24" font-size="11" font-weight="600" fill="#fafafa" text-anchor="middle">Tasks</text>
+    <text x="72" y="42" font-size="9" fill="#6b7280" text-anchor="middle">View active</text>
+
+    <rect x="155" y="0" width="145" height="56" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+    <text x="227" y="24" font-size="11" font-weight="600" fill="#fafafa" text-anchor="middle">Memory</text>
+    <text x="227" y="42" font-size="9" fill="#6b7280" text-anchor="middle">Explore</text>
+
+    <rect x="310" y="0" width="145" height="56" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+    <text x="382" y="24" font-size="11" font-weight="600" fill="#fafafa" text-anchor="middle">Plugins</text>
+    <text x="382" y="42" font-size="9" fill="#6b7280" text-anchor="middle">Manage</text>
+
+    <rect x="465" y="0" width="145" height="56" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+    <text x="537" y="24" font-size="11" font-weight="600" fill="#fafafa" text-anchor="middle">Audit</text>
+    <text x="537" y="42" font-size="9" fill="#6b7280" text-anchor="middle">Security log</text>
+
+    <rect x="620" y="0" width="145" height="56" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+    <text x="692" y="24" font-size="11" font-weight="600" fill="#fafafa" text-anchor="middle">Costs</text>
+    <text x="692" y="42" font-size="9" fill="#6b7280" text-anchor="middle">$0.0234</text>
+
+    <rect x="775" y="0" width="145" height="56" rx="8" fill="url(#cardGrad)" filter="url(#shadow)"/>
+    <text x="847" y="24" font-size="11" font-weight="600" fill="#fafafa" text-anchor="middle">Settings</text>
+    <text x="847" y="42" font-size="9" fill="#6b7280" text-anchor="middle">Configure</text>
+  </g>
+
+  <!-- Footer -->
+  <text x="600" y="740" font-size="9" fill="#374151" text-anchor="middle">AAiOS v1.0.0 · Agentic AI Operating System · Apache 2.0</text>
+</svg>

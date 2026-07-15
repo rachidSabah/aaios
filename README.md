@@ -2,6 +2,10 @@
   <img src="docs/aaios-banner.svg" alt="AAiOS — Agentic AI Operating System" width="800" />
 </p>
 
+<p align="center">
+  <img src="docs/aaios-dashboard-preview.svg" alt="AAiOS Dashboard" width="100%" />
+</p>
+
 # Agentic AI Operating System (AAiOS)
 
 > A **Windows-first**, modular, production-grade operating system for autonomous AI agents — orchestrating multiple LLM providers, multiple **generic** agents, MCP servers, vector memory, knowledge graphs, plugins, and workflows behind a single supervisor. Built around a **Generic Agent Runtime** where Claude Code, Hermes, and any future agent (OpenHands, Cline, Roo Code, Gemini CLI, Codex CLI, custom) are all just replaceable implementations.
