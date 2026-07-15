@@ -305,6 +305,7 @@ class InProcessAgent:
         actor = self._context.metadata.get("actor") if self._context.metadata else None
         if actor is None:
             from core.contracts.actor import ActorRef
+
             actor = ActorRef.agent(self._identity.agent_id)
         await bus.publish(
             Event(

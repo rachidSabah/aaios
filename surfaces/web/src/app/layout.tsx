@@ -7,7 +7,6 @@ export const metadata: Metadata = {
     'Windows-first, modular runtime for orchestrating generic AI agents.',
   applicationName: 'AAiOS',
   authors: [{ name: 'AAiOS Contributors' }],
-  license: 'Apache-2.0',
   robots: { index: false, follow: false },
 };
 
