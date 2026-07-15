@@ -874,5 +874,250 @@ def learning_recommend(
     ))
 
 
+# --- Mission & Organization commands (v3.0) ---
+
+mission_app = typer.Typer(help="Mission & Organization System — autonomous mission execution.")
+app.add_typer(mission_app, name="mission")
+
+
+@mission_app.command("create")
+def mission_create(
+    title: str = typer.Option(..., "--title", help="Mission title"),
+    description: str = typer.Option("", "--description", help="Mission description"),
+    objective: list[str] = typer.Option([], "--objective", help="Mission objective (repeatable)"),
+    priority: str = typer.Option("normal", "--priority", help="critical/high/normal/low/background"),
+    budget: float = typer.Option(0.0, "--budget", help="Total budget in USD"),
+    owner: str = typer.Option(None, "--owner", help="Mission owner"),
+    tag: list[str] = typer.Option([], "--tag", help="Mission tag (repeatable)"),
+) -> None:
+    """Create a new mission."""
+    body: dict[str, Any] = {
+        "title": title,
+        "description": description,
+        "objectives": objective,
+        "priority": priority,
+        "budget_total_usd": budget,
+        "tags": tag,
+    }
+    if owner:
+        body["owner"] = owner
+    try:
+        data = _api_post("/api/v1/missions", body=body)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[green]Mission created:[/green] {data.get('mission_id')}\n"
+        f"[cyan]Title:[/cyan]       {data.get('title')}\n"
+        f"[cyan]Status:[/cyan]      {data.get('status')}\n"
+        f"[cyan]Priority:[/cyan]    {data.get('priority')}\n"
+        f"[cyan]WBS nodes:[/cyan]   {len(data.get('wbs_nodes', []))}\n"
+        f"[cyan]Budget:[/cyan]      ${data.get('budget', {}).get('total_usd', 0):.2f}",
+        title="Mission Created",
+    ))
+
+
+@mission_app.command("start")
+def mission_start(mission_id: str = typer.Argument(..., help="Mission ID")) -> None:
+    """Start a mission."""
+    try:
+        data = _api_post(f"/api/v1/missions/{mission_id}/start", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[green]Mission started:[/green] {data.get('status')}")
+
+
+@mission_app.command("stop")
+def mission_stop(
+    mission_id: str = typer.Argument(..., help="Mission ID"),
+    reason: str = typer.Option("", "--reason", help="Stop reason"),
+) -> None:
+    """Stop (cancel) a mission."""
+    try:
+        data = _api_post(f"/api/v1/missions/{mission_id}/cancel?reason={reason}", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[yellow]Mission cancelled:[/yellow] {data.get('status')}")
+
+
+@mission_app.command("pause")
+def mission_pause(
+    mission_id: str = typer.Argument(..., help="Mission ID"),
+    reason: str = typer.Option("", "--reason", help="Pause reason"),
+) -> None:
+    """Pause a mission."""
+    try:
+        data = _api_post(f"/api/v1/missions/{mission_id}/pause?reason={reason}", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[yellow]Mission paused:[/yellow] {data.get('status')}")
+
+
+@mission_app.command("resume")
+def mission_resume(mission_id: str = typer.Argument(..., help="Mission ID")) -> None:
+    """Resume a paused mission."""
+    try:
+        data = _api_post(f"/api/v1/missions/{mission_id}/resume", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[green]Mission resumed:[/green] {data.get('status')}")
+
+
+@mission_app.command("cancel")
+def mission_cancel(
+    mission_id: str = typer.Argument(..., help="Mission ID"),
+    reason: str = typer.Option("", "--reason", help="Cancellation reason"),
+) -> None:
+    """Cancel a mission."""
+    try:
+        data = _api_post(f"/api/v1/missions/{mission_id}/cancel?reason={reason}", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[red]Mission cancelled:[/red] {data.get('status')}")
+
+
+@mission_app.command("replay")
+def mission_replay(mission_id: str = typer.Argument(..., help="Mission ID")) -> None:
+    """Replay a mission's history."""
+    try:
+        data = _api_post(f"/api/v1/missions/{mission_id}/replay", body={})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[cyan]Events replayed:[/cyan] {data.get('events_replayed', 0)}")
+    console.print(f"[cyan]Final status:[/cyan] {data.get('final_status', '')}")
+    timeline = data.get("timeline", [])
+    if timeline:
+        console.print(f"\n[cyan]Timeline ({len(timeline)} entries):[/cyan]")
+        for entry in timeline[:20]:
+            console.print(f"  {entry.get('timestamp', '')[:19]}  {entry.get('event_type', '')}  {entry.get('description', '')}")
+
+
+@mission_app.command("graph")
+def mission_graph(mission_id: str = typer.Argument(..., help="Mission ID")) -> None:
+    """Show a mission's WBS dependency graph."""
+    try:
+        data = _api_get(f"/api/v1/missions/{mission_id}/graph")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[cyan]Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges")
+    nodes = data.get("nodes", [])
+    if nodes:
+        table = Table(title="WBS Nodes")
+        table.add_column("ID", style="cyan", no_wrap=True)
+        table.add_column("Type", style="magenta")
+        table.add_column("Title", style="white")
+        table.add_column("Status", style="green")
+        table.add_column("Agent", style="yellow")
+        for n in nodes[:30]:
+            table.add_row(
+                str(n.get("id", ""))[:8],
+                n.get("type", ""),
+                str(n.get("title", ""))[:40],
+                n.get("status", ""),
+                n.get("assigned_agent_id", "") or "—",
+            )
+        console.print(table)
+
+
+@mission_app.command("timeline")
+def mission_timeline(mission_id: str = typer.Argument(..., help="Mission ID")) -> None:
+    """Show a mission's timeline."""
+    try:
+        data = _api_get(f"/api/v1/missions/{mission_id}/timeline")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    timeline = data.get("timeline", [])
+    console.print(f"[cyan]Timeline:[/cyan] {len(timeline)} entries")
+    for entry in timeline[:30]:
+        console.print(f"  {entry.get('timestamp', '')[:19]}  [{entry.get('event_type', '')}]  {entry.get('description', '')}")
+
+
+@mission_app.command("analytics")
+def mission_analytics(mission_id: str = typer.Argument(..., help="Mission ID")) -> None:
+    """Show mission analytics."""
+    try:
+        data = _api_get(f"/api/v1/missions/{mission_id}/analytics")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[cyan]Status:[/cyan]         {data.get('status', '')}\n"
+        f"[cyan]Decisions:[/cyan]      {data.get('decisions', 0)}\n"
+        f"[cyan]Artifacts:[/cyan]      {data.get('artifacts', 0)}\n"
+        f"[cyan]Risks:[/cyan]          {data.get('risks', 0)}\n"
+        f"[cyan]Milestones:[/cyan]     {data.get('milestones', 0)}\n"
+        f"[cyan]Elapsed:[/cyan]        {data.get('elapsed_s', 0):.1f}s\n"
+        f"[cyan]Budget spent:[/cyan]   ${data.get('budget', {}).get('spent_usd', 0):.4f}",
+        title="Mission Analytics",
+    ))
+
+
+@mission_app.command("export")
+def mission_export(
+    format: str = typer.Argument("json", help="Export format: json or csv"),
+    output: str = typer.Option(None, "--output", "-o", help="Output file"),
+) -> None:
+    """Export all missions."""
+    try:
+        # Use the portfolio metrics endpoint for a summary, or list all
+        data = _api_get("/api/v1/missions?limit=1000")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    import json as _json
+    content = _json.dumps(data, indent=2) if format == "json" else ""
+    if output:
+        Path(output).write_text(content, encoding="utf-8")
+        console.print(f"[green]Exported to {output}[/green]")
+    else:
+        console.print(content)
+
+
+@mission_app.command("list")
+def mission_list(
+    status: str = typer.Option(None, "--status", help="Filter by status"),
+    limit: int = typer.Option(20, "--limit"),
+) -> None:
+    """List missions."""
+    params: dict[str, Any] = {"limit": limit}
+    if status:
+        params["status"] = status
+    try:
+        data = _api_get("/api/v1/missions", params=params)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    missions = data.get("missions", [])
+    if not missions:
+        console.print("[yellow]No missions found.[/yellow]")
+        return
+    table = Table(title=f"Missions ({len(missions)})")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Title", style="white")
+    table.add_column("Status", style="green")
+    table.add_column("Priority", style="magenta")
+    table.add_column("WBS", style="yellow")
+    table.add_column("Budget", style="white")
+    for m in missions:
+        status_color = "green" if m.get("status") == "completed" else "yellow" if m.get("status") == "executing" else "red"
+        table.add_row(
+            str(m.get("mission_id", ""))[:8],
+            str(m.get("title", ""))[:40],
+            f"[{status_color}]{m.get('status', '')}[/{status_color}]",
+            m.get("priority", ""),
+            str(len(m.get("wbs_nodes", []))),
+            f"${m.get('budget', {}).get('spent_usd', 0):.2f}/${m.get('budget', {}).get('total_usd', 0):.2f}",
+        )
+    console.print(table)
+
+
 if __name__ == "__main__":
     main()

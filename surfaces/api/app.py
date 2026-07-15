@@ -156,6 +156,57 @@ class ExperienceRecordRequest(BaseModel):
     workflow_id: str | None = None
 
 
+# --- Mission & Organization request models (v3.0) ---
+
+
+class MissionCreateRequest(BaseModel):
+    """Request body for POST /api/v1/missions."""
+
+    title: str
+    description: str = ""
+    objectives: list[str] = Field(default_factory=list)
+    deliverables: list[str] = Field(default_factory=list)
+    priority: str = "normal"
+    budget_total_usd: float = 0.0
+    deadline: str | None = None
+    owner: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    decompose: bool = True
+    decomposition_strategy: str = "objective_per_project"
+
+
+class MissionUpdateRequest(BaseModel):
+    """Request body for PATCH /api/v1/missions/{id}."""
+
+    title: str | None = None
+    description: str | None = None
+    priority: str | None = None
+    deadline: str | None = None
+    owner: str | None = None
+    tags: list[str] | None = None
+    budget_total_usd: float | None = None
+
+
+class WBSNodeCreateRequest(BaseModel):
+    """Request body for POST /api/v1/missions/{id}/wbs."""
+
+    node_type: str = "task"
+    title: str
+    description: str = ""
+    parent_id: str | None = None
+    depends_on: list[str] = Field(default_factory=list)
+    capabilities_required: list[str] = Field(default_factory=list)
+    assigned_agent_id: str | None = None
+    assigned_provider: str | None = None
+
+
+class MissionSearchRequest(BaseModel):
+    """Request body for POST /api/v1/missions/search."""
+
+    query: str
+    limit: int = Field(default=10, ge=1, le=100)
+
+
 # ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
@@ -819,5 +870,219 @@ def create_app() -> FastAPI:
                 detail=f"No experience data for capability '{capability}'",
             )
         return rec
+
+    # --- Mission & Organization endpoints (v3.0) ---
+
+    _mission_manager: Any = None
+
+    def _get_mission_manager() -> Any:
+        nonlocal _mission_manager
+        if _mission_manager is None:
+            from services.organization import MissionManager
+            _mission_manager = MissionManager()
+        return _mission_manager
+
+    @app.get("/api/v1/missions", tags=["missions"])
+    async def list_missions(
+        status: str | None = None,
+        priority: str | None = None,
+        owner: str | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """List missions with optional filtering."""
+        from services.organization import MissionFilter
+        mgr = _get_mission_manager()
+        filter = MissionFilter(status=status, priority=priority, owner=owner) if any([status, priority, owner]) else None
+        missions = await mgr.list_missions(filter, limit=limit, offset=offset)
+        return {
+            "missions": [m.to_dict() for m in missions],
+            "count": len(missions),
+        }
+
+    @app.post("/api/v1/missions", tags=["missions"])
+    async def create_mission(req: MissionCreateRequest) -> dict[str, Any]:
+        """Create a new mission."""
+        from datetime import datetime
+        mgr = _get_mission_manager()
+        deadline = datetime.fromisoformat(req.deadline) if req.deadline else None
+        mission = await mgr.create_mission(
+            title=req.title,
+            description=req.description,
+            objectives=req.objectives,
+            deliverables=req.deliverables,
+            priority=req.priority,
+            budget_total_usd=req.budget_total_usd,
+            deadline=deadline,
+            owner=req.owner,
+            tags=req.tags,
+            decompose=req.decompose,
+            decomposition_strategy=req.decomposition_strategy,
+        )
+        return mission.to_dict()
+
+    @app.get("/api/v1/missions/{mission_id}", tags=["missions"])
+    async def get_mission(mission_id: str) -> dict[str, Any]:
+        """Get a mission by ID."""
+        mgr = _get_mission_manager()
+        try:
+            mission = await mgr.get_mission(mission_id)
+            return mission.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.patch("/api/v1/missions/{mission_id}", tags=["missions"])
+    async def update_mission(
+        mission_id: str,
+        req: MissionUpdateRequest,
+    ) -> dict[str, Any]:
+        """Update a mission."""
+        mgr = _get_mission_manager()
+        changes: dict[str, Any] = {}
+        if req.title is not None:
+            changes["title"] = req.title
+        if req.description is not None:
+            changes["description"] = req.description
+        if req.priority is not None:
+            changes["priority"] = req.priority
+        if req.deadline is not None:
+            changes["deadline"] = req.deadline
+        if req.owner is not None:
+            changes["owner"] = req.owner
+        if req.tags is not None:
+            changes["tags"] = req.tags
+        if req.budget_total_usd is not None:
+            changes["budget_total_usd"] = req.budget_total_usd
+        mission = await mgr.update_mission(mission_id, changes)
+        return mission.to_dict()
+
+    @app.delete("/api/v1/missions/{mission_id}", tags=["missions"])
+    async def delete_mission(mission_id: str) -> dict[str, Any]:
+        """Delete a mission."""
+        mgr = _get_mission_manager()
+        deleted = await mgr.delete_mission(mission_id)
+        return {"deleted": deleted}
+
+    @app.post("/api/v1/missions/{mission_id}/start", tags=["missions"])
+    async def start_mission(mission_id: str) -> dict[str, Any]:
+        """Start a mission."""
+        mgr = _get_mission_manager()
+        try:
+            mission = await mgr.start_mission(mission_id)
+            return mission.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/api/v1/missions/{mission_id}/pause", tags=["missions"])
+    async def pause_mission(mission_id: str, reason: str = "") -> dict[str, Any]:
+        """Pause a mission."""
+        mgr = _get_mission_manager()
+        try:
+            mission = await mgr.pause_mission(mission_id, reason=reason)
+            return mission.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/api/v1/missions/{mission_id}/resume", tags=["missions"])
+    async def resume_mission(mission_id: str) -> dict[str, Any]:
+        """Resume a paused mission."""
+        mgr = _get_mission_manager()
+        try:
+            mission = await mgr.resume_mission(mission_id)
+            return mission.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/api/v1/missions/{mission_id}/cancel", tags=["missions"])
+    async def cancel_mission(mission_id: str, reason: str = "") -> dict[str, Any]:
+        """Cancel a mission."""
+        mgr = _get_mission_manager()
+        try:
+            mission = await mgr.cancel_mission(mission_id, reason=reason)
+            return mission.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=400, detail=str(e)) from e
+
+    @app.post("/api/v1/missions/{mission_id}/replay", tags=["missions"])
+    async def replay_mission(mission_id: str) -> dict[str, Any]:
+        """Replay a mission's history."""
+        mgr = _get_mission_manager()
+        result = await mgr.replay_mission(mission_id)
+        return result.to_dict()
+
+    @app.get("/api/v1/missions/{mission_id}/timeline", tags=["missions"])
+    async def mission_timeline(mission_id: str) -> dict[str, Any]:
+        """Get a mission's event timeline."""
+        mgr = _get_mission_manager()
+        timeline = await mgr.get_mission_timeline(mission_id)
+        return {"mission_id": mission_id, "timeline": timeline, "count": len(timeline)}
+
+    @app.get("/api/v1/missions/{mission_id}/analytics", tags=["missions"])
+    async def mission_analytics(mission_id: str) -> dict[str, Any]:
+        """Get analytics for a mission."""
+        mgr = _get_mission_manager()
+        return await mgr.get_mission_analytics(mission_id)
+
+    @app.get("/api/v1/missions/{mission_id}/artifacts", tags=["missions"])
+    async def mission_artifacts(mission_id: str) -> dict[str, Any]:
+        """Get artifacts produced by a mission."""
+        mgr = _get_mission_manager()
+        mission = await mgr.get_mission(mission_id)
+        return {
+            "mission_id": mission_id,
+            "artifacts": [a.to_dict() for a in mission.artifacts],
+            "count": len(mission.artifacts),
+        }
+
+    @app.get("/api/v1/missions/{mission_id}/graph", tags=["missions"])
+    async def mission_graph(mission_id: str) -> dict[str, Any]:
+        """Get a mission's WBS dependency graph."""
+        mgr = _get_mission_manager()
+        return await mgr.get_mission_graph(mission_id)
+
+    @app.post("/api/v1/missions/{mission_id}/wbs", tags=["missions"])
+    async def add_wbs_node(
+        mission_id: str,
+        req: WBSNodeCreateRequest,
+    ) -> dict[str, Any]:
+        """Add a WBS node to a mission."""
+        mgr = _get_mission_manager()
+        node = await mgr.add_wbs_node(
+            mission_id,
+            req.node_type,
+            title=req.title,
+            description=req.description,
+            parent_id=req.parent_id,
+            depends_on=req.depends_on,
+            capabilities_required=req.capabilities_required,
+            assigned_agent_id=req.assigned_agent_id,
+            assigned_provider=req.assigned_provider,
+        )
+        return node.to_dict()
+
+    @app.get("/api/v1/missions/{mission_id}/evaluate", tags=["missions"])
+    async def evaluate_mission(mission_id: str) -> dict[str, Any]:
+        """Evaluate a mission and get decision recommendations."""
+        mgr = _get_mission_manager()
+        recs = await mgr.evaluate_mission(mission_id)
+        return {
+            "mission_id": mission_id,
+            "recommendations": [r.to_dict() for r in recs],
+            "count": len(recs),
+        }
+
+    @app.get("/api/v1/missions/portfolio/metrics", tags=["missions"])
+    async def portfolio_metrics() -> dict[str, Any]:
+        """Get portfolio-level metrics across all missions."""
+        mgr = _get_mission_manager()
+        metrics = await mgr.get_portfolio_metrics()
+        return metrics.to_dict()
+
+    @app.post("/api/v1/missions/search", tags=["missions"])
+    async def search_missions(req: MissionSearchRequest) -> dict[str, Any]:
+        """Search missions by text."""
+        mgr = _get_mission_manager()
+        results = await mgr.search_missions(req.query, limit=req.limit)
+        return {"results": results, "count": len(results)}
 
     return app

@@ -223,6 +223,7 @@ ignore = [
 "tests/**" = ["S", "D", "PLR2004"]            # tests can use asserts, magic values
 "scripts/**" = ["S", "D"]
 "surfaces/web/**" = []
+"surfaces/cli/**" = ["B008"]                   # typer.Option in defaults is the standard pattern
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
