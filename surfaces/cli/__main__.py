@@ -21,6 +21,7 @@ from __future__ import annotations
 import os
 import platform
 from importlib import metadata
+from pathlib import Path
 from typing import Any
 
 import typer
@@ -555,6 +556,322 @@ def uninstall(
 def main() -> None:
     """CLI entry point."""
     app()
+
+
+# --- Experience & Learning commands (v2.1) ---
+
+
+experience_app = typer.Typer(help="Experience & Learning Engine — query past executions.")
+learning_app = typer.Typer(help="Learning analytics and recommendations.")
+app.add_typer(experience_app, name="experience")
+app.add_typer(learning_app, name="learning")
+
+
+@experience_app.command("list")
+def experience_list(
+    agent_id: str = typer.Option(None, "--agent", help="Filter by agent ID"),
+    provider: str = typer.Option(None, "--provider", help="Filter by provider"),
+    capability: str = typer.Option(None, "--capability", help="Filter by capability"),
+    outcome: str = typer.Option(None, "--outcome", help="Filter by outcome (success/failure)"),
+    limit: int = typer.Option(20, "--limit", help="Max results"),
+) -> None:
+    """List recent experiences."""
+    params: dict[str, Any] = {"limit": limit}
+    if agent_id:
+        params["agent_id"] = agent_id
+    if provider:
+        params["provider"] = provider
+    if capability:
+        params["capability"] = capability
+    if outcome:
+        params["outcome"] = outcome
+    try:
+        data = _api_get("/api/v1/experience", params=params)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    experiences = data.get("experiences", [])
+    if not experiences:
+        console.print("[yellow]No experiences found.[/yellow]")
+        return
+    table = Table(title=f"Experiences ({data.get('count', 0)} shown, {data.get('total', 0)} total)")
+    table.add_column("ID", style="cyan", no_wrap=True)
+    table.add_column("Timestamp", style="white")
+    table.add_column("Agent", style="magenta")
+    table.add_column("Goal", style="white")
+    table.add_column("Outcome", style="green")
+    table.add_column("Quality", style="yellow")
+    for exp in experiences:
+        outcome_str = exp.get("outcome", "?")
+        color = "green" if outcome_str == "success" else "red"
+        table.add_row(
+            str(exp.get("experience_id", ""))[:8],
+            exp.get("timestamp", "")[:19],
+            str(exp.get("agent_id", "")),
+            str(exp.get("goal", ""))[:40],
+            f"[{color}]{outcome_str}[/{color}]",
+            f"{exp.get('reflection_score', 0):.2f}",
+        )
+    console.print(table)
+
+
+@experience_app.command("show")
+def experience_show(
+    experience_id: str = typer.Argument(..., help="Experience ID (UUID)"),
+) -> None:
+    """Show details of a single experience."""
+    try:
+        exp = _api_get(f"/api/v1/experience/{experience_id}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[cyan]Experience:[/cyan] {exp.get('experience_id')}\n"
+        f"[cyan]Task:[/cyan]        {exp.get('task_id')}\n"
+        f"[cyan]Agent:[/cyan]       {exp.get('agent_id')} ({exp.get('agent_type')})\n"
+        f"[cyan]Provider:[/cyan]    {exp.get('provider', '—')} / {exp.get('model', '—')}\n"
+        f"[cyan]Goal:[/cyan]        {exp.get('goal', '')}\n"
+        f"[cyan]Input:[/cyan]       {exp.get('input_summary', '')[:100]}\n"
+        f"[cyan]Output:[/cyan]      {exp.get('output_summary', '')[:100]}\n"
+        f"[cyan]Outcome:[/cyan]     {exp.get('outcome')} (success={exp.get('success')})\n"
+        f"[cyan]Time:[/cyan]        {exp.get('execution_time_s', 0):.3f}s\n"
+        f"[cyan]Cost:[/cyan]        ${exp.get('cost_usd', 0):.4f}\n"
+        f"[cyan]Quality:[/cyan]     reflection={exp.get('reflection_score', 0):.2f} qa={exp.get('qa_score', 0):.2f}\n"
+        f"[cyan]Retries:[/cyan]     {exp.get('retries', 0)}\n"
+        f"[cyan]Failure:[/cyan]     {exp.get('failure_reason', '—')}\n"
+        f"[cyan]Recovery:[/cyan]    {exp.get('recovery_action', '—')}",
+        title="Experience Detail",
+    ))
+
+
+@experience_app.command("search")
+def experience_search(
+    query: str = typer.Argument(..., help="Search query"),
+    search_type: str = typer.Option(None, "--type", help="Search type (similar_successes, similar_failures, best_agent_for_capability, fastest_provider, cheapest_provider, highest_quality)"),
+    limit: int = typer.Option(10, "--limit"),
+) -> None:
+    """Search experiences semantically."""
+    try:
+        data = _api_post("/api/v1/experience/search", body={
+            "query": query, "search_type": search_type, "limit": limit,
+        })
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    results = data.get("results", [])
+    if not results:
+        console.print("[yellow]No matching experiences found.[/yellow]")
+        return
+    table = Table(title=f"Search Results ({data.get('type', 'semantic')})")
+    table.add_column("Score", style="cyan")
+    table.add_column("Experience", style="white")
+    table.add_column("Agent", style="magenta")
+    table.add_column("Goal", style="white")
+    table.add_column("Outcome", style="green")
+    for r in results:
+        table.add_row(
+            f"{r.get('score', 0):.4f}",
+            str(r.get("experience_id", ""))[:8],
+            str(r.get("agent_id", "")),
+            str(r.get("goal", ""))[:50],
+            str(r.get("outcome", "")),
+        )
+    console.print(table)
+
+
+@experience_app.command("replay")
+def experience_replay(
+    experience_id: str = typer.Argument(..., help="Experience ID to replay"),
+    mode: str = typer.Option("dry_run", "--mode", help="dry_run, re_execute, compare"),
+    comparison_agent: str = typer.Option(None, "--compare-with", help="Agent ID for compare mode"),
+) -> None:
+    """Replay an experience."""
+    body: dict[str, Any] = {"mode": mode}
+    if comparison_agent:
+        body["comparison_agent_id"] = comparison_agent
+    try:
+        data = _api_post(f"/api/v1/experience/{experience_id}/replay", body=body)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[cyan]Original:[/cyan] {data.get('original_experience_id')}\n"
+        f"[cyan]Mode:[/cyan]      {data.get('mode')}\n"
+        f"[cyan]New ID:[/cyan]    {data.get('new_experience_id', '—')}\n"
+        f"[cyan]Outcome:[/cyan]   {data.get('new_outcome', '—')}\n"
+        f"[cyan]Time:[/cyan]      {data.get('new_execution_time_s', 0):.3f}s\n"
+        f"[cyan]Cost:[/cyan]      ${data.get('new_cost_usd', 0):.4f}\n"
+        f"[cyan]Error:[/cyan]     {data.get('error', '—')}",
+        title="Replay Result",
+    ))
+    if data.get("comparison"):
+        console.print("\n[cyan]Comparison:[/cyan]")
+        for k, v in data["comparison"].items():
+            console.print(f"  {k}: {v}")
+
+
+@experience_app.command("export")
+def experience_export(
+    format: str = typer.Argument("json", help="Export format: json or csv"),
+    agent_id: str = typer.Option(None, "--agent"),
+    output: str = typer.Option(None, "--output", "-o", help="Output file (default: stdout)"),
+) -> None:
+    """Export experiences to JSON or CSV."""
+    params: dict[str, Any] = {}
+    if agent_id:
+        params["agent_id"] = agent_id
+    try:
+        data = _api_get(f"/api/v1/experience/export/{format}", params=params)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    content = data.get("content", "")
+    if output:
+        Path(output).write_text(content, encoding="utf-8")
+        console.print(f"[green]Exported {len(content)} bytes to {output}[/green]")
+    else:
+        console.print(content)
+
+
+@learning_app.command("stats")
+def learning_stats() -> None:
+    """Show top-level learning statistics."""
+    try:
+        stats = _api_get("/api/v1/learning/stats")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[cyan]Total experiences:[/cyan]  {stats.get('total_experiences', 0)}\n"
+        f"[cyan]Successes:[/cyan]          {stats.get('total_successes', 0)}\n"
+        f"[cyan]Failures:[/cyan]           {stats.get('total_failures', 0)}\n"
+        f"[cyan]Success rate:[/cyan]       {stats.get('overall_success_rate', 0):.1%}\n"
+        f"[cyan]Avg quality:[/cyan]        {stats.get('overall_avg_quality', 0):.3f}\n"
+        f"[cyan]Avg latency:[/cyan]        {stats.get('overall_avg_latency_s', 0):.3f}s\n"
+        f"[cyan]Avg cost:[/cyan]           ${stats.get('overall_avg_cost_usd', 0):.4f}\n"
+        f"[cyan]Total cost:[/cyan]         ${stats.get('total_cost_usd', 0):.2f}\n"
+        f"[cyan]Total tokens:[/cyan]       {stats.get('total_tokens', 0)}\n"
+        f"[cyan]Agents tracked:[/cyan]     {stats.get('agent_count', 0)}\n"
+        f"[cyan]Providers tracked:[/cyan]  {stats.get('provider_count', 0)}\n"
+        f"[cyan]Capabilities:[/cyan]       {stats.get('capability_count', 0)}\n"
+        f"[cyan]Workflows:[/cyan]          {stats.get('workflow_count', 0)}\n"
+        f"[cyan]Last 24h:[/cyan]           {stats.get('last_24h_count', 0)} experiences\n"
+        f"[cyan]Last 7d:[/cyan]            {stats.get('last_7d_count', 0)} experiences",
+        title="Learning Statistics",
+    ))
+
+
+@learning_app.command("analyze")
+def learning_analyze() -> None:
+    """Analyze patterns in experience data."""
+    try:
+        report = _api_get("/api/v1/learning/patterns")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    successes = report.get("success_patterns", [])
+    failures = report.get("failure_patterns", [])
+    fixes = report.get("repeated_fixes", [])
+    console.print(f"[green]Success patterns:[/green] {len(successes)}")
+    for p in successes[:5]:
+        console.print(f"  • {p.get('description')} ({p.get('occurrence_count')}x, quality={p.get('avg_quality', 0):.2f})")
+    console.print(f"\n[red]Failure patterns:[/red] {len(failures)}")
+    for p in failures[:5]:
+        console.print(f"  • {p.get('description')} ({p.get('occurrence_count')}x)")
+        if p.get("recovery_action"):
+            console.print(f"    recovery: {p['recovery_action']} (success rate: {p.get('recovery_success_rate', 0):.0%})")
+    console.print(f"\n[cyan]Repeated fixes:[/cyan] {len(fixes)}")
+    for p in fixes[:5]:
+        console.print(f"  • {p.get('description')} ({p.get('occurrence_count')}x)")
+
+
+@learning_app.command("agents")
+def learning_agents(limit: int = typer.Option(10, "--limit")) -> None:
+    """Rank agents by reliability."""
+    try:
+        data = _api_get("/api/v1/learning/agents", params={"limit": limit})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    agents = data.get("agents", [])
+    if not agents:
+        console.print("[yellow]No agent data yet.[/yellow]")
+        return
+    table = Table(title="Agent Reliability Rankings")
+    table.add_column("Agent", style="magenta")
+    table.add_column("Experiences", style="white")
+    table.add_column("Success Rate", style="green")
+    table.add_column("Quality", style="yellow")
+    table.add_column("Latency", style="cyan")
+    table.add_column("Cost", style="white")
+    table.add_column("Reliability", style="green")
+    table.add_column("Trend", style="blue")
+    for a in agents:
+        table.add_row(
+            a.get("agent_id", ""),
+            str(a.get("experience_count", 0)),
+            f"{a.get('success_rate', 0):.1%}",
+            f"{a.get('avg_quality', 0):.3f}",
+            f"{a.get('avg_latency_s', 0):.3f}s",
+            f"${a.get('avg_cost_usd', 0):.4f}",
+            f"{a.get('reliability_score', 0):.3f}",
+            a.get("trend", "?"),
+        )
+    console.print(table)
+
+
+@learning_app.command("providers")
+def learning_providers(limit: int = typer.Option(10, "--limit")) -> None:
+    """Rank providers by reliability."""
+    try:
+        data = _api_get("/api/v1/learning/providers", params={"limit": limit})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    providers = data.get("providers", [])
+    if not providers:
+        console.print("[yellow]No provider data yet.[/yellow]")
+        return
+    table = Table(title="Provider Reliability Rankings")
+    table.add_column("Provider", style="magenta")
+    table.add_column("Experiences", style="white")
+    table.add_column("Success Rate", style="green")
+    table.add_column("Latency", style="cyan")
+    table.add_column("Cost", style="white")
+    table.add_column("Reliability", style="green")
+    for p in providers:
+        table.add_row(
+            p.get("provider", ""),
+            str(p.get("experience_count", 0)),
+            f"{p.get('success_rate', 0):.1%}",
+            f"{p.get('avg_latency_s', 0):.3f}s",
+            f"${p.get('avg_cost_usd', 0):.4f}",
+            f"{p.get('reliability_score', 0):.3f}",
+        )
+    console.print(table)
+
+
+@learning_app.command("recommend")
+def learning_recommend(
+    capability: str = typer.Argument(..., help="Capability namespace (e.g. code.generate)"),
+) -> None:
+    """Recommend the best agent for a capability based on history."""
+    try:
+        rec = _api_get(f"/api/v1/learning/recommendations/{capability}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[cyan]Capability:[/cyan]          {rec.get('capability')}\n"
+        f"[green]Recommended agent:[/green] {rec.get('recommended_agent_id')}\n"
+        f"[cyan]Score:[/cyan]              {rec.get('score', 0):.3f}\n"
+        f"[cyan]Experiences:[/cyan]        {rec.get('experience_count', 0)}\n"
+        f"[cyan]Success rate:[/cyan]       {rec.get('success_rate', 0):.1%}\n"
+        f"[cyan]Avg quality:[/cyan]        {rec.get('avg_quality', 0):.3f}\n"
+        f"[cyan]Avg cost:[/cyan]           ${rec.get('avg_cost_usd', 0):.4f}\n"
+        f"[cyan]Reason:[/cyan]             {rec.get('reason', '')}",
+        title="Agent Recommendation",
+    ))
 
 
 if __name__ == "__main__":

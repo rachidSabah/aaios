@@ -35,6 +35,11 @@ from pydantic import BaseModel, Field
 
 from core.contracts.memory.item import MemoryScope, MemoryScopeType
 from core.logging import get_logger
+from services.experience import (
+    ExperienceFilter,
+    ExperienceRecord,
+    LearningEngine,
+)
 
 _log = get_logger(__name__)
 
@@ -105,6 +110,50 @@ class ApprovalRespondRequest(BaseModel):
 
     decision: str  # approved, denied, modified
     modified_inputs: dict[str, Any] | None = None
+
+
+# --- Experience & Learning request models (v2.1) ---
+
+
+class ExperienceSearchRequest(BaseModel):
+    """Request body for POST /api/v1/experience/search."""
+
+    query: str
+    search_type: str | None = None
+    limit: int = Field(default=10, ge=1, le=100)
+
+
+class ExperienceReplayRequest(BaseModel):
+    """Request body for POST /api/v1/experience/{id}/replay."""
+
+    mode: str = "dry_run"  # dry_run, re_execute, compare
+    comparison_agent_id: str | None = None
+
+
+class ExperienceRecordRequest(BaseModel):
+    """Manual experience recording (for testing/ingestion)."""
+
+    task_id: str
+    agent_id: str
+    agent_type: str
+    provider: str | None = None
+    model: str | None = None
+    capabilities: list[str] = Field(default_factory=list)
+    goal: str = ""
+    input_summary: str = ""
+    output_summary: str = ""
+    outcome: str = "success"
+    success: bool = True
+    execution_time_s: float = 0.0
+    latency_s: float = 0.0
+    cost_usd: float = 0.0
+    reflection_score: float = 0.0
+    qa_score: float = 0.0
+    confidence: float = 0.0
+    retries: int = 0
+    failure_reason: str | None = None
+    recovery_action: str | None = None
+    workflow_id: str | None = None
 
 
 # ---------------------------------------------------------------------------
@@ -602,5 +651,173 @@ def create_app() -> FastAPI:
                 await asyncio.sleep(30)
         except WebSocketDisconnect:
             pass
+
+    # --- Experience & Learning endpoints (v2.1) ---
+
+    _learning_engine: LearningEngine | None = None
+
+    def _get_learning_engine() -> LearningEngine:
+        nonlocal _learning_engine
+        if _learning_engine is None:
+            _learning_engine = LearningEngine()
+        return _learning_engine
+
+    @app.get("/api/v1/experience", tags=["experience"])
+    async def list_experiences(
+        agent_id: str | None = None,
+        provider: str | None = None,
+        capability: str | None = None,
+        outcome: str | None = None,
+        success: bool | None = None,
+        limit: int = 100,
+        offset: int = 0,
+    ) -> dict[str, Any]:
+        """List experiences with optional filtering."""
+        engine = _get_learning_engine()
+        filter = ExperienceFilter(
+            agent_id=agent_id,
+            provider=provider,
+            capability=capability,
+            outcome=outcome,
+            success=success,
+        )
+        records = await engine.list_experiences(filter, limit=limit, offset=offset)
+        total = await engine.store.count(filter)
+        return {
+            "experiences": [r.to_dict() for r in records],
+            "count": len(records),
+            "total": total,
+        }
+
+    @app.get("/api/v1/experience/{experience_id}", tags=["experience"])
+    async def get_experience(experience_id: str) -> dict[str, Any]:
+        """Get a single experience by ID."""
+        engine = _get_learning_engine()
+        try:
+            record = await engine.get(UUID(experience_id))
+            return record.to_dict()
+        except Exception as e:
+            raise HTTPException(status_code=404, detail=str(e)) from e
+
+    @app.post("/api/v1/experience", tags=["experience"])
+    async def record_experience(req: ExperienceRecordRequest) -> dict[str, Any]:
+        """Manually record an experience (for testing or external ingestion)."""
+        engine = _get_learning_engine()
+        record = ExperienceRecord(
+            task_id=UUID(req.task_id),
+            agent_id=req.agent_id,
+            agent_type=req.agent_type,
+            provider=req.provider,
+            model=req.model,
+            capabilities_used=req.capabilities,
+            goal=req.goal,
+            input_summary=req.input_summary,
+            output_summary=req.output_summary,
+            outcome=req.outcome,
+            success=req.success,
+            execution_time_s=req.execution_time_s,
+            latency_s=req.latency_s,
+            cost_usd=req.cost_usd,
+            reflection_score=req.reflection_score,
+            qa_score=req.qa_score,
+            confidence=req.confidence,
+            retries=req.retries,
+            failure_reason=req.failure_reason,
+            recovery_action=req.recovery_action,
+            workflow_id=req.workflow_id,
+        )
+        stored = await engine.record(record)
+        return stored.to_dict()
+
+    @app.post("/api/v1/experience/search", tags=["experience"])
+    async def search_experiences(req: ExperienceSearchRequest) -> dict[str, Any]:
+        """Search experiences semantically."""
+        engine = _get_learning_engine()
+        return await engine.search(
+            req.query, search_type=req.search_type, limit=req.limit,
+        )
+
+    @app.post("/api/v1/experience/{experience_id}/replay", tags=["experience"])
+    async def replay_experience(
+        experience_id: str,
+        req: ExperienceReplayRequest,
+    ) -> dict[str, Any]:
+        """Replay an experience (dry_run / re_execute / compare)."""
+        engine = _get_learning_engine()
+        result = await engine.replay(
+            UUID(experience_id),
+            mode=req.mode,
+            comparison_agent_id=req.comparison_agent_id,
+        )
+        return result.to_dict()
+
+    @app.get("/api/v1/experience/export/{format}", tags=["experience"])
+    async def export_experiences(
+        format: str,
+        agent_id: str | None = None,
+        limit: int = 10000,
+    ) -> dict[str, Any]:
+        """Export experiences as JSON or CSV."""
+        engine = _get_learning_engine()
+        filter = ExperienceFilter(agent_id=agent_id) if agent_id else None
+        if format == "csv":
+            content = await engine.export_csv(filter, limit=limit)
+            return {"format": "csv", "content": content}
+        content = await engine.export_json(filter, limit=limit)
+        return {"format": "json", "content": content}
+
+    @app.get("/api/v1/learning/stats", tags=["learning"])
+    async def learning_stats() -> dict[str, Any]:
+        """Get top-level learning statistics."""
+        engine = _get_learning_engine()
+        stats = await engine.learning_stats()
+        return stats.to_dict()
+
+    @app.get("/api/v1/learning/trends", tags=["learning"])
+    async def learning_trends(
+        days: int = 30,
+        bucket: str = "day",
+    ) -> dict[str, Any]:
+        """Get success rate trend over time."""
+        engine = _get_learning_engine()
+        series = await engine.trends(days=days, bucket=bucket)
+        return {"days": days, "bucket": bucket, "series": series}
+
+    @app.get("/api/v1/learning/agents", tags=["learning"])
+    async def learning_agent_rankings(limit: int = 10) -> dict[str, Any]:
+        """Rank agents by reliability score."""
+        engine = _get_learning_engine()
+        return {"agents": await engine.rank_agents(limit=limit)}
+
+    @app.get("/api/v1/learning/providers", tags=["learning"])
+    async def learning_provider_rankings(limit: int = 10) -> dict[str, Any]:
+        """Rank providers by reliability score."""
+        engine = _get_learning_engine()
+        return {"providers": await engine.rank_providers(limit=limit)}
+
+    @app.get("/api/v1/learning/workflows", tags=["learning"])
+    async def learning_workflow_rankings(limit: int = 10) -> dict[str, Any]:
+        """Rank workflows by quality."""
+        engine = _get_learning_engine()
+        return {"workflows": await engine.rank_workflows(limit=limit)}
+
+    @app.get("/api/v1/learning/patterns", tags=["learning"])
+    async def learning_patterns() -> dict[str, Any]:
+        """Discover success/failure patterns."""
+        engine = _get_learning_engine()
+        report = await engine.discover_patterns()
+        return report.to_dict()
+
+    @app.get("/api/v1/learning/recommendations/{capability}", tags=["learning"])
+    async def recommend_agent(capability: str) -> dict[str, Any]:
+        """Recommend the best agent for a capability based on history."""
+        engine = _get_learning_engine()
+        rec = await engine.recommend_agent_for_capability(capability)
+        if rec is None:
+            raise HTTPException(
+                status_code=404,
+                detail=f"No experience data for capability '{capability}'",
+            )
+        return rec
 
     return app
