@@ -11,7 +11,7 @@
 > A **Windows-first**, modular, production-grade operating system for autonomous AI agents — orchestrating multiple LLM providers, multiple **generic** agents, MCP servers, vector memory, knowledge graphs, plugins, and workflows behind a single supervisor. Built around a **Generic Agent Runtime** where Claude Code, Hermes, and any future agent (OpenHands, Cline, Roo Code, Gemini CLI, Codex CLI, custom) are all just replaceable implementations.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Status: v1.0.0 Released](https://img.shields.io/badge/Status-v1.0.0%20Released-brightgreen)](https://github.com/rachidSabah/aaios/releases)
+[![Status: v4.1.0 Released](https://img.shields.io/badge/Status-v4.1.0%20Released-brightgreen)](https://github.com/rachidSabah/aaios/releases)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
 [![Windows 11](https://img.shields.io/badge/Platform-Windows%2011%20first-blue.svg)](https://www.microsoft.com/windows/)
@@ -214,7 +214,7 @@ This repository is being built phase-by-phase. The current state is:
 | 11 | ✅ Complete | Plugins + MCP + Plugin/Agent SDK + 3 example plugins |
 | 12 | ✅ Complete | Dashboard + CLI + API (30 routes, 12 CLI commands, Next.js dashboard) |
 | 13 | ✅ Complete | Testing matrix (597 tests: unit, integration, e2e, stress, performance, security) |
-| 14 | ✅ Complete | Windows deployment + CI/CD + documentation + v1.0.0 release |
+| 14 | ✅ Complete | Windows deployment + CI/CD + documentation + v4.1.0 release |
 
 See [`docs/architecture/09-roadmap.md`](docs/architecture/09-roadmap.md) for the full plan.
 

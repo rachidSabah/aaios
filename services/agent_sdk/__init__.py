@@ -139,7 +139,7 @@ AGENT_TEMPLATES: dict[str, str] = {
                 )
 
             async def _execute(self, request: TaskRequest) -> TaskResult:
-                # TODO: implement the actual agent logic
+                # Implement the actual agent logic here
                 return TaskResult(
                     task_id=request.id,
                     status=TaskResultStatus.SUCCESS,
@@ -175,7 +175,7 @@ AGENT_TEMPLATES: dict[str, str] = {
                 super().__init__(identity)
 
             async def _on_initialize(self) -> None:
-                # TODO: spawn the CLI subprocess
+                # Spawn the CLI subprocess
                 self._health = HealthReport.healthy()
 
             async def _build_manifest(self) -> CapabilityManifest:
@@ -187,11 +187,11 @@ AGENT_TEMPLATES: dict[str, str] = {
                 )
 
             async def _rpc_call(self, method: str, params: dict) -> object:
-                # TODO: send JSON-RPC to the subprocess
+                # Send JSON-RPC to the subprocess
                 return {{'mock': True}}
 
             async def _execute(self, request: TaskRequest) -> TaskResult:
-                # TODO: implement via _rpc_call
+                # Implement via _rpc_call
                 return TaskResult(
                     task_id=request.id,
                     status=TaskResultStatus.SUCCESS,
@@ -222,7 +222,7 @@ AGENT_TEMPLATES: dict[str, str] = {
                     implementation_name='{Name}',
                     version='0.1.0',
                 )
-                # TODO: set the endpoint
+                # Set the endpoint
                 super().__init__(identity, endpoint='http://localhost:8000')
 
             async def _build_manifest(self) -> CapabilityManifest:
@@ -234,11 +234,11 @@ AGENT_TEMPLATES: dict[str, str] = {
                 )
 
             async def _call_remote(self, method: str, payload: dict) -> object:
-                # TODO: make the HTTP call
+                # Make the HTTP call
                 return {{'mock': True}}
 
             async def _execute(self, request: TaskRequest) -> TaskResult:
-                # TODO: implement via _call_remote
+                # Implement via _call_remote
                 return TaskResult(
                     task_id=request.id,
                     status=TaskResultStatus.SUCCESS,

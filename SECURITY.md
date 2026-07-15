@@ -8,9 +8,10 @@ This document describes how to report vulnerabilities and what to expect.
 
 | Version | Supported |
 |---------|-----------|
-| `0.1.x` (pre-alpha) | ✅ security fixes only — no API stability guarantee |
-| `< 0.1` | ❌ not supported |
-| `>= 1.0` (future) | ✅ latest minor only |
+| 4.1.x   | ✅ Yes    |
+| 4.0.x   | ✅ Yes    |
+| 3.x     | ⚠️ Best effort |
+| < 3.0   | ❌ No     |
 
 Until v1.0.0, the API and on-disk formats may change without notice. Security
 fixes will be backported to the latest `0.1.x` patch release.

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aaios"
-version = "2.0.0"
+version = "4.1.0"
 description = "Agentic AI Operating System — a Windows-first, modular runtime for orchestrating generic AI agents."
 readme = "README.md"
 license = "Apache-2.0"
@@ -241,7 +241,7 @@ known-first-party = ["core", "services", "agents", "supervisor", "orchestrator",
 # Mypy — strict typing
 # ---------------------------------------------------------------------------
 [tool.mypy]
-python_version = "2.0.0"
+python_version = "3.12"
 strict = true
 warn_unreachable = true
 warn_redundant_casts = true
@@ -277,7 +277,7 @@ ignore_missing_imports = true
 # Pytest
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
-minversion = "2.0.0"
+minversion = "4.1.0"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = [
