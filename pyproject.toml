@@ -87,7 +87,7 @@ linux = [
 # Development tools
 dev = [
   "ruff>=0.6,<1",
-  "mypy>=1.11,<2",
+  "mypy>=1.11,<3",
   "bandit>=1.7,<2",
   "pytest>=8.3,<9",
   "pytest-asyncio>=0.23,<1",
