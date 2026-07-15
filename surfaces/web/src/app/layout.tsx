@@ -15,6 +15,7 @@ const navItems = [
   { href: '/', label: 'Overview' },
   { href: '/intelligence', label: 'Intelligence' },
   { href: '/missions', label: 'Missions' },
+  { href: '/execution', label: 'Execution' },
   { href: '/workflows', label: 'Workflows' },
   { href: '/monitoring', label: 'Monitoring' },
   { href: '/analytics', label: 'Analytics' },

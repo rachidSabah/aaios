@@ -385,20 +385,21 @@ class TestRestApiHandler:
 class TestStubHandlers:
     """Test that stub handlers return clear errors."""
 
-    async def test_browser_handler_stub(self) -> None:
+    async def test_browser_handler_graceful_degradation(self) -> None:
         handler = get_handler(ExecutionDomain.BROWSER.value)
         req = _make_request(domain=ExecutionDomain.BROWSER.value, policy=ExecutionPolicy(sandbox_enabled=False))
         result = await handler.execute(req)
+        # Should either fail with playwright install message (if not installed)
+        # or fail with unknown action (if playwright IS installed)
         assert result.succeeded is False
-        assert "playwright" in (result.error or "").lower()
 
-    async def test_cloud_handler_stub(self) -> None:
+    async def test_cloud_handler_graceful_degradation(self) -> None:
         handler = get_handler(ExecutionDomain.CLOUD.value)
         req = _make_request(domain=ExecutionDomain.CLOUD.value, policy=ExecutionPolicy(sandbox_enabled=False))
         result = await handler.execute(req)
         assert result.succeeded is False
 
-    async def test_email_handler_stub(self) -> None:
+    async def test_email_handler_graceful_degradation(self) -> None:
         handler = get_handler(ExecutionDomain.EMAIL.value)
         req = _make_request(domain=ExecutionDomain.EMAIL.value, policy=ExecutionPolicy(sandbox_enabled=False))
         result = await handler.execute(req)

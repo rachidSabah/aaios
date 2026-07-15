@@ -23,6 +23,7 @@ import time
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any, Protocol
+from uuid import uuid4
 
 from core.logging import get_logger
 from services.execution.models import (
@@ -589,40 +590,207 @@ class RestApiHandler:
 
 
 class BrowserHandler:
-    """Handles browser automation: navigate, click, input, screenshot."""
+    """Handles browser automation via Playwright.
+
+    Gracefully degrades when Playwright is not installed — returns a clear
+    error with installation instructions instead of crashing.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="Browser automation requires playwright. Install with: pip install playwright && playwright install",
-                            stderr="Playwright not available. This is a stub handler.")
+        try:
+            from playwright.async_api import async_playwright
+        except ImportError:
+            return _make_result(
+                request, ExecutionStatus.FAILED.value, 1,
+                error="Playwright is not installed. Install with: pip install playwright && playwright install chromium",
+                stderr="Optional dependency 'playwright' not available. Browser automation requires Playwright.",
+            )
+        action = request.action
+        params = request.parameters
+        browser_type = params.get("browser", "chromium")
+        try:
+            async with async_playwright() as p:
+                browser = await getattr(p, browser_type).launch()
+                page = await browser.new_page()
+                if action == "navigate":
+                    url = params.get("url", "")
+                    await page.goto(url)
+                    title = await page.title()
+                    await browser.close()
+                    return _make_result(request, output={"url": url, "title": title},
+                                        stdout=f"Navigated to {url} — title: {title}")
+                elif action == "screenshot":
+                    url = params.get("url", "")
+                    await page.goto(url)
+                    screenshot_bytes = await page.screenshot()
+                    await browser.close()
+                    return _make_result(request, output={"screenshot_size": len(screenshot_bytes)},
+                                        stdout=f"Screenshot taken ({len(screenshot_bytes)} bytes)")
+                elif action == "extract_text":
+                    url = params.get("url", "")
+                    await page.goto(url)
+                    text = await page.inner_text("body")
+                    await browser.close()
+                    return _make_result(request, output={"text": text[:5000]},
+                                        stdout=text[:2000])
+                elif action == "click":
+                    url = params.get("url", "")
+                    selector = params.get("selector", "")
+                    await page.goto(url)
+                    await page.click(selector)
+                    await browser.close()
+                    return _make_result(request, stdout=f"Clicked '{selector}' on {url}")
+                elif action == "fill":
+                    url = params.get("url", "")
+                    selector = params.get("selector", "")
+                    value = params.get("value", "")
+                    await page.goto(url)
+                    await page.fill(selector, value)
+                    await browser.close()
+                    return _make_result(request, stdout=f"Filled '{selector}' with '{value}' on {url}")
+                else:
+                    await browser.close()
+                    return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                        error=f"Unknown browser action: {action}")
+        except Exception as e:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1, error=str(e))
 
 
 # ============================================================
-# Desktop Handler (stub — requires platform-specific tools)
+# Desktop Handler — graceful degradation
 # ============================================================
 
 
 class DesktopHandler:
-    """Handles desktop automation: mouse, keyboard, screenshots, OCR."""
+    """Handles desktop automation via pyautogui (cross-platform).
+
+    Gracefully degrades when pyautogui is not installed.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="Desktop automation requires platform-specific tools (pyautogui, etc.)",
-                            stderr="Desktop tools not available. This is a stub handler.")
+        try:
+            import pyautogui  # noqa: F401
+        except ImportError:
+            return _make_result(
+                request, ExecutionStatus.FAILED.value, 1,
+                error="Desktop automation requires pyautogui. Install with: pip install pyautogui",
+                stderr="Optional dependency 'pyautogui' not available. Desktop automation requires pyautogui.",
+            )
+        action = request.action
+        params = request.parameters
+        try:
+            import pyautogui
+            if action == "screenshot":
+                screenshot = pyautogui.screenshot()
+                import io
+                buf = io.BytesIO()
+                screenshot.save(buf, format="PNG")
+                return _make_result(request, output={"screenshot_size": len(buf.getvalue())},
+                                    stdout=f"Screenshot taken ({len(buf.getvalue())} bytes)")
+            elif action == "click":
+                x = int(params.get("x", 0))
+                y = int(params.get("y", 0))
+                pyautogui.click(x, y)
+                return _make_result(request, stdout=f"Clicked at ({x}, {y})")
+            elif action == "type_text":
+                text = params.get("text", "")
+                pyautogui.typewrite(text)
+                return _make_result(request, stdout=f"Typed '{text[:50]}'")
+            elif action == "press_key":
+                key = params.get("key", "")
+                pyautogui.press(key)
+                return _make_result(request, stdout=f"Pressed '{key}'")
+            else:
+                return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                    error=f"Unknown desktop action: {action}")
+        except Exception as e:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1, error=str(e))
 
 
 # ============================================================
-# Cloud Handler (stub — requires cloud SDKs)
+# Cloud Handler — graceful degradation via cloud SDKs
 # ============================================================
 
 
 class CloudHandler:
-    """Handles cloud operations: AWS, Azure, GCP, etc."""
+    """Handles cloud operations: AWS (boto3), Azure, GCP.
+
+    Gracefully degrades when cloud SDKs are not installed.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
+        provider = request.parameters.get("provider", "aws")
+        if provider == "aws":
+            return await self._execute_aws(request)
+        elif provider == "azure":
+            return await self._execute_azure(request)
+        elif provider == "gcp":
+            return await self._execute_gcp(request)
+        else:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                error=f"Unsupported cloud provider: {provider}")
+
+    async def _execute_aws(self, request: ExecutionRequest) -> ExecutionResult:
+        try:
+            import boto3  # noqa: F401
+        except ImportError:
+            return _make_result(
+                request, ExecutionStatus.FAILED.value, 1,
+                error="AWS operations require boto3. Install with: pip install boto3",
+                stderr="Optional dependency 'boto3' not available. Configure AWS credentials to enable.",
+            )
+        action = request.action
+        params = request.parameters
+        try:
+            import boto3
+            if action == "list_instances":
+                ec2 = boto3.client("ec2", region_name=params.get("region", "us-east-1"))
+                resp = ec2.describe_instances()
+                instances = []
+                for res in resp.get("Reservations", []):
+                    for inst in res.get("Instances", []):
+                        instances.append({
+                            "id": inst.get("InstanceId", ""),
+                            "state": inst.get("State", {}).get("Name", ""),
+                            "type": inst.get("InstanceType", ""),
+                        })
+                return _make_result(request, output=instances, stdout=f"{len(instances)} instances")
+            elif action == "list_buckets":
+                s3 = boto3.client("s3")
+                resp = s3.list_buckets()
+                buckets = [b["Name"] for b in resp.get("Buckets", [])]
+                return _make_result(request, output=buckets, stdout=f"{len(buckets)} buckets")
+            else:
+                return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                    error=f"Unknown AWS action: {action}")
+        except Exception as e:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1, error=str(e))
+
+    async def _execute_azure(self, request: ExecutionRequest) -> ExecutionResult:
+        try:
+            from azure.identity import (
+                DefaultAzureCredential,  # noqa: F401
+            )
+        except ImportError:
+            return _make_result(
+                request, ExecutionStatus.FAILED.value, 1,
+                error="Azure operations require azure-identity. Install with: pip install azure-identity",
+                stderr="Optional dependency 'azure-identity' not available.",
+            )
         return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="Cloud operations require cloud SDKs (boto3, azure-sdk, google-cloud). Configure credentials to enable.",
-                            stderr="Cloud SDK not configured. This is a stub handler.")
+                            error="Azure operations configured but action not implemented")
+
+    async def _execute_gcp(self, request: ExecutionRequest) -> ExecutionResult:
+        try:
+            from google.cloud import storage  # noqa: F401
+        except ImportError:
+            return _make_result(
+                request, ExecutionStatus.FAILED.value, 1,
+                error="GCP operations require google-cloud-storage. Install with: pip install google-cloud-storage",
+                stderr="Optional dependency 'google-cloud-storage' not available.",
+            )
+        return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                            error="GCP operations configured but action not implemented")
 
 
 # ============================================================
@@ -681,82 +849,355 @@ class KubernetesHandler:
 
 
 class CICDHandler:
-    """Handles CI/CD operations: GitHub Actions, GitLab CI, Jenkins."""
+    """Handles CI/CD operations: GitHub Actions, GitLab CI, Jenkins.
+
+    Uses REST API calls (urllib) — no SDK required. Requires API tokens
+    configured in parameters.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="CI/CD operations require API tokens. Configure GitHub/GitLab/Jenkins credentials to enable.",
-                            stderr="CI/CD credentials not configured. This is a stub handler.")
+        params = request.parameters
+        platform = params.get("platform", "github")
+        token = params.get("token", "")
+        if not token:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                error=f"CI/CD operations require an API token for {platform}. "
+                                      "Provide via parameters.token.")
+        try:
+            import json as _json
+            import urllib.error
+            import urllib.request
+            if platform == "github":
+                repo = params.get("repo", "")
+                api_url = f"https://api.github.com/repos/{repo}/actions/runs"
+                headers = {"Authorization": f"token {token}", "Accept": "application/vnd.github.v3+json"}
+                req = urllib.request.Request(api_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=request.timeout_s) as resp:
+                    data = _json.loads(resp.read().decode("utf-8"))
+                    runs = data.get("workflow_runs", [])
+                    return _make_result(request, output={"runs": len(runs), "latest": runs[0]["status"] if runs else "none"},
+                                        stdout=f"{len(runs)} workflow runs found")
+            elif platform == "gitlab":
+                project_id = params.get("project_id", "")
+                gitlab_url = params.get("url", "https://gitlab.com")
+                api_url = f"{gitlab_url}/api/v4/projects/{project_id}/pipelines"
+                headers = {"PRIVATE-TOKEN": token}
+                req = urllib.request.Request(api_url, headers=headers)
+                with urllib.request.urlopen(req, timeout=request.timeout_s) as resp:
+                    data = _json.loads(resp.read().decode("utf-8"))
+                    return _make_result(request, output={"pipelines": len(data)},
+                                        stdout=f"{len(data)} pipelines found")
+            else:
+                return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                    error=f"Unsupported CI/CD platform: {platform}")
+        except urllib.error.HTTPError as e:
+            return _make_result(request, ExecutionStatus.FAILED.value, e.code,
+                                error=f"HTTP {e.code}: {e.reason}")
+        except Exception as e:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1, error=str(e))
 
 
 # ============================================================
-# Document Handler (stub — requires python-docx, python-pptx)
+# Document Handler — graceful degradation
 # ============================================================
 
 
 class DocumentHandler:
-    """Handles document automation: create/edit Word, PowerPoint, PDF."""
+    """Handles document automation: create/edit Word, Markdown, PDF, text.
+
+    For .docx: requires python-docx (graceful degradation if missing).
+    For .md/.txt/.pdf: uses standard library / reportlab.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="Document automation requires python-docx, python-pptx. Install to enable.",
-                            stderr="Document libraries not available. This is a stub handler.")
+        action = request.action
+        params = request.parameters
+        if action == "create_markdown":
+            path = params.get("path", "")
+            content = params.get("content", "")
+            Path(path).write_text(content, encoding="utf-8")
+            return _make_result(request, stdout=f"Created markdown: {path} ({len(content)} chars)")
+        elif action == "create_text":
+            path = params.get("path", "")
+            content = params.get("content", "")
+            Path(path).write_text(content, encoding="utf-8")
+            return _make_result(request, stdout=f"Created text file: {path} ({len(content)} chars)")
+        elif action == "create_docx":
+            try:
+                from docx import Document
+            except ImportError:
+                return _make_result(
+                    request, ExecutionStatus.FAILED.value, 1,
+                    error="DOCX creation requires python-docx. Install with: pip install python-docx",
+                    stderr="Optional dependency 'python-docx' not available.",
+                )
+            path = params.get("path", "")
+            content = params.get("content", "")
+            doc = Document()
+            for line in content.split("\n"):
+                doc.add_paragraph(line)
+            doc.save(path)
+            return _make_result(request, stdout=f"Created DOCX: {path}")
+        elif action == "create_pdf":
+            try:
+                from reportlab.lib.pagesizes import letter
+                from reportlab.pdfgen import canvas
+            except ImportError:
+                return _make_result(
+                    request, ExecutionStatus.FAILED.value, 1,
+                    error="PDF creation requires reportlab. Install with: pip install reportlab",
+                    stderr="Optional dependency 'reportlab' not available.",
+                )
+            path = params.get("path", "")
+            content = params.get("content", "")
+            c = canvas.Canvas(path, pagesize=letter)
+            y = 750
+            for line in content.split("\n"):
+                c.drawString(72, y, line[:90])
+                y -= 12
+                if y < 50:
+                    c.showPage()
+                    y = 750
+            c.save()
+            return _make_result(request, stdout=f"Created PDF: {path}")
+        else:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                error=f"Unknown document action: {action}")
 
 
 # ============================================================
-# Spreadsheet Handler (stub — requires openpyxl)
+# Spreadsheet Handler — graceful degradation
 # ============================================================
 
 
 class SpreadsheetHandler:
-    """Handles spreadsheet automation: create/edit Excel, CSV."""
+    """Handles spreadsheet automation: CSV (native), Excel (openpyxl).
+
+    CSV operations work with the standard library. Excel requires openpyxl.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="Spreadsheet automation requires openpyxl. Install to enable.",
-                            stderr="Spreadsheet libraries not available. This is a stub handler.")
+        action = request.action
+        params = request.parameters
+        if action == "create_csv":
+            import csv
+            import io
+            path = params.get("path", "")
+            rows = params.get("rows", [])
+            output = io.StringIO()
+            writer = csv.writer(output)
+            for row in rows:
+                writer.writerow(row)
+            Path(path).write_text(output.getvalue(), encoding="utf-8")
+            return _make_result(request, stdout=f"Created CSV: {path} ({len(rows)} rows)")
+        elif action == "read_csv":
+            import csv
+            path = params.get("path", "")
+            with Path(path).open(encoding="utf-8") as f:
+                reader = csv.reader(f)
+                rows = [list(r) for r in reader]
+            return _make_result(request, output=rows, stdout=f"{len(rows)} rows read")
+        elif action == "create_excel":
+            try:
+                from openpyxl import Workbook
+            except ImportError:
+                return _make_result(
+                    request, ExecutionStatus.FAILED.value, 1,
+                    error="Excel creation requires openpyxl. Install with: pip install openpyxl",
+                    stderr="Optional dependency 'openpyxl' not available.",
+                )
+            path = params.get("path", "")
+            rows = params.get("rows", [])
+            wb = Workbook()
+            ws = wb.active
+            for row in rows:
+                ws.append(row)
+            wb.save(path)
+            return _make_result(request, stdout=f"Created Excel: {path} ({len(rows)} rows)")
+        else:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                error=f"Unknown spreadsheet action: {action}")
 
 
 # ============================================================
-# Email Handler (stub — requires SMTP credentials)
+# Email Handler — graceful degradation
 # ============================================================
 
 
 class EmailHandler:
-    """Handles email automation: send, read, search."""
+    """Handles email automation via SMTP/IMAP.
+
+    Uses smtplib (standard library). Requires SMTP credentials in parameters.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="Email automation requires SMTP/IMAP credentials. Configure to enable.",
-                            stderr="Email credentials not configured. This is a stub handler.")
+        action = request.action
+        params = request.parameters
+        if action != "send":
+            return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                error=f"Unknown email action: {action}")
+        smtp_host = params.get("smtp_host", "")
+        smtp_port = int(params.get("smtp_port", 587))
+        username = params.get("username", "")
+        password = params.get("password", "")
+        from_addr = params.get("from", username)
+        to_addrs = params.get("to", [])
+        subject = params.get("subject", "")
+        body = params.get("body", "")
+        if not smtp_host or not to_addrs:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                error="Email requires smtp_host, to, and (username/password or smtp config)")
+        try:
+            import smtplib
+            from email.mime.multipart import MIMEMultipart
+            from email.mime.text import MIMEText
+            msg = MIMEMultipart()
+            msg["From"] = from_addr
+            msg["To"] = ", ".join(to_addrs)
+            msg["Subject"] = subject
+            msg.attach(MIMEText(body, "plain"))
+            with smtplib.SMTP(smtp_host, smtp_port) as server:
+                if smtp_port != 25:
+                    server.starttls()
+                if username and password:
+                    server.login(username, password)
+                server.sendmail(from_addr, to_addrs, msg.as_string())
+            return _make_result(request, stdout=f"Email sent to {len(to_addrs)} recipient(s)")
+        except Exception as e:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1, error=str(e))
 
 
 # ============================================================
-# Calendar Handler (stub — requires calendar API)
+# Calendar Handler — graceful degradation
 # ============================================================
 
 
 class CalendarHandler:
-    """Handles calendar automation: create events, check availability."""
+    """Handles calendar automation: create ICS files, schedule events.
+
+    ICS generation works with the standard library. Google Calendar /
+    Microsoft Graph require additional SDKs and credentials.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="Calendar automation requires Google/Microsoft calendar API credentials. Configure to enable.",
-                            stderr="Calendar API not configured. This is a stub handler.")
+        action = request.action
+        params = request.parameters
+        if action == "create_ics":
+            title = params.get("title", "")
+            start = params.get("start", "")
+            end = params.get("end", "")
+            description = params.get("description", "")
+            location = params.get("location", "")
+            ics_content = self._generate_ics(title, start, end, description, location)
+            path = params.get("path", "")
+            if path:
+                Path(path).write_text(ics_content, encoding="utf-8")
+                return _make_result(request, stdout=f"ICS file created: {path}")
+            return _make_result(request, output={"ics": ics_content},
+                                stdout=f"ICS generated ({len(ics_content)} bytes)")
+        else:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                error=f"Unknown calendar action: {action}. Supported: create_ics")
+
+    def _generate_ics(self, title: str, start: str, end: str, description: str, location: str) -> str:
+        lines = [
+            "BEGIN:VCALENDAR",
+            "VERSION:2.0",
+            "PRODID:-//AAiOS//Calendar//EN",
+            "BEGIN:VEVENT",
+            f"UID:{uuid4().hex}@aaios",
+            f"DTSTAMP:{datetime.now(UTC).strftime('%Y%m%dT%H%M%SZ')}",
+            f"DTSTART:{start}",
+            f"DTEND:{end}",
+            f"SUMMARY:{title}",
+            f"DESCRIPTION:{description}",
+            f"LOCATION:{location}",
+            "END:VEVENT",
+            "END:VCALENDAR",
+        ]
+        return "\r\n".join(lines) + "\r\n"
 
 
 # ============================================================
-# Communication Handler (stub — requires Slack/Teams API)
+# Communication Handler — graceful degradation
 # ============================================================
 
 
 class CommunicationHandler:
-    """Handles communication automation: Slack, Teams, Discord."""
+    """Handles communication automation: Slack, Discord, webhooks.
+
+    Uses urllib (standard library) — no SDK required. Requires webhook URLs
+    or API tokens configured in parameters.
+    """
 
     async def execute(self, request: ExecutionRequest) -> ExecutionResult:
-        return _make_result(request, ExecutionStatus.FAILED.value, 1,
-                            error="Communication automation requires Slack/Teams/Discord API tokens. Configure to enable.",
-                            stderr="Communication API not configured. This is a stub handler.")
+        params = request.parameters
+        platform = params.get("platform", "webhook")
+        message = params.get("message", "")
+        if not message:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                error="Communication requires a 'message' parameter")
+        try:
+            import json as _json
+            import urllib.request
+            if platform == "webhook":
+                webhook_url = params.get("url", "")
+                if not webhook_url:
+                    return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                        error="Webhook requires 'url' parameter")
+                data = _json.dumps({"text": message, "content": message}).encode("utf-8")
+                req = urllib.request.Request(
+                    webhook_url, data=data,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=request.timeout_s) as resp:
+                    status_code = resp.status
+                return _make_result(request, exit_code=status_code,
+                                    stdout=f"Message sent via webhook (HTTP {status_code})")
+            elif platform == "slack":
+                token = params.get("token", "")
+                channel = params.get("channel", "#general")
+                if not token:
+                    return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                        error="Slack requires 'token' parameter")
+                data = _json.dumps({"channel": channel, "text": message}).encode("utf-8")
+                req = urllib.request.Request(
+                    "https://slack.com/api/chat.postMessage",
+                    data=data,
+                    headers={
+                        "Authorization": f"Bearer {token}",
+                        "Content-Type": "application/json",
+                    },
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=request.timeout_s) as resp:
+                    resp_data = _json.loads(resp.read().decode("utf-8"))
+                if resp_data.get("ok"):
+                    return _make_result(request, stdout=f"Slack message sent to {channel}")
+                else:
+                    return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                        error=f"Slack error: {resp_data.get('error', 'unknown')}")
+            elif platform == "discord":
+                webhook_url = params.get("url", "")
+                if not webhook_url:
+                    return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                        error="Discord requires webhook 'url' parameter")
+                data = _json.dumps({"content": message}).encode("utf-8")
+                req = urllib.request.Request(
+                    webhook_url, data=data,
+                    headers={"Content-Type": "application/json"},
+                    method="POST",
+                )
+                with urllib.request.urlopen(req, timeout=request.timeout_s) as resp:
+                    status_code = resp.status
+                return _make_result(request, exit_code=status_code,
+                                    stdout=f"Discord message sent (HTTP {status_code})")
+            else:
+                return _make_result(request, ExecutionStatus.FAILED.value, 1,
+                                    error=f"Unsupported platform: {platform}. Use webhook, slack, or discord.")
+        except Exception as e:
+            return _make_result(request, ExecutionStatus.FAILED.value, 1, error=str(e))
 
 
 # ============================================================

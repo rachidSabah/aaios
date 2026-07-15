@@ -30,6 +30,16 @@ Integration (backward-compatible):
 
 from __future__ import annotations
 
+from services.execution.approval_engine import (
+    ApprovalRole,
+    ProductionApprovalEngine,
+    RoleBasedApprovalPolicy,
+)
+from services.execution.audit_store import (
+    AuditQuery,
+    AuditRetentionPolicy,
+    PersistentAuditStore,
+)
 from services.execution.handlers import (
     BrowserHandler,
     CalendarHandler,
@@ -79,8 +89,11 @@ from services.execution.policy_engine import (
 __all__ = [
     "ApprovalEngine",
     "ApprovalRequest",
+    "ApprovalRole",
     "ApprovalStatus",
     "AuditEntry",
+    "AuditQuery",
+    "AuditRetentionPolicy",
     "BrowserHandler",
     "CICDHandler",
     "CalendarHandler",
@@ -105,11 +118,14 @@ __all__ = [
     "GitHandler",
     "KubernetesHandler",
     "LogLevel",
+    "PersistentAuditStore",
     "PolicyDecision",
     "PolicyEngine",
+    "ProductionApprovalEngine",
     "RateLimitExceededError",
     "ResourceUsage",
     "RestApiHandler",
+    "RoleBasedApprovalPolicy",
     "RollbackPlan",
     "SSHHandler",
     "Sandbox",

@@ -224,8 +224,9 @@ ignore = [
 "scripts/**" = ["S", "D"]
 "surfaces/web/**" = []
 "surfaces/cli/**" = ["B008"]                   # typer.Option in defaults is the standard pattern
-"services/execution/handlers.py" = ["PLR0912", "S310", "ASYNC210"]  # git branches, urllib in REST handler
+"services/execution/handlers.py" = ["PLR0912", "S310", "ASYNC210", "ASYNC230"]  # git branches, urllib, file I/O
 "services/execution/manager.py" = ["E741"]     # log variable l
+"services/execution/audit_store.py" = ["S608"]  # SQL is parameterized, f-string is safe
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -269,7 +270,7 @@ files = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["pywinauto.*", "pyautogui.*", "win32api", "win32con", "win32service", "win32serviceutil", "win32event", "win32job", "win32security", "ntsecuritycon", "pythoncom", "pywintypes", "networkx.*"]
+module = ["pywinauto.*", "pyautogui.*", "win32api", "win32con", "win32service", "win32serviceutil", "win32event", "win32job", "win32security", "ntsecuritycon", "pythoncom", "pywintypes", "networkx.*", "playwright.*", "boto3.*", "azure.*", "google.cloud.*", "docx.*", "reportlab.*", "openpyxl.*"]
 ignore_missing_imports = true
 
 # ---------------------------------------------------------------------------
