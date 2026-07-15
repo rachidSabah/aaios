@@ -215,6 +215,8 @@ ignore = [
   "PLR0915",                         # too many statements — acceptable for FastAPI factory
   "S110",                            # try-except-pass — acceptable for config loading fallbacks
   "B007",                            # loop variable not used — acceptable for dict iteration
+  "PLW1510",                         # subprocess.run without check=False — we handle return codes manually
+  "PTH109",                          # os.getcwd() vs Path.cwd() — fine for script convenience
 ]
 
 [tool.ruff.lint.per-file-ignores]

@@ -461,6 +461,99 @@ def start(
         raise typer.Exit(1)  # noqa: B904
 
 
+@app.command()
+def update(
+    auto: bool = typer.Option(False, "--auto", "-a", help="Run in auto mode (background loop)"),
+    interval: int = typer.Option(
+        30, "--interval", "-i", help="Check interval in minutes (auto mode)"
+    ),
+    check_only: bool = typer.Option(False, "--check", "-c", help="Only check, do not update"),
+) -> None:
+    """Check for updates from GitHub and pull them.
+
+    Pulls new commits, reinstalls Python + Node packages, and re-binds agents.
+    With --auto, runs in a background loop checking every N minutes.
+
+    Examples:
+      aaios update              # check + update once
+      aaios update --check      # just check, don't update
+      aaios update --auto       # background loop (30 min)
+      aaios update --auto -i 60 # check every 60 min
+    """
+    import subprocess
+    import sys
+
+    cmd = [sys.executable, "scripts/auto_update.py"]
+    if auto:
+        cmd.append("--auto")
+        cmd.extend(["--interval", str(interval)])
+    if check_only:
+        cmd.append("--check-only")
+
+    try:
+        subprocess.run(cmd, check=True)  # noqa: S603
+    except FileNotFoundError:
+        console.print("[red]Error:[/red] Could not find scripts/auto_update.py")
+        raise typer.Exit(1)  # noqa: B904
+    except KeyboardInterrupt:
+        console.print("\n[yellow]Update stopped.[/yellow]")
+
+
+@app.command()
+def uninstall(
+    remove_data: bool = typer.Option(
+        False, "--remove-data", help="Also remove config, data, and logs"
+    ),
+    remove_agents: bool = typer.Option(
+        False, "--remove-agents", help="Also remove agent CLIs (claude-code)"
+    ),
+) -> None:
+    """Uninstall AAiOS completely.
+
+    Removes: venv, node_modules, config, data, logs, and the repository.
+    Does NOT remove system dependencies (Python, Node.js, git).
+
+    Examples:
+      aaios uninstall                        # basic uninstall
+      aaios uninstall --remove-data          # also delete config/data/logs
+      aaios uninstall --remove-data --remove-agents  # nuke everything
+    """
+    import platform
+    import subprocess
+
+    console.print("[red]Uninstalling AAiOS...[/red]")
+
+    if platform.system() == "Windows":
+        script = "deploy/windows/uninstall.ps1"
+        cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", script]
+        if remove_data:
+            cmd.append("-RemoveData")
+        if remove_agents:
+            cmd.append("-RemoveAgents")
+    else:
+        script = "deploy/wsl/uninstall.sh"
+        cmd = ["bash", script]
+        if remove_data:
+            cmd.append("--remove-data")
+        if remove_agents:
+            cmd.append("--remove-agents")
+
+    try:
+        subprocess.run(cmd, check=True)  # noqa: S603
+    except FileNotFoundError:
+        console.print(f"[red]Error:[/red] Could not find {script}")
+        console.print("Run from the AAiOS repository root, or use the one-liner:")
+        if platform.system() == "Windows":
+            console.print(
+                "  irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/uninstall.ps1 | iex"
+            )
+        else:
+            console.print(
+                "  curl -fsSL https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/wsl/uninstall.sh | bash"
+            )
+        raise typer.Exit(1)  # noqa: B904
+
+
 def main() -> None:
     """CLI entry point."""
     app()

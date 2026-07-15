@@ -33,6 +33,40 @@ aaios start
 
 This boots the kernel, security, model router, memory, agent registry, orchestrator, supervisor, and the API server — all in real mode, no mock, no demo.
 
+### One-Click Uninstall
+
+**Windows 11:**
+```powershell
+irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/uninstall.ps1 | iex
+```
+
+**WSL2 / Linux:**
+```bash
+curl -fsSL https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/wsl/uninstall.sh | bash
+```
+
+Or via CLI:
+```bash
+aaios uninstall                          # basic (keeps config/data)
+aaios uninstall --remove-data            # also delete config/data/logs
+aaios uninstall --remove-data --remove-agents  # nuke everything including agent CLIs
+```
+
+System dependencies (Python, Node.js, git) are NOT removed.
+
+### Auto-Update
+
+AAiOS can automatically pull new commits from GitHub:
+
+```bash
+aaios update                 # check + update once
+aaios update --check         # just check, don't update
+aaios update --auto          # background loop (checks every 30 min)
+aaios update --auto -i 60    # check every 60 min
+```
+
+The auto-update pulls new commits, reinstalls Python + Node packages, and re-binds agents — all without downtime. Run `aaios update --auto` in a background terminal or as a scheduled task.
+
 ### Claude Code via Proxy (Free Models)
 
 If you're running Claude Code through a proxy (not the official Anthropic API), set the proxy URL before installing:
