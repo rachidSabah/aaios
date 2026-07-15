@@ -1801,4 +1801,105 @@ def create_app() -> FastAPI:
             "issue_count": len(issues),
         }
 
+    # --- Engineering Intelligence endpoints (v5.2) ---
+
+    _engineering_manager: Any = None
+
+    def _get_engineering_manager() -> Any:
+        nonlocal _engineering_manager
+        if _engineering_manager is None:
+            from services.engineering import EngineeringManager
+            _engineering_manager = EngineeringManager()
+        return _engineering_manager
+
+    @app.get("/api/v1/engineering/repository/analyze", tags=["engineering"])
+    async def engineering_repo_analyze() -> dict[str, Any]:
+        """Analyze the repository."""
+        mgr = _get_engineering_manager()
+        return await mgr.analyze_repository()
+
+    @app.get("/api/v1/engineering/repository/discover", tags=["engineering"])
+    async def engineering_repo_discover() -> dict[str, Any]:
+        """Discover repositories."""
+        mgr = _get_engineering_manager()
+        repos = await mgr.discover_repositories()
+        return {"repositories": repos, "count": len(repos)}
+
+    @app.post("/api/v1/engineering/code/analyze", tags=["engineering"])
+    async def engineering_code_analyze(body: dict[str, Any]) -> dict[str, Any]:
+        """Analyze a source file."""
+        mgr = _get_engineering_manager()
+        return await mgr.analyze_file(body.get("file_path", ""))
+
+    @app.get("/api/v1/engineering/architecture/recommendations", tags=["engineering"])
+    async def engineering_arch_recs() -> dict[str, Any]:
+        """Get architecture recommendations."""
+        mgr = _get_engineering_manager()
+        recs = await mgr.architecture_recommendations()
+        return {"recommendations": recs, "count": len(recs)}
+
+    @app.get("/api/v1/engineering/agents", tags=["engineering"])
+    async def engineering_agents() -> dict[str, Any]:
+        """List engineering agents."""
+        mgr = _get_engineering_manager()
+        agents = mgr.list_engineering_agents()
+        return {"agents": agents, "count": len(agents)}
+
+    @app.get("/api/v1/engineering/agents/{agent_id}", tags=["engineering"])
+    async def engineering_agent_detail(agent_id: str) -> dict[str, Any]:
+        """Get an engineering agent by ID."""
+        mgr = _get_engineering_manager()
+        agent = mgr.get_engineering_agent(agent_id)
+        if agent is None:
+            raise HTTPException(status_code=404, detail="Agent not found")
+        return agent
+
+    @app.post("/api/v1/engineering/agents/select", tags=["engineering"])
+    async def engineering_agent_select(body: dict[str, Any]) -> dict[str, Any]:
+        """Select the best agent for a task."""
+        mgr = _get_engineering_manager()
+        agent = mgr.select_agent_for_task(
+            language=body.get("language"),
+            framework=body.get("framework"),
+            agent_type=body.get("agent_type"),
+        )
+        if agent is None:
+            raise HTTPException(status_code=404, detail="No matching agent found")
+        return agent
+
+    @app.get("/api/v1/engineering/capabilities", tags=["engineering"])
+    async def engineering_capabilities() -> dict[str, Any]:
+        """List capabilities."""
+        mgr = _get_engineering_manager()
+        caps = await mgr.list_capabilities()
+        return {"capabilities": caps, "count": len(caps)}
+
+    @app.get("/api/v1/engineering/capabilities/stats", tags=["engineering"])
+    async def engineering_cap_stats() -> dict[str, Any]:
+        """Get capability statistics."""
+        mgr = _get_engineering_manager()
+        return await mgr.capability_stats()
+
+    @app.get("/api/v1/engineering/workspaces", tags=["engineering"])
+    async def engineering_workspaces() -> dict[str, Any]:
+        """List engineering workspaces."""
+        mgr = _get_engineering_manager()
+        workspaces = await mgr.list_workspaces()
+        return {"workspaces": workspaces, "count": len(workspaces)}
+
+    @app.post("/api/v1/engineering/workspaces", tags=["engineering"])
+    async def engineering_create_workspace(body: dict[str, Any]) -> dict[str, Any]:
+        """Create an engineering workspace."""
+        mgr = _get_engineering_manager()
+        return await mgr.create_workspace(
+            body.get("name", ""),
+            body.get("repo_paths", []),
+        )
+
+    @app.get("/api/v1/engineering/overview", tags=["engineering"])
+    async def engineering_overview() -> dict[str, Any]:
+        """Get engineering overview."""
+        mgr = _get_engineering_manager()
+        return await mgr.get_overview()
+
     return app
