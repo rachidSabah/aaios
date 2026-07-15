@@ -1,15 +1,19 @@
 """AAiOS v5.1 — Enterprise Knowledge & Memory Platform.
 
 A unified Enterprise Knowledge Operating System with:
-  - 15 coordinated memory systems (short-term, long-term, working, semantic,
-    procedural, episodic, project, mission, workflow, agent, provider,
-    user, organization, execution, conversation)
-  - Memory Orchestrator (auto-promote/demote, merge, compress, context windows)
-  - Knowledge Repository (entries, versions, collections, workspaces)
-  - Hybrid Search Engine (keyword + semantic + fuzzy + graph)
-  - Enterprise RAG (citation, conflict detection, freshness, dedup)
-  - Knowledge Governance (RBAC, approval, publishing, legal hold, quality)
-  - Enterprise Knowledge Graph (20+ node types, traversal, impact analysis)
+  - 15 coordinated memory systems
+  - Memory Orchestrator
+  - Knowledge Repository
+  - Hybrid Search Engine
+  - Enterprise RAG
+  - Knowledge Governance
+  - Enterprise Knowledge Graph
+  - Knowledge Intelligence Engine (understanding, gaps, conflicts, quality)
+  - Autonomous Learning Engine (lessons, playbooks)
+  - Repository Intelligence (dead code, missing docs, tests)
+  - Document Intelligence (PDF, DOCX, MD, JSON, CSV, Python)
+  - Quality Assurance (validation, repair suggestions)
+  - Recommendation Engine (documents, lessons, playbooks, memories)
 
 Integration (backward-compatible):
   - Sits above Cognitive Intelligence Layer (v5.0)
@@ -19,6 +23,16 @@ Integration (backward-compatible):
 
 from __future__ import annotations
 
+from services.knowledge.intelligence import (
+    AutonomousLearningEngine,
+    KnowledgeGap,
+    KnowledgeInsight,
+    KnowledgeIntelligenceEngine,
+    KnowledgeQualityReport,
+    Lesson,
+    Playbook,
+    RecommendationEngine,
+)
 from services.knowledge.memory_platform import MemoryOrchestrator, MemoryStore
 from services.knowledge.models import (
     AccessLevel,
@@ -44,27 +58,51 @@ from services.knowledge.platform import (
     KnowledgePlatform,
     RetrievalEngine,
 )
+from services.knowledge.repo_intelligence import (
+    DocIntelligenceResult,
+    DocumentIntelligence,
+    QualityAssurance,
+    QualityIssue,
+    RepoAnalysis,
+    RepoIssue,
+    RepositoryIntelligenceEngine,
+)
 
 __all__ = [
     "AccessLevel",
+    "AutonomousLearningEngine",
     "ConflictReport",
+    "DocIntelligenceResult",
+    "DocumentIntelligence",
     "EnterpriseKnowledgeGraph",
     "HybridSearchEngine",
     "KnowledgeCollection",
     "KnowledgeEntry",
     "KnowledgeEntryStatus",
+    "KnowledgeGap",
     "KnowledgeGovernance",
+    "KnowledgeInsight",
+    "KnowledgeIntelligenceEngine",
     "KnowledgePermission",
     "KnowledgePlatform",
+    "KnowledgeQualityReport",
     "KnowledgeSearchResult",
     "KnowledgeVersion",
     "KnowledgeWorkspace",
+    "Lesson",
     "MemoryOrchestrator",
     "MemoryRecord",
     "MemoryScope",
     "MemoryStore",
     "MemoryType",
+    "Playbook",
+    "QualityAssurance",
+    "QualityIssue",
     "RAGResult",
+    "RecommendationEngine",
+    "RepoAnalysis",
+    "RepoIssue",
+    "RepositoryIntelligenceEngine",
     "RetrievalEngine",
     "RetrievalRequest",
     "StoragePolicy",

@@ -228,7 +228,7 @@ ignore = [
 "services/execution/manager.py" = ["E741"]     # log variable l
 "services/execution/audit_store.py" = ["S608"]  # SQL is parameterized, f-string is safe
 "services/cognitive/**" = ["E701", "D101"]  # one-liners + dataclass docstrings
-"services/knowledge/**" = ["PLR0912", "E701", "D101"]  # search branches, one-liners
+"services/knowledge/**" = ["PLR0912", "E701", "D101", "E741", "SIM101"]  # search branches, one-liners, variable l
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

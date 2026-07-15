@@ -1631,4 +1631,174 @@ def create_app() -> FastAPI:
         )
         return {"results": results, "count": len(results)}
 
+    # --- Knowledge Intelligence endpoints (v5.1 Part 2) ---
+
+    _knowledge_intelligence: Any = None
+    _autonomous_learning: Any = None
+    _recommendation_engine: Any = None
+    _repo_intelligence: Any = None
+    _document_intelligence: Any = None
+    _quality_assurance: Any = None
+
+    def _get_knowledge_intelligence() -> Any:
+        nonlocal _knowledge_intelligence
+        if _knowledge_intelligence is None:
+            from services.knowledge import KnowledgeIntelligenceEngine
+            _knowledge_intelligence = KnowledgeIntelligenceEngine()
+        return _knowledge_intelligence
+
+    def _get_autonomous_learning() -> Any:
+        nonlocal _autonomous_learning
+        if _autonomous_learning is None:
+            from services.knowledge import AutonomousLearningEngine
+            _autonomous_learning = AutonomousLearningEngine()
+        return _autonomous_learning
+
+    def _get_recommendation_engine() -> Any:
+        nonlocal _recommendation_engine
+        if _recommendation_engine is None:
+            from services.knowledge import RecommendationEngine
+            _recommendation_engine = RecommendationEngine(_get_autonomous_learning())
+        return _recommendation_engine
+
+    def _get_repo_intelligence() -> Any:
+        nonlocal _repo_intelligence
+        if _repo_intelligence is None:
+            from pathlib import Path
+            from services.knowledge import RepositoryIntelligenceEngine
+            _repo_intelligence = RepositoryIntelligenceEngine(Path("."))
+        return _repo_intelligence
+
+    def _get_document_intelligence() -> Any:
+        nonlocal _document_intelligence
+        if _document_intelligence is None:
+            from services.knowledge import DocumentIntelligence
+            _document_intelligence = DocumentIntelligence()
+        return _document_intelligence
+
+    def _get_quality_assurance() -> Any:
+        nonlocal _quality_assurance
+        if _quality_assurance is None:
+            from services.knowledge import QualityAssurance
+            _quality_assurance = QualityAssurance()
+        return _quality_assurance
+
+    @app.get("/api/v1/knowledge/quality", tags=["knowledge"])
+    async def knowledge_quality() -> dict[str, Any]:
+        """Get knowledge quality report."""
+        platform = _get_knowledge_platform()
+        entries = await platform.list_entries(limit=1000)
+        engine = _get_knowledge_intelligence()
+        await engine.ingest_entries(entries)
+        report = await engine.quality_report()
+        return report.to_dict()
+
+    @app.get("/api/v1/knowledge/insights", tags=["knowledge"])
+    async def knowledge_insights() -> dict[str, Any]:
+        """Get knowledge intelligence insights."""
+        platform = _get_knowledge_platform()
+        entries = await platform.list_entries(limit=1000)
+        engine = _get_knowledge_intelligence()
+        await engine.ingest_entries(entries)
+        insights = await engine.analyze_all()
+        return {"insights": [i.to_dict() for i in insights], "count": len(insights)}
+
+    @app.post("/api/v1/knowledge/learn", tags=["knowledge"])
+    async def knowledge_learn(body: dict[str, Any]) -> dict[str, Any]:
+        """Learn from an execution."""
+        engine = _get_autonomous_learning()
+        lesson = await engine.learn_from_execution(
+            goal=body.get("goal", ""),
+            success=body.get("success", True),
+            agent_id=body.get("agent_id", ""),
+            provider=body.get("provider", ""),
+            duration_s=body.get("duration_s", 0.0),
+            cost_usd=body.get("cost_usd", 0.0),
+            error=body.get("error"),
+            retries=body.get("retries", 0),
+            feedback=body.get("feedback"),
+        )
+        return lesson.to_dict()
+
+    @app.get("/api/v1/knowledge/lessons", tags=["knowledge"])
+    async def knowledge_lessons(
+        category: str | None = None,
+        limit: int = 50,
+    ) -> dict[str, Any]:
+        """Get lessons learned."""
+        engine = _get_autonomous_learning()
+        lessons = await engine.get_lessons(category=category, limit=limit)
+        return {"lessons": [l.to_dict() for l in lessons], "count": len(lessons)}
+
+    @app.get("/api/v1/knowledge/playbooks", tags=["knowledge"])
+    async def knowledge_playbooks(limit: int = 20) -> dict[str, Any]:
+        """Get playbooks."""
+        engine = _get_autonomous_learning()
+        playbooks = await engine.get_playbooks(limit=limit)
+        return {"playbooks": [p.to_dict() for p in playbooks], "count": len(playbooks)}
+
+    @app.post("/api/v1/knowledge/recommend", tags=["knowledge"])
+    async def knowledge_recommend(body: dict[str, Any]) -> dict[str, Any]:
+        """Get knowledge recommendations."""
+        platform = _get_knowledge_platform()
+        entries = await platform.list_entries(limit=500)
+        memories = await platform.memory.search(limit=500)
+        rec_engine = _get_recommendation_engine()
+        await rec_engine.ingest(entries, memories)
+        context = body.get("context", body.get("query", ""))
+        recs = await rec_engine.recommend_all(context)
+        return {"recommendations": recs, "count": len(recs)}
+
+    @app.get("/api/v1/knowledge/learning/stats", tags=["knowledge"])
+    async def knowledge_learning_stats() -> dict[str, Any]:
+        """Get learning statistics."""
+        engine = _get_autonomous_learning()
+        return await engine.stats()
+
+    @app.get("/api/v1/repository/analyze", tags=["repository"])
+    async def repository_analyze() -> dict[str, Any]:
+        """Analyze the repository."""
+        engine = _get_repo_intelligence()
+        analysis = await engine.analyze()
+        return analysis.to_dict()
+
+    @app.get("/api/v1/repository/health", tags=["repository"])
+    async def repository_health() -> dict[str, Any]:
+        """Get repository health."""
+        engine = _get_repo_intelligence()
+        analysis = await engine.analyze()
+        return {
+            "health_score": analysis.health_score,
+            "total_files": analysis.total_files,
+            "total_lines": analysis.total_lines,
+            "total_classes": analysis.total_classes,
+            "total_functions": analysis.total_functions,
+            "total_tests": analysis.total_tests,
+            "issue_count": len(analysis.issues),
+        }
+
+    @app.post("/api/v1/knowledge/document/analyze", tags=["knowledge"])
+    async def document_analyze(body: dict[str, Any]) -> dict[str, Any]:
+        """Analyze a document."""
+        engine = _get_document_intelligence()
+        result = await engine.analyze(
+            body.get("file_path", ""),
+            body.get("content", ""),
+        )
+        return result.to_dict()
+
+    @app.get("/api/v1/knowledge/validate", tags=["knowledge"])
+    async def knowledge_validate() -> dict[str, Any]:
+        """Validate knowledge quality."""
+        platform = _get_knowledge_platform()
+        entries = await platform.list_entries(limit=1000)
+        qa = _get_quality_assurance()
+        issues = await qa.validate(entries)
+        suggestions = await qa.repair_suggestions(issues)
+        return {
+            "issues": [i.to_dict() for i in issues],
+            "suggestions": suggestions,
+            "issue_count": len(issues),
+        }
+
     return app
