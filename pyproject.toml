@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aaios"
-version = "4.1.0"
+version = "5.0.0"
 description = "Agentic AI Operating System — a Windows-first, modular runtime for orchestrating generic AI agents."
 readme = "README.md"
 license = "Apache-2.0"
@@ -227,6 +227,7 @@ ignore = [
 "services/execution/handlers.py" = ["PLR0912", "S310", "ASYNC210", "ASYNC230"]  # git branches, urllib, file I/O
 "services/execution/manager.py" = ["E741"]     # log variable l
 "services/execution/audit_store.py" = ["S608"]  # SQL is parameterized, f-string is safe
+"services/cognitive/**" = ["E701", "D101"]  # one-liners + dataclass docstrings
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
@@ -277,7 +278,7 @@ ignore_missing_imports = true
 # Pytest
 # ---------------------------------------------------------------------------
 [tool.pytest.ini_options]
-minversion = "4.1.0"
+minversion = "5.0.0"
 testpaths = ["tests"]
 asyncio_mode = "auto"
 addopts = [

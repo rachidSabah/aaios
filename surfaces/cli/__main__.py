@@ -1529,5 +1529,166 @@ def exec_monitor() -> None:
         console.print(f"  [{color}]{st}[/{color}] {h.get('domain', '')}/{h.get('action', '')} ({h.get('duration_s', 0):.2f}s)")
 
 
+# --- Cognitive Intelligence commands (v5.0) ---
+
+cognitive_app = typer.Typer(help="Cognitive Intelligence — learning, prediction, optimization, knowledge graph.")
+app.add_typer(cognitive_app, name="cognitive")
+
+
+@cognitive_app.command("learning")
+def cognitive_learning() -> None:
+    """Show learning insights."""
+    try:
+        data = _api_get("/api/v1/cognitive/learning")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    insights = data.get("insights", [])
+    console.print(f"[cyan]Learning Insights:[/cyan] {len(insights)}")
+    for i in insights[:10]:
+        console.print(f"  [{i.get('category', '')}] {i.get('finding', '')[:80]}")
+    metrics = data.get("metrics", [])
+    if metrics:
+        console.print(f"\n[cyan]Metrics:[/cyan]")
+        for m in metrics:
+            console.print(f"  {m.get('name', '')}: {m.get('value', 0):.4f} {m.get('unit', '')}")
+
+
+@cognitive_app.command("predict")
+def cognitive_predict(
+    goal: str = typer.Option("", "--goal", help="Goal to predict"),
+    agent: str = typer.Option("", "--agent", help="Agent to use"),
+) -> None:
+    """Generate predictions for a context."""
+    body: dict[str, Any] = {"goal": goal}
+    if agent:
+        body["agent"] = agent
+    try:
+        data = _api_post("/api/v1/cognitive/predict", body=body)
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    predictions = data.get("predictions", [])
+    console.print(f"[cyan]Predictions:[/cyan] {len(predictions)}")
+    for p in predictions:
+        console.print(f"  {p.get('prediction_type', '')}: {p.get('predicted_value', 0):.4f} "
+                      f"(confidence: {p.get('confidence', 0):.2f})")
+        console.print(f"    {p.get('explanation', '')[:100]}")
+
+
+@cognitive_app.command("optimize")
+def cognitive_optimize() -> None:
+    """Show optimization recommendations."""
+    try:
+        data = _api_get("/api/v1/cognitive/recommendations")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    recs = data.get("recommendations", [])
+    if not recs:
+        console.print("[yellow]No recommendations available.[/yellow]")
+        return
+    for r in recs:
+        console.print(f"\n  [{r.get('priority', '')}] {r.get('title', '')}")
+        console.print(f"  {r.get('description', '')[:80]}")
+        console.print(f"  Impact: {r.get('estimated_impact', 0):.0%} | Confidence: {r.get('confidence', 0):.0%}")
+
+
+@cognitive_app.command("experience")
+def cognitive_experience() -> None:
+    """Show experience statistics."""
+    try:
+        data = _api_get("/api/v1/cognitive/experience")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[cyan]Total:[/cyan]          {data.get('total', 0)}\n"
+        f"[cyan]Successes:[/cyan]      {data.get('successes', 0)}\n"
+        f"[cyan]Failures:[/cyan]       {data.get('failures', 0)}\n"
+        f"[cyan]Success rate:[/cyan]   {data.get('success_rate', 0):.1%}\n"
+        f"[cyan]Avg cost:[/cyan]       ${data.get('avg_cost_usd', 0):.4f}\n"
+        f"[cyan]Avg latency:[/cyan]    {data.get('avg_latency_s', 0):.2f}s\n"
+        f"[cyan]Avg risk:[/cyan]       {data.get('avg_risk_score', 0):.2f}\n"
+        f"[cyan]Avg confidence:[/cyan]{data.get('avg_confidence', 0):.2f}\n"
+        f"[cyan]Agents:[/cyan]         {data.get('unique_agents', 0)}\n"
+        f"[cyan]Providers:[/cyan]      {data.get('unique_providers', 0)}",
+        title="Cognitive Experience Statistics",
+    ))
+
+
+@cognitive_app.command("knowledge")
+def cognitive_knowledge() -> None:
+    """Show knowledge graph summary."""
+    try:
+        data = _api_get("/api/v1/cognitive/knowledge-graph")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(f"[cyan]Knowledge Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges")
+
+
+@cognitive_app.command("architecture")
+def cognitive_architecture() -> None:
+    """Show architecture intelligence."""
+    try:
+        data = _api_get("/api/v1/cognitive/architecture")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    issues = data.get("issues", [])
+    console.print(f"[cyan]Architecture Issues:[/cyan] {len(issues)}")
+    for issue in issues[:10]:
+        console.print(f"  [{issue.get('severity', '')}] {issue.get('issue_type', '')}: "
+                      f"{issue.get('description', '')[:60]}")
+
+
+@cognitive_app.command("report")
+def cognitive_report(
+    report_type: str = typer.Argument("execution", help="Report type"),
+    format: str = typer.Option("json", "--format", help="json, markdown, csv"),
+) -> None:
+    """Generate a cognitive report."""
+    try:
+        if format == "json":
+            data = _api_get(f"/api/v1/cognitive/reports/{report_type}")
+            console.print(Panel.fit(
+                f"[cyan]Type:[/cyan]    {data.get('title', '')}\n"
+                f"[cyan]Summary:[/cyan] {data.get('summary', '')}",
+                title="Cognitive Report",
+            ))
+            for finding in data.get("key_findings", []):
+                console.print(f"  • {finding}")
+        else:
+            data = _api_get(f"/api/v1/cognitive/reports/{report_type}/export/{format}")
+            console.print(data.get("content", ""))
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+
+
+@cognitive_app.command("health")
+def cognitive_health() -> None:
+    """Show repository health."""
+    try:
+        data = _api_get("/api/v1/cognitive/repository-health")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    console.print(Panel.fit(
+        f"[cyan]Health Score:[/cyan]     {data.get('health_score', 0)}/100\n"
+        f"[cyan]Source files:[/cyan]     {data.get('source_files', 0)}\n"
+        f"[cyan]Test files:[/cyan]       {data.get('test_files', 0)}\n"
+        f"[cyan]Source lines:[/cyan]     {data.get('source_lines', 0)}\n"
+        f"[cyan]Test lines:[/cyan]       {data.get('test_lines', 0)}\n"
+        f"[cyan]Test/Source ratio:[/cyan] {data.get('test_to_source_ratio', 0)}\n"
+        f"[cyan]Doc files:[/cyan]        {data.get('documentation_files', 0)}\n"
+        f"[cyan]Has README:[/cyan]       {data.get('has_readme', False)}\n"
+        f"[cyan]Has CHANGELOG:[/cyan]    {data.get('has_changelog', False)}\n"
+        f"[cyan]Has LICENSE:[/cyan]      {data.get('has_license', False)}",
+        title="Repository Health",
+    ))
+
+
 if __name__ == "__main__":
     main()

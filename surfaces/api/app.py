@@ -1378,4 +1378,114 @@ def create_app() -> FastAPI:
         entries = await mgr.get_audit_log(limit=limit)
         return {"entries": [e.to_dict() for e in entries], "count": len(entries)}
 
+    # --- Cognitive Intelligence endpoints (v5.0) ---
+
+    _cognitive_manager: Any = None
+
+    def _get_cognitive_manager() -> Any:
+        nonlocal _cognitive_manager
+        if _cognitive_manager is None:
+            from services.cognitive import CognitiveManager
+            _cognitive_manager = CognitiveManager()
+        return _cognitive_manager
+
+    @app.get("/api/v1/cognitive/experience", tags=["cognitive"])
+    async def cognitive_experience_stats() -> dict[str, Any]:
+        """Get experience statistics."""
+        mgr = _get_cognitive_manager()
+        return await mgr.experience_stats()
+
+    @app.get("/api/v1/cognitive/experience/timeline", tags=["cognitive"])
+    async def cognitive_experience_timeline(limit: int = 50) -> dict[str, Any]:
+        """Get experience timeline."""
+        mgr = _get_cognitive_manager()
+        return {"timeline": await mgr.experience_timeline(limit=limit)}
+
+    @app.post("/api/v1/cognitive/experience/search", tags=["cognitive"])
+    async def cognitive_experience_search(query: dict[str, Any]) -> dict[str, Any]:
+        """Search experiences."""
+        mgr = _get_cognitive_manager()
+        results = await mgr.search_experiences(**query)
+        return {"results": results, "count": len(results)}
+
+    @app.get("/api/v1/cognitive/experience/export/{format}", tags=["cognitive"])
+    async def cognitive_experience_export(format: str) -> dict[str, Any]:
+        """Export experiences."""
+        mgr = _get_cognitive_manager()
+        content = await mgr.experience_export(format=format)
+        return {"format": format, "content": content}
+
+    @app.get("/api/v1/cognitive/learning", tags=["cognitive"])
+    async def cognitive_learning() -> dict[str, Any]:
+        """Get learning insights."""
+        mgr = _get_cognitive_manager()
+        insights = await mgr.learn()
+        metrics = await mgr.learning_metrics()
+        return {"insights": insights, "metrics": metrics}
+
+    @app.post("/api/v1/cognitive/predict", tags=["cognitive"])
+    async def cognitive_predict(context: dict[str, Any]) -> dict[str, Any]:
+        """Generate predictions."""
+        mgr = _get_cognitive_manager()
+        predictions = await mgr.predict(context)
+        return {"predictions": predictions, "count": len(predictions)}
+
+    @app.get("/api/v1/cognitive/recommendations", tags=["cognitive"])
+    async def cognitive_recommendations() -> dict[str, Any]:
+        """Get optimization recommendations."""
+        mgr = _get_cognitive_manager()
+        recs = await mgr.optimize()
+        return {"recommendations": recs, "count": len(recs)}
+
+    @app.get("/api/v1/cognitive/knowledge-graph", tags=["cognitive"])
+    async def cognitive_knowledge_graph() -> dict[str, Any]:
+        """Get knowledge graph snapshot."""
+        mgr = _get_cognitive_manager()
+        return mgr.graph_snapshot()
+
+    @app.get("/api/v1/cognitive/knowledge-graph/search", tags=["cognitive"])
+    async def cognitive_kg_search(q: str) -> dict[str, Any]:
+        """Search the knowledge graph."""
+        mgr = _get_cognitive_manager()
+        results = mgr.graph_search(q)
+        return {"results": results, "count": len(results)}
+
+    @app.get("/api/v1/cognitive/knowledge-graph/impact/{node_id}", tags=["cognitive"])
+    async def cognitive_kg_impact(node_id: str) -> dict[str, Any]:
+        """Impact analysis for a knowledge graph node."""
+        mgr = _get_cognitive_manager()
+        return mgr.graph_impact_analysis(node_id)
+
+    @app.get("/api/v1/cognitive/architecture", tags=["cognitive"])
+    async def cognitive_architecture() -> dict[str, Any]:
+        """Get architecture intelligence."""
+        mgr = _get_cognitive_manager()
+        issues = await mgr.arch_analyze()
+        return {"issues": issues, "count": len(issues)}
+
+    @app.get("/api/v1/cognitive/repository-health", tags=["cognitive"])
+    async def cognitive_repo_health() -> dict[str, Any]:
+        """Get repository health report."""
+        mgr = _get_cognitive_manager()
+        return await mgr.repo_health()
+
+    @app.get("/api/v1/cognitive/reports/{report_type}", tags=["cognitive"])
+    async def cognitive_report(report_type: str) -> dict[str, Any]:
+        """Generate a cognitive report."""
+        mgr = _get_cognitive_manager()
+        return await mgr.generate_report(report_type)
+
+    @app.get("/api/v1/cognitive/reports/{report_type}/export/{format}", tags=["cognitive"])
+    async def cognitive_report_export(report_type: str, format: str) -> dict[str, Any]:
+        """Export a cognitive report."""
+        mgr = _get_cognitive_manager()
+        content = await mgr.export_report(report_type=report_type, format=format)
+        return {"format": format, "content": content}
+
+    @app.get("/api/v1/cognitive/all", tags=["cognitive"])
+    async def cognitive_all() -> dict[str, Any]:
+        """Get all cognitive data in one response."""
+        mgr = _get_cognitive_manager()
+        return await mgr.get_all()
+
     return app
