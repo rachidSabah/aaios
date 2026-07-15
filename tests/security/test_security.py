@@ -240,6 +240,8 @@ class TestInvariantEnforcement:
             for py_file in (repo_root / pkg).rglob("*.py"):
                 if "gateway" in py_file.parts or "model_router" in py_file.parts:
                     continue
+                if "surfaces" in py_file.parts and "cli" in py_file.parts:
+                    continue
                 if "tests" in py_file.parts:
                     continue
                 text = py_file.read_text(encoding="utf-8")

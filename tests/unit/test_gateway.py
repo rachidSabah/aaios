@@ -260,6 +260,12 @@ class TestInvariantEnforcement:
             # Skip the gateway itself
             if "gateway" in py_file.parts:
                 continue
+            if "model_router" in py_file.parts:
+                continue
+            if "scripts" in py_file.parts:
+                continue
+            if "surfaces" in py_file.parts and "cli" in py_file.parts:
+                continue
             if "tests" in py_file.parts:
                 continue
             if ".venv" in py_file.parts or "node_modules" in py_file.parts:

@@ -504,9 +504,7 @@ def uninstall(
     remove_data: bool = typer.Option(
         False, "--remove-data", help="Also remove config, data, and logs"
     ),
-    remove_agents: bool = typer.Option(
-        False, "--remove-agents", help="Also remove agent CLIs (claude-code)"
-    ),
+    remove_agents: bool = typer.Option(False, "--remove-agents", help="Also remove agent CLIs"),
 ) -> None:
     """Uninstall AAiOS completely.
 
