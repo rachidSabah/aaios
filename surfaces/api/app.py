@@ -148,6 +148,116 @@ class RecordEventRequest(BaseModel):
 
 
 # ---------------------------------------------------------------------------
+# Request models for experience, mission, and execution endpoints
+# (must be at module level so Pydantic can resolve them for the OpenAPI schema)
+# ---------------------------------------------------------------------------
+
+
+class ExperienceSearchRequest(BaseModel):
+    """Request body for POST /api/v1/experience/search."""
+
+    query: str
+    search_type: str | None = None
+    limit: int = Field(default=10, ge=1, le=100)
+
+
+class ExperienceReplayRequest(BaseModel):
+    """Request body for POST /api/v1/experience/{id}/replay."""
+
+    mode: str = "dry_run"
+    comparison_agent_id: str | None = None
+
+
+class ExperienceRecordRequest(BaseModel):
+    """Request body for POST /api/v1/experience."""
+
+    task_id: str
+    agent_id: str
+    agent_type: str
+    provider: str | None = None
+    model: str | None = None
+    capabilities: list[str] = Field(default_factory=list)
+    goal: str = ""
+    input_summary: str = ""
+    output_summary: str = ""
+    outcome: str = "success"
+    success: bool = True
+    execution_time_s: float = 0.0
+    latency_s: float = 0.0
+    cost_usd: float = 0.0
+    reflection_score: float = 0.0
+    qa_score: float = 0.0
+    confidence: float = 0.0
+    retries: int = 0
+    failure_reason: str | None = None
+    recovery_action: str | None = None
+    workflow_id: str | None = None
+
+
+class MissionCreateRequest(BaseModel):
+    """Request body for POST /api/v1/missions."""
+
+    title: str
+    description: str = ""
+    objectives: list[str] = Field(default_factory=list)
+    deliverables: list[str] = Field(default_factory=list)
+    priority: str = "normal"
+    budget_total_usd: float = 0.0
+    deadline: str | None = None
+    owner: str | None = None
+    tags: list[str] = Field(default_factory=list)
+    decompose: bool = True
+    decomposition_strategy: str = "objective_per_project"
+
+
+class MissionUpdateRequest(BaseModel):
+    """Request body for PUT /api/v1/missions/{id}."""
+
+    title: str | None = None
+    description: str | None = None
+    priority: str | None = None
+    deadline: str | None = None
+    owner: str | None = None
+    tags: list[str] | None = None
+    budget_total_usd: float | None = None
+
+
+class WBSNodeCreateRequest(BaseModel):
+    """Request body for POST /api/v1/missions/{id}/wbs."""
+
+    node_type: str = "task"
+    title: str
+    description: str = ""
+    parent_id: str | None = None
+    depends_on: list[str] = Field(default_factory=list)
+    capabilities_required: list[str] = Field(default_factory=list)
+    assigned_agent_id: str | None = None
+    assigned_provider: str | None = None
+
+
+class MissionSearchRequest(BaseModel):
+    """Request body for POST /api/v1/missions/search."""
+
+    query: str
+    limit: int = Field(default=10, ge=1, le=100)
+
+
+class ExecutionRunRequest(BaseModel):
+    """Request body for POST /api/v1/execution."""
+
+    domain: str = "terminal"
+    action: str = ""
+    parameters: dict[str, Any] = Field(default_factory=dict)
+    description: str = ""
+    requested_by: str = "api"
+    priority: str = "normal"
+    timeout_s: float = 120.0
+    requires_approval: bool = False
+    sandbox_enabled: bool = True
+    tags: list[str] = Field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
 # App factory
 # ---------------------------------------------------------------------------
 
@@ -816,37 +926,8 @@ def create_app() -> FastAPI:
             _learning_engine = LearningEngine()
         return _learning_engine
 
-    class ExperienceSearchRequest(BaseModel):
-        query: str
-        search_type: str | None = None
-        limit: int = Field(default=10, ge=1, le=100)
-
-    class ExperienceReplayRequest(BaseModel):
-        mode: str = "dry_run"
-        comparison_agent_id: str | None = None
-
-    class ExperienceRecordRequest(BaseModel):
-        task_id: str
-        agent_id: str
-        agent_type: str
-        provider: str | None = None
-        model: str | None = None
-        capabilities: list[str] = Field(default_factory=list)
-        goal: str = ""
-        input_summary: str = ""
-        output_summary: str = ""
-        outcome: str = "success"
-        success: bool = True
-        execution_time_s: float = 0.0
-        latency_s: float = 0.0
-        cost_usd: float = 0.0
-        reflection_score: float = 0.0
-        qa_score: float = 0.0
-        confidence: float = 0.0
-        retries: int = 0
-        failure_reason: str | None = None
-        recovery_action: str | None = None
-        workflow_id: str | None = None
+    # ExperienceSearchRequest, ExperienceReplayRequest, ExperienceRecordRequest
+    # are defined at module level (required for Pydantic OpenAPI schema generation).
 
     @app.get("/api/v1/experience", tags=["experience"])
     async def list_experiences(
@@ -955,41 +1036,8 @@ def create_app() -> FastAPI:
             _mission_manager = MissionManager()
         return _mission_manager
 
-    class MissionCreateRequest(BaseModel):
-        title: str
-        description: str = ""
-        objectives: list[str] = Field(default_factory=list)
-        deliverables: list[str] = Field(default_factory=list)
-        priority: str = "normal"
-        budget_total_usd: float = 0.0
-        deadline: str | None = None
-        owner: str | None = None
-        tags: list[str] = Field(default_factory=list)
-        decompose: bool = True
-        decomposition_strategy: str = "objective_per_project"
-
-    class MissionUpdateRequest(BaseModel):
-        title: str | None = None
-        description: str | None = None
-        priority: str | None = None
-        deadline: str | None = None
-        owner: str | None = None
-        tags: list[str] | None = None
-        budget_total_usd: float | None = None
-
-    class WBSNodeCreateRequest(BaseModel):
-        node_type: str = "task"
-        title: str
-        description: str = ""
-        parent_id: str | None = None
-        depends_on: list[str] = Field(default_factory=list)
-        capabilities_required: list[str] = Field(default_factory=list)
-        assigned_agent_id: str | None = None
-        assigned_provider: str | None = None
-
-    class MissionSearchRequest(BaseModel):
-        query: str
-        limit: int = Field(default=10, ge=1, le=100)
+    # MissionCreateRequest, MissionUpdateRequest, WBSNodeCreateRequest, MissionSearchRequest
+    # are defined at module level (required for Pydantic OpenAPI schema generation).
 
     @app.get("/api/v1/missions", tags=["missions"])
     async def list_missions(status: str | None = None, priority: str | None = None, owner: str | None = None, limit: int = 100, offset: int = 0) -> dict[str, Any]:
@@ -1238,17 +1286,7 @@ def create_app() -> FastAPI:
             _execution_manager = ExecutionManager()
         return _execution_manager
 
-    class ExecutionRunRequest(BaseModel):
-        domain: str = "terminal"
-        action: str = ""
-        parameters: dict[str, Any] = Field(default_factory=dict)
-        description: str = ""
-        requested_by: str = "api"
-        priority: str = "normal"
-        timeout_s: float = 120.0
-        requires_approval: bool = False
-        sandbox_enabled: bool = True
-        tags: list[str] = Field(default_factory=list)
+    # ExecutionRunRequest is defined at module level (required for Pydantic OpenAPI schema generation).
 
     @app.post("/api/v1/execution", tags=["execution"])
     async def create_execution(req: ExecutionRunRequest) -> dict[str, Any]:
