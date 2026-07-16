@@ -2306,5 +2306,185 @@ def research_stats(
     _emit(data, fmt)
 
 
+# ---------------------------------------------------------------------------
+# Installer — v5.3.2 CLI Integration
+# ---------------------------------------------------------------------------
+
+install_app = typer.Typer(help="AAiOS Installer — install, repair, upgrade, validate.")
+app.add_typer(install_app, name="install")
+
+
+def _run_install(mode: str, workspace: str, profile: str, force: bool) -> None:
+    """Run the installer in the given mode."""
+    import asyncio
+
+    from services.installer import InstallationMode, InstallerOrchestrator
+    orchestrator = InstallerOrchestrator(workspace_root=workspace)
+    try:
+        report = asyncio.run(orchestrator.install(
+            mode=InstallationMode(mode),
+            workspace_root=workspace,
+            profile=profile if profile else None,
+            force=force,
+        ))
+    except Exception as e:
+        console.print(f"[red]Installation failed:[/red] {e}")
+        raise typer.Exit(1) from e
+    # Print summary
+    console.print(Panel.fit(
+        f"[cyan]Mode:[/cyan]           {report.mode}\n"
+        f"[cyan]Status:[/cyan]         {report.overall_status}\n"
+        f"[cyan]Workspace:[/cyan]      {report.plan.workspace_root if report.plan else '-'}\n"
+        f"[cyan]Restore point:[/cyan]  {report.restore_point_path or '-'}\n"
+        f"[cyan]Errors:[/cyan]         {len(report.errors)}\n"
+        f"[cyan]Warnings:[/cyan]       {len(report.warnings)}\n"
+        f"[cyan]Dependencies:[/cyan]   {len(report.dependencies)} checked\n"
+        f"[cyan]Databases:[/cyan]      {len(report.databases)} bootstrapped\n"
+        f"[cyan]Providers:[/cyan]      {len(report.providers)} checked\n"
+        f"[cyan]Agents registered:[/cyan] {len(report.agents_registered)}\n"
+        f"[cyan]Log:[/cyan]            {report.log_path or '-'}",
+        title="AAiOS Installation Report",
+    ))
+    if report.errors:
+        console.print("\n[red]Errors:[/red]")
+        for err in report.errors:
+            console.print(f"  - {err}")
+    if report.warnings:
+        console.print("\n[yellow]Warnings:[/yellow]")
+        for w in report.warnings:
+            console.print(f"  - {w}")
+    if report.log_path:
+        console.print(f"\n[cyan]Full report:[/cyan] {report.log_path}")
+    if report.overall_status != "success":
+        raise typer.Exit(1)
+
+
+@install_app.callback(invoke_without_command=True)
+def install(
+    ctx: typer.Context,
+    mode: str = typer.Option(
+        "interactive", "--mode", "-m",
+        help="Installation mode: interactive|silent|minimal|developer|enterprise|portable|offline|repair|force|upgrade|validate",
+    ),
+    workspace: str = typer.Option("", "--workspace", "-w", help="Workspace root path"),
+    profile: str = typer.Option("", "--profile", help="Configuration profile"),
+    force: bool = typer.Option(False, "--force", help="Force installation past compatibility blockers"),
+    interactive: bool = typer.Option(False, "--interactive", help="Shortcut for --mode=interactive"),
+    silent: bool = typer.Option(False, "--silent", help="Shortcut for --mode=silent"),
+    minimal: bool = typer.Option(False, "--minimal", help="Shortcut for --mode=minimal"),
+    developer: bool = typer.Option(False, "--developer", help="Shortcut for --mode=developer"),
+    enterprise: bool = typer.Option(False, "--enterprise", help="Shortcut for --mode=enterprise"),
+    portable: bool = typer.Option(False, "--portable", help="Shortcut for --mode=portable"),
+    offline: bool = typer.Option(False, "--offline", help="Shortcut for --mode=offline"),
+    repair: bool = typer.Option(False, "--repair", help="Shortcut for --mode=repair"),
+    upgrade: bool = typer.Option(False, "--upgrade", help="Shortcut for --mode=upgrade"),
+    validate: bool = typer.Option(False, "--validate", help="Shortcut for --mode=validate"),
+) -> None:
+    """Install AAiOS. Without a sub-command, runs in the chosen mode."""
+    if ctx.invoked_subcommand is not None:
+        return
+    # Resolve mode from shortcut flags
+    selected_mode = mode
+    for flag, m in (
+        (interactive, "interactive"), (silent, "silent"), (minimal, "minimal"),
+        (developer, "developer"), (enterprise, "enterprise"), (portable, "portable"),
+        (offline, "offline"), (repair, "repair"), (upgrade, "upgrade"),
+        (validate, "validate"),
+    ):
+        if flag:
+            selected_mode = m
+            break
+    _run_install(selected_mode, workspace, profile, force or repair)
+
+
+@install_app.command("interactive")
+def install_interactive(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Install AAiOS interactively."""
+    _run_install("interactive", workspace, "", False)
+
+
+@install_app.command("silent")
+def install_silent(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+    profile: str = typer.Option("production", "--profile"),
+) -> None:
+    """Install AAiOS silently (no prompts)."""
+    _run_install("silent", workspace, profile, False)
+
+
+@install_app.command("minimal")
+def install_minimal(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Install AAiOS with minimal features."""
+    _run_install("minimal", workspace, "", False)
+
+
+@install_app.command("developer")
+def install_developer(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Install AAiOS for development."""
+    _run_install("developer", workspace, "", False)
+
+
+@install_app.command("enterprise")
+def install_enterprise(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Install AAiOS for enterprise production."""
+    _run_install("enterprise", workspace, "", False)
+
+
+@install_app.command("portable")
+def install_portable(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Install AAiOS as a portable application."""
+    _run_install("portable", workspace or "./aaios-portable", "", False)
+
+
+@install_app.command("offline")
+def install_offline(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Install AAiOS in offline mode (no network)."""
+    _run_install("offline", workspace, "", False)
+
+
+@install_app.command("repair")
+def install_repair(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Repair an existing AAiOS installation."""
+    _run_install("repair", workspace, "", True)
+
+
+@install_app.command("force")
+def install_force(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Force installation past compatibility blockers."""
+    _run_install("force", workspace, "", True)
+
+
+@install_app.command("upgrade")
+def install_upgrade(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Upgrade an existing AAiOS installation."""
+    _run_install("upgrade", workspace, "", False)
+
+
+@install_app.command("validate")
+def install_validate(
+    workspace: str = typer.Option("", "--workspace", "-w"),
+) -> None:
+    """Validate an existing AAiOS installation."""
+    _run_install("validate", workspace, "", False)
+
+
 if __name__ == "__main__":
     main()

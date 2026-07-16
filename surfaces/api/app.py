@@ -2358,4 +2358,87 @@ def create_app() -> FastAPI:
         mgr = _get_research_manager()
         return cast("dict[str, Any]", await mgr.stats())
 
+    # ------------------------------------------------------------------
+    # v5.3.2 — Installer API
+    # ------------------------------------------------------------------
+
+    _installer: Any = None
+
+    def _get_installer() -> Any:
+        nonlocal _installer
+        if _installer is None:
+            from services.installer import InstallerOrchestrator
+            _installer = InstallerOrchestrator()
+        return _installer
+
+    @app.post("/api/v1/installer/environment", tags=["installer"])
+    async def installer_environment() -> dict[str, Any]:
+        """Detect the host environment."""
+        from services.installer import EnvironmentDetector
+        detector = EnvironmentDetector()
+        report = detector.detect()
+        compat = detector.assess_compatibility(report)
+        return {
+            "environment": report.to_dict(),
+            "compatibility": compat.to_dict(),
+        }
+
+    @app.post("/api/v1/installer/install", tags=["installer"])
+    async def installer_install(body: dict[str, Any] = Body({})) -> dict[str, Any]:
+        """Run the installer in the given mode."""
+        mode = body.get("mode", "interactive")
+        workspace = body.get("workspace_root", "")
+        profile = body.get("profile", "")
+        force = bool(body.get("force", False))
+        orchestrator = _get_installer()
+        report = await orchestrator.install(
+            mode=mode, workspace_root=workspace,
+            profile=profile if profile else None,
+            force=force,
+        )
+        return cast("dict[str, Any]", report.to_dict())
+
+    @app.post("/api/v1/installer/validate", tags=["installer"])
+    async def installer_validate() -> dict[str, Any]:
+        """Validate an existing installation."""
+        orchestrator = _get_installer()
+        report = await orchestrator.validate()
+        return cast("dict[str, Any]", report.to_dict())
+
+    @app.post("/api/v1/installer/repair", tags=["installer"])
+    async def installer_repair() -> dict[str, Any]:
+        """Repair an existing installation."""
+        orchestrator = _get_installer()
+        report = await orchestrator.repair()
+        return cast("dict[str, Any]", report.to_dict())
+
+    @app.get("/api/v1/installer/dependencies", tags=["installer"])
+    async def installer_dependencies() -> dict[str, Any]:
+        """List all known dependencies and their status."""
+        from services.installer import DependencyChecker
+        checker = DependencyChecker()
+        checks = checker.check_all()
+        return {
+            "dependencies": [c.to_dict() for c in checks],
+            "count": len(checks),
+        }
+
+    @app.get("/api/v1/installer/providers", tags=["installer"])
+    async def installer_providers() -> dict[str, Any]:
+        """List all supported LLM providers."""
+        from services.installer import ProviderConfigurator
+        configurator = ProviderConfigurator()
+        return {"providers": configurator.list_supported()}
+
+    @app.get("/api/v1/installer/agents", tags=["installer"])
+    async def installer_agents() -> dict[str, Any]:
+        """List all supported agents."""
+        from services.installer import AgentBootstrapper
+        bootstrapper = AgentBootstrapper()
+        results = bootstrapper.discover_all()
+        return {
+            "agents": [r.to_dict() for r in results],
+            "count": len(results),
+        }
+
     return app

@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aaios"
-version = "5.3.1"
+version = "5.3.2"
 description = "Agentic AI Operating System — a Windows-first, modular runtime for orchestrating generic AI agents."
 readme = "README.md"
 license = "Apache-2.0"
@@ -231,6 +231,7 @@ ignore = [
 "services/knowledge/**" = ["PLR0912", "E701", "D101", "E741", "SIM101"]  # search branches, one-liners, variable l
 "services/engineering/**" = ["PLR0912", "E701", "D101"]  # analysis branches
 "surfaces/api/**" = ["B008", "PLR0912", "E741"]  # Body() in defaults, analysis branches
+"services/installer/**" = ["S603", "S607", "PLR0912"]  # subprocess for env detection
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

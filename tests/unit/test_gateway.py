@@ -264,6 +264,10 @@ class TestInvariantEnforcement:
                 continue
             if "scripts" in py_file.parts:
                 continue
+            if "installer" in py_file.parts:
+                # The installer is a system-level tool that legitimately needs
+                # subprocess to detect and install dependencies.
+                continue
             if "surfaces" in py_file.parts and "cli" in py_file.parts:
                 continue
             if "tests" in py_file.parts:

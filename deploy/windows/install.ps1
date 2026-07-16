@@ -1,18 +1,34 @@
 <#
 .SYNOPSIS
-    AAiOS one-click installer for Windows 11.
+    AAiOS v5.3.2 one-click installer for Windows 11.
 .DESCRIPTION
     Installs AAiOS with all dependencies: Python 3.12, Node.js 22, pnpm, PostgreSQL, Qdrant.
-    Sets up the virtual environment, installs packages, and runs `aaios doctor`.
+    Sets up the virtual environment, installs packages, and runs `aaios install`.
 .NOTES
     Run from PowerShell as Administrator:
     irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/install.ps1 | iex
+
+    With options (must use -Mode etc.):
+    & ([scriptblock]::Create((irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/install.ps1))) -Mode silent -Workspace 'D:\AAiOS'
 #>
 
 param(
     [string]$InstallDir = "$env:LOCALAPPDATA\AAiOS",
+    [string]$Mode = "interactive",
+    [string]$Workspace = "",
+    [string]$Profile = "",
+    [switch]$Force,
     [switch]$SkipDeps,
-    [switch]$Force
+    [switch]$Interactive,
+    [switch]$Silent,
+    [switch]$Minimal,
+    [switch]$Developer,
+    [switch]$Enterprise,
+    [switch]$Portable,
+    [switch]$Offline,
+    [switch]$Repair,
+    [switch]$Upgrade,
+    [switch]$Validate
 )
 
 $ErrorActionPreference = 'Stop'
@@ -211,8 +227,26 @@ if (Test-Path $aaiosExe) {
 
 # Run doctor
 Write-Host ""
-Write-Host "Running aaios doctor..." -ForegroundColor Yellow
-python -m surfaces.cli doctor 2>&1
+Write-Host "Running aaios install (mode: $Mode)..." -ForegroundColor Yellow
+
+# Resolve mode from switch flags
+$resolvedMode = $Mode
+if ($Interactive) { $resolvedMode = "interactive" }
+elseif ($Silent) { $resolvedMode = "silent" }
+elseif ($Minimal) { $resolvedMode = "minimal" }
+elseif ($Developer) { $resolvedMode = "developer" }
+elseif ($Enterprise) { $resolvedMode = "enterprise" }
+elseif ($Portable) { $resolvedMode = "portable" }
+elseif ($Offline) { $resolvedMode = "offline" }
+elseif ($Repair) { $resolvedMode = "repair" }
+elseif ($Upgrade) { $resolvedMode = "upgrade" }
+elseif ($Validate) { $resolvedMode = "validate" }
+
+$installArgs = @("install", "--mode", $resolvedMode)
+if ($Workspace) { $installArgs += @("--workspace", $Workspace) }
+if ($Profile) { $installArgs += @("--profile", $Profile) }
+if ($Force -or $Repair) { $installArgs += "--force" }
+& python -m surfaces.cli @installArgs
 
 # --- Done ---
 Write-Host @"
