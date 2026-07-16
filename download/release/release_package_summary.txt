@@ -2,7 +2,7 @@ AAiOS Release Package Summary (v5.3.2)
 ========================================
 Package: PORTABLE
   Filename: aaios-portable-v5.3.2.zip
-  SHA-256 Checksum: d36363864f325c9fbb4076e616cae8dded6ba415d80a894fce086c0f0a15d1af
+  SHA-256 Checksum: 3afcb5851a1acf503a3d5896cddf2b170c43eec9f9ef295c7a9d8429ce87e686
 
 Package: ZIP
   Filename: aaios-zip-v5.3.2.zip
@@ -18,9 +18,9 @@ Package: OFFLINE_INSTALLER
 
 Package: DEVELOPER
   Filename: aaios-developer-v5.3.2.zip
-  SHA-256 Checksum: fe5c9bf0954f459befc174e128bf8bc7a67af1060b2a4d9d89c01f58ebc069a1
+  SHA-256 Checksum: c7b41e35b941d9c03b54f49d110b3d33766a377976b34b236b23239706bb7d5c
 
 Package: ENTERPRISE
   Filename: aaios-enterprise-v5.3.2.zip
-  SHA-256 Checksum: d36363864f325c9fbb4076e616cae8dded6ba415d80a894fce086c0f0a15d1af
+  SHA-256 Checksum: 3afcb5851a1acf503a3d5896cddf2b170c43eec9f9ef295c7a9d8429ce87e686
 

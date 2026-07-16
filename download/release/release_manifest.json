@@ -1,60 +1,60 @@
 {
   "version": "5.3.2",
-  "created_at": "2026-07-16T16:20:11.335629Z",
+  "created_at": "2026-07-16T16:42:15.703735Z",
   "packages": [
     {
-      "id": "e45f6ea4-1d1d-4d9c-9e32-ee628277f787",
+      "id": "30c57c43-715b-41db-ac4d-e2bece3fdd56",
       "filename": "aaios-portable-v5.3.2.zip",
       "package_type": "portable",
       "size_bytes": 7957,
-      "sha256": "d36363864f325c9fbb4076e616cae8dded6ba415d80a894fce086c0f0a15d1af",
-      "sha512": "b11324bacc9204d3c46e583308dbeb6aabd12de12e00df878c77e98f420f5384f8eab42b3b067505967cefeea11042df0469bf2f56fb256a2a14f07643bd9f21",
-      "created_at": "2026-07-16T16:20:11.464276Z"
+      "sha256": "3afcb5851a1acf503a3d5896cddf2b170c43eec9f9ef295c7a9d8429ce87e686",
+      "sha512": "a9637eece3f6baeb488538a5755bacd70cb09c96d50f43081eef31942956ff036f61d73fbec4257df192c992aadf136d4cfd17e626798e1db108f3ef52189b72",
+      "created_at": "2026-07-16T16:42:15.830369Z"
     },
     {
-      "id": "b0d14b8d-5afd-4c96-b57d-d7ea176b30b7",
+      "id": "9ccaee68-43fc-4e1c-97c9-bb0cae218436",
       "filename": "aaios-zip-v5.3.2.zip",
       "package_type": "zip",
       "size_bytes": 7824,
       "sha256": "9969f1639df386552a20b48c67b3288ca96dfac74fc303df09d56dd19298669f",
       "sha512": "33c13bcf710fd77943ccd204044dd4764d34164f33c37f591560a5c2d4960affe11f69ba90a586e0c0442aab173f8b8d463bf32a4d30c285852985ed400d4ec1",
-      "created_at": "2026-07-16T16:20:11.465404Z"
+      "created_at": "2026-07-16T16:42:15.831400Z"
     },
     {
-      "id": "d0e452b6-fb4d-48e5-93aa-e3ed45075d1b",
+      "id": "b9a8235d-1ee4-48da-9831-7fadfdf4d6f4",
       "filename": "aaios-installer-v5.3.2.zip",
       "package_type": "installer",
       "size_bytes": 7824,
       "sha256": "9969f1639df386552a20b48c67b3288ca96dfac74fc303df09d56dd19298669f",
       "sha512": "33c13bcf710fd77943ccd204044dd4764d34164f33c37f591560a5c2d4960affe11f69ba90a586e0c0442aab173f8b8d463bf32a4d30c285852985ed400d4ec1",
-      "created_at": "2026-07-16T16:20:11.466359Z"
+      "created_at": "2026-07-16T16:42:15.832343Z"
     },
     {
-      "id": "2c2d2138-7430-4557-9628-9db88bd1d5a2",
+      "id": "967451e9-3742-47ae-98af-0a6171ad5d10",
       "filename": "aaios-offline_installer-v5.3.2.zip",
       "package_type": "offline_installer",
       "size_bytes": 7824,
       "sha256": "9969f1639df386552a20b48c67b3288ca96dfac74fc303df09d56dd19298669f",
       "sha512": "33c13bcf710fd77943ccd204044dd4764d34164f33c37f591560a5c2d4960affe11f69ba90a586e0c0442aab173f8b8d463bf32a4d30c285852985ed400d4ec1",
-      "created_at": "2026-07-16T16:20:11.467291Z"
+      "created_at": "2026-07-16T16:42:15.833287Z"
     },
     {
-      "id": "8fefc430-deec-4592-9207-24f115c9c4ed",
+      "id": "bb5f4a06-eb19-4271-8292-11e9a1a4c8d0",
       "filename": "aaios-developer-v5.3.2.zip",
       "package_type": "developer",
       "size_bytes": 7959,
-      "sha256": "fe5c9bf0954f459befc174e128bf8bc7a67af1060b2a4d9d89c01f58ebc069a1",
-      "sha512": "bb6af86d6637a938c6fa65ac6d0f44e73dc073f5a26a22eafb13d611e51226ef46e2a25bd6a452e8831bfb9594e5fefd35e9e72cf5f7cf95cd5a3c1d1fedb004",
-      "created_at": "2026-07-16T16:20:11.468903Z"
+      "sha256": "c7b41e35b941d9c03b54f49d110b3d33766a377976b34b236b23239706bb7d5c",
+      "sha512": "c40f77b1da1ac17daba62ee15dace5c90d396dee22c7796d1abf4c535b479b0860399bbcd25770e9f910c284a4833d92a2f4a6cc0000284021fbe8a2d7b0e91b",
+      "created_at": "2026-07-16T16:42:15.834576Z"
     },
     {
-      "id": "65416802-728a-4f8e-bf12-876165428474",
+      "id": "224f0985-6b4b-44ea-965f-3c60a94f030b",
       "filename": "aaios-enterprise-v5.3.2.zip",
       "package_type": "enterprise",
       "size_bytes": 7957,
-      "sha256": "d36363864f325c9fbb4076e616cae8dded6ba415d80a894fce086c0f0a15d1af",
-      "sha512": "b11324bacc9204d3c46e583308dbeb6aabd12de12e00df878c77e98f420f5384f8eab42b3b067505967cefeea11042df0469bf2f56fb256a2a14f07643bd9f21",
-      "created_at": "2026-07-16T16:20:11.470140Z"
+      "sha256": "3afcb5851a1acf503a3d5896cddf2b170c43eec9f9ef295c7a9d8429ce87e686",
+      "sha512": "a9637eece3f6baeb488538a5755bacd70cb09c96d50f43081eef31942956ff036f61d73fbec4257df192c992aadf136d4cfd17e626798e1db108f3ef52189b72",
+      "created_at": "2026-07-16T16:42:15.835593Z"
     }
   ],
   "dependencies": {
@@ -334,10 +334,10 @@
   "sbom": {
     "bomFormat": "CycloneDX",
     "specVersion": "1.5",
-    "serialNumber": "urn:uuid:737df466-1113-40aa-8485-54c71a1d972f",
+    "serialNumber": "urn:uuid:d6ce97a9-37ac-4492-9f1c-e1701e4fcd00",
     "version": 1,
     "metadata": {
-      "timestamp": "2026-07-16T16:20:11.470171+00:00",
+      "timestamp": "2026-07-16T16:42:15.835611+00:00",
       "component": {
         "type": "application",
         "name": "aaios",

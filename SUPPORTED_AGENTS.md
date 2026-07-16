@@ -11,6 +11,8 @@ AAiOS abstracts all agent binaries and CLI wrappers behind a unified `GenericAge
 *   **QAAgent**: Verifies code modifications, checks for Ruff/Mypy errors, and ensures test suites pass successfully.
 *   **SecurityAgent**: Runs automated code security audits using tools like Bandit.
 
+*   **9Router Local Proxy**: Connects Claude Code, Hermes, and custom agents to over 40+ LLM providers with automatic 3-tier fallbacks, token-saving compressions, and local dashboards at `http://localhost:20128`.
+
 ---
 
 ### 2. Third-Party Agent Extensibility

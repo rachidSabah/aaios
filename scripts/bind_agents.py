@@ -126,9 +126,36 @@ def detect_hermes() -> AgentDetectionResult:
     )
 
 
+def detect_9router() -> AgentDetectionResult:
+    """Detect the 9Router proxy CLI on PATH."""
+    binary = shutil.which("9router")
+    if binary:
+        try:
+            version = subprocess.check_output(
+                [binary, "--version"],
+                capture_output=True,
+                text=True,
+                timeout=10,
+            ).strip()
+        except Exception:
+            version = "unknown"
+        return AgentDetectionResult(
+            name="9router",
+            binary="9router",
+            status=AgentStatus.FOUND,
+            path=binary,
+            version=version,
+        )
+    return AgentDetectionResult(
+        name="9router",
+        binary="9router",
+        status=AgentStatus.NOT_FOUND,
+    )
+
+
 def detect_agents() -> list[AgentDetectionResult]:
-    """Detect all supported agents. Returns results for both."""
-    return [detect_claude_code(), detect_hermes()]
+    """Detect all supported agents."""
+    return [detect_claude_code(), detect_hermes(), detect_9router()]
 
 
 def install_claude_code(
@@ -296,6 +323,42 @@ exec {python_bin} -m agents._impls.hermes.daemon "$@"
     return result
 
 
+def install_9router() -> AgentDetectionResult:
+    """Install 9Router via npm."""
+    _log.info("installing_9router")
+    npm = shutil.which("npm")
+    if not npm:
+        return AgentDetectionResult(
+            name="9router",
+            binary="9router",
+            status=AgentStatus.FAILED,
+            error="npm not found. Install Node.js first.",
+        )
+    try:
+        subprocess.check_call(
+            [npm, "install", "-g", "9router"],
+            timeout=120,
+        )
+    except subprocess.CalledProcessError as e:
+        return AgentDetectionResult(
+            name="9router",
+            binary="9router",
+            status=AgentStatus.FAILED,
+            error=f"npm install failed: {e}",
+        )
+    except subprocess.TimeoutExpired:
+        return AgentDetectionResult(
+            name="9router",
+            binary="9router",
+            status=AgentStatus.FAILED,
+            error="npm install timed out",
+        )
+    result = detect_9router()
+    if result.status == AgentStatus.FOUND:
+        result.status = AgentStatus.INSTALLED
+    return result
+
+
 def bind_agents(
     *,
     install_missing: bool = True,
@@ -318,6 +381,17 @@ def bind_agents(
         A dict mapping agent name → detection result.
     """
     results: dict[str, AgentDetectionResult] = {}
+
+    # --- 9Router ---
+    router_result = detect_9router()
+    if router_result.status == AgentStatus.NOT_FOUND and install_missing:
+        _log.info("9router_not_found_installing")
+        router_result = install_9router()
+    results["9router"] = router_result
+
+    # Default to 9Router local proxy for Claude Code if installed and no custom proxy is provided
+    if not claude_proxy_url and router_result.status in (AgentStatus.FOUND, AgentStatus.INSTALLED):
+        claude_proxy_url = "http://localhost:20128/v1"
 
     # --- Claude Code ---
     cc_result = detect_claude_code()
@@ -391,6 +465,21 @@ def _configure_aaios(
             "note": "Hermes not found; running in mock mode",
         }
 
+    # 9Router config
+    router = results.get("9router")
+    if router and router.status in (AgentStatus.FOUND, AgentStatus.INSTALLED):
+        agents_config["9router"] = {
+            "mock_mode": False,
+            "binary_path": router.path,
+            "version": router.version,
+            "dashboard_url": "http://localhost:20128",
+        }
+    else:
+        agents_config["9router"] = {
+            "mock_mode": True,
+            "note": "9Router not found; running in mock mode",
+        }
+
     # Write config
     config_file = config_dir / "agents.json"
     config_file.write_text(json.dumps(agents_config, indent=2))
@@ -438,7 +527,7 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.detect_only:
-        results = {"claude_code": detect_claude_code(), "hermes": detect_hermes()}
+        results = {"claude_code": detect_claude_code(), "hermes": detect_hermes(), "9router": detect_9router()}
     else:
         results = bind_agents(
             install_missing=args.install_missing,
