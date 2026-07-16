@@ -409,10 +409,12 @@ async def boot_and_serve(
     _log.info("aaios.start.starting_api", host=host, port=port)
     print(f"\n{'=' * 60}")
     print("  AAiOS v1.0.0 is LIVE")
-    print(f"  API:     http://{host}:{port}")
-    print(f"  Docs:    http://{host}:{port}/docs")
-    print(f"  Health:  http://{host}:{port}/healthz")
-    print(f"  Agents:  {', '.join(agents_registered) or 'none (install agents)'}")
+    print(f"  Dashboard: http://localhost:3000")
+    print(f"  API:       http://{host}:{port}")
+    print(f"  Docs:      http://{host}:{port}/docs")
+    print(f"  9router:   http://localhost:20128")
+    print(f"  Health:    http://{host}:{port}/healthz")
+    print(f"  Agents:    {', '.join(agents_registered) or 'none (install agents)'}")
     print(f"  Providers: {len(router.list_providers())}")
     print(f"{'=' * 60}\n")
 
@@ -431,21 +433,17 @@ async def boot_and_serve(
     server = uvicorn.Server(config)
 
     async def _open_browser_when_ready() -> None:
-        """Wait for uvicorn to be ready, then open dashboards."""
+        """Wait for services to be ready, then open the AAiOS dashboard."""
         await asyncio.sleep(2.0)
         import webbrowser
         try:
-            # Open Next.js Web Dashboard
+            # Primary: AAiOS agentic OS dashboard (Next.js on port 3000)
             webbrowser.open("http://localhost:3000")
-            # Open 9router dashboard
-            webbrowser.open("http://localhost:20128")
-            # Then open AAiOS API docs
-            webbrowser.open(f"http://{host}:{port}/docs")
             _log.info(
                 "aaios.start.browser_opened",
                 dashboard_url="http://localhost:3000",
+                api_url=f"http://{host}:{port}/docs",
                 router_url="http://localhost:20128",
-                api_url=f"http://{host}:{port}/docs"
             )
         except Exception as e:
             _log.warning("aaios.start.browser_open_failed", error=str(e))

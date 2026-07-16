@@ -362,9 +362,10 @@ Write-Host "║                                                                 
 Write-Host "║  1. Open a NEW PowerShell window, then run:                     ║" -ForegroundColor Cyan
 Write-Host "║       aaios start                                                ║" -ForegroundColor Cyan
 Write-Host "║                                                                  ║" -ForegroundColor Cyan
-Write-Host "║  2. Browser opens automatically:                                 ║" -ForegroundColor Cyan
-Write-Host "║       http://localhost:20128  (9router dashboard)                ║" -ForegroundColor Cyan
-Write-Host "║       http://localhost:8000/docs  (AAiOS API docs)               ║" -ForegroundColor Cyan
+    Write-Host "║  2. Browser opens automatically:                                 ║" -ForegroundColor Cyan
+    Write-Host "║       http://localhost:3000  (AAiOS dashboard)                   ║" -ForegroundColor Cyan
+    Write-Host "║       http://localhost:8000/docs  (AAiOS API docs)               ║" -ForegroundColor Cyan
+    Write-Host "║       http://localhost:20128  (9router gateway, optional)        ║" -ForegroundColor Cyan
 Write-Host "║                                                                  ║" -ForegroundColor Cyan
 Write-Host "║  3. CLI quick-start:                                             ║" -ForegroundColor Cyan
 Write-Host "║       aaios --help                                               ║" -ForegroundColor Cyan
@@ -383,7 +384,7 @@ if ($startNow -ne 'n' -and $startNow -ne 'N') {
     Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", $launchCmd
     Write-Host ""
     Write-Host "  AAiOS is starting — check the new window." -ForegroundColor Green
-    Write-Host "  Dashboard → http://localhost:20128"         -ForegroundColor Green
+    Write-Host "  Dashboard → http://localhost:3000"          -ForegroundColor Green
 } else {
     Write-Host ""
     Write-Host "  Run 'aaios start' in any new PowerShell window to start AAiOS." -ForegroundColor Yellow
