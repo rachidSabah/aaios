@@ -1,4 +1,4 @@
-<#
+﻿<#
 .SYNOPSIS
     AAiOS v5.3.2 one-click installer for Windows 11.
 .DESCRIPTION
@@ -40,15 +40,15 @@ function Write-Step($msg) {
 }
 
 function Write-OK($msg) {
-    Write-Host "  ✓ $msg" -ForegroundColor Green
+    Write-Host "  âœ“ $msg" -ForegroundColor Green
 }
 
 function Write-Warn($msg) {
-    Write-Host "  ⚠ $msg" -ForegroundColor Yellow
+    Write-Host "  âš  $msg" -ForegroundColor Yellow
 }
 
 function Write-Err($msg) {
-    Write-Host "  ✗ $msg" -ForegroundColor Red
+    Write-Host "  âœ— $msg" -ForegroundColor Red
 }
 
 function Test-Command($cmd) {
@@ -57,10 +57,10 @@ function Test-Command($cmd) {
 
 # --- Banner ---
 Write-Host @"
-╔══════════════════════════════════════════════════╗
-║         AAiOS One-Click Installer v1.0.0         ║
-║   Agentic AI Operating System — Windows 11       ║
-╚══════════════════════════════════════════════════╝
+â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
+â•‘         AAiOS One-Click Installer v1.0.0         â•‘
+â•‘   Agentic AI Operating System â€” Windows 11       â•‘
+â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
 "@ -ForegroundColor Magenta
 
 Write-Host "Install directory: $InstallDir"
@@ -242,6 +242,17 @@ if ($LASTEXITCODE -ne 0 -or $version -match "Traceback") {
     Write-OK "AAiOS installed: $version"
 }
 
+# --- Register aaios.exe in user PATH ---
+$aaiosScripts = (Resolve-Path ".\.venv\Scripts").Path
+$userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
+if ($userPath -notlike "*$aaiosScripts*") {
+    [System.Environment]::SetEnvironmentVariable("Path", "$userPath;$aaiosScripts", "User")
+    $env:Path = "$env:Path;$aaiosScripts"
+    Write-OK "aaios added to PATH (effective in new terminals)"
+} else {
+    Write-OK "aaios already in PATH"
+}
+
 # Run doctor
 Write-Host ""
 Write-Host "Running aaios install (mode: $Mode)..." -ForegroundColor Yellow
@@ -266,38 +277,51 @@ if ($Force -or $Repair) { $installArgs += "--force" }
 & python -m surfaces.cli @installArgs
 
 # --- Done ---
-Write-Host @"
-╔══════════════════════════════════════════════════╗
-║            Installation Complete!                ║
-╠══════════════════════════════════════════════════╣
-║                                                  ║
-║  Repository: $InstallDir\aaios
-║  Config:    $env:ProgramData\AAiOS\config\config.yaml
-║  Data:      $env:ProgramData\AAiOS\data\
-║  Logs:      $env:ProgramData\AAiOS\logs\
-║                                                  ║
-║  AAiOS is ready to run in LIVE mode.             ║
-║  No mock. No demo. Fully functional.             ║
-║                                                  ║
-╚══════════════════════════════════════════════════╝
-"@ -ForegroundColor Green
+$installPath = "$InstallDir\aaios"
+Write-Host ""
+Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
+Write-Host "║          AAiOS v5.3.2 — Installation Complete!                  ║" -ForegroundColor Green
+Write-Host "╠══════════════════════════════════════════════════════════════════╣" -ForegroundColor Green
+Write-Host "║  Install dir : $installPath" -ForegroundColor Green
+Write-Host "║  Config      : $env:ProgramData\AAiOS\config\config.yaml" -ForegroundColor Green
+Write-Host "║  Data        : $env:ProgramData\AAiOS\data\" -ForegroundColor Green
+Write-Host "║  Logs        : $env:ProgramData\AAiOS\logs\" -ForegroundColor Green
+Write-Host "╠══════════════════════════════════════════════════════════════════╣" -ForegroundColor Cyan
+Write-Host "║  HOW TO RUN AAIOS                                                ║" -ForegroundColor Cyan
+Write-Host "║                                                                  ║" -ForegroundColor Cyan
+Write-Host "║  1. Open a NEW PowerShell window, then run:                     ║" -ForegroundColor Cyan
+Write-Host "║       aaios start                                                ║" -ForegroundColor Cyan
+Write-Host "║                                                                  ║" -ForegroundColor Cyan
+Write-Host "║  2. Open the dashboard in your browser:                         ║" -ForegroundColor Cyan
+Write-Host "║       http://localhost:20128                                      ║" -ForegroundColor Cyan
+Write-Host "║                                                                  ║" -ForegroundColor Cyan
+Write-Host "║  3. CLI quick-start:                                             ║" -ForegroundColor Cyan
+Write-Host "║       aaios --help                                               ║" -ForegroundColor Cyan
+Write-Host "║       aaios doctor                                               ║" -ForegroundColor Cyan
+Write-Host "║       aaios run `"your goal here`"                                ║" -ForegroundColor Cyan
+Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
+Write-Host ""
 
-# Offer to start immediately
-$startNow = Read-Host "`nStart AAiOS now? (Y/n)"
-if ($startNow -ne 'n') {
-    Write-Host "`nStarting AAiOS in LIVE mode..." -ForegroundColor Green
-    Set-Location "$InstallDir\aaios"
-    & .\.venv\Scripts\python.exe scripts\start.py
-} else {
-    Write-Host "`nTo start later:" -ForegroundColor Yellow
-    Write-Host "  cd $InstallDir\aaios"
-    Write-Host "  .\.venv\Scripts\Activate.ps1"
-    Write-Host "  aaios start"
-    Write-Host ""
-    Write-Host "  Or with a custom port:" -ForegroundColor Dim
-    Write-Host "  aaios start --port 9000"
-    Write-Host ""
-    Write-Host "  Set an API key first (optional):" -ForegroundColor Dim
-    Write-Host "  `$env:OPENAI_API_KEY = 'sk-...'"
-    Write-Host "  `$env:ANTHROPIC_API_KEY = 'sk-ant-...'"
+# Offer to launch in a new persistent window (works even with irm|iex)
+Write-Host "Press ENTER to launch AAiOS now in a new window, or type 'n' + ENTER to skip." -ForegroundColor Yellow
+try {
+    $startNow = [System.Console]::ReadLine()
+} catch {
+    $startNow = 'n'
 }
+
+if ($startNow -ne 'n' -and $startNow -ne 'N') {
+    $launchCmd = "Set-Location '$installPath'; & .\.venv\Scripts\Activate.ps1; python scripts\start.py"
+    Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", $launchCmd
+    Write-Host ""
+    Write-Host "  AAiOS is starting — check the new window." -ForegroundColor Green
+    Write-Host "  Dashboard → http://localhost:20128" -ForegroundColor Green
+} else {
+    Write-Host ""
+    Write-Host "  Run 'aaios start' in any new PowerShell window to start AAiOS." -ForegroundColor Yellow
+}
+
+# Keep installer window open so the user can read the output
+Write-Host ""
+Write-Host "Press any key to close this installer..." -ForegroundColor DarkGray
+try { $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') } catch { Start-Sleep -Seconds 10 }
