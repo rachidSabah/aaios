@@ -42,6 +42,16 @@ from services.update.models import ReleaseChannel, UpdateInfo, UpdateStatus
 from services.validator.manager import ReleaseValidator
 from services.monitoring.monitor import ContinuousHealthMonitor
 from services.monitoring.models import AlertChannel
+from services.uninstall.manager import UninstallManager
+from services.uninstall.models import UninstallConfig
+from services.reset.manager import ResetManager
+from services.reset.models import ResetConfig
+from services.cleanup.manager import CleanupManager
+from services.cleanup.models import CleanupConfig
+from services.packaging.manager import PackagingManager
+from services.packaging.models import PackageType
+from services.certify.manager import CertifyManager
+from services.benchmark.manager import BenchmarkManager
 
 console = Console()
 app = typer.Typer(
@@ -786,55 +796,215 @@ def snapshot_compare(
 
 @app.command()
 def uninstall(
-    remove_data: bool = typer.Option(
-        False, "--remove-data", help="Also remove config, data, and logs"
-    ),
-    remove_agents: bool = typer.Option(False, "--remove-agents", help="Also remove agent CLIs"),
+    silent: bool = typer.Option(False, "--silent", help="Run without interactive prompts"),
+    force: bool = typer.Option(False, "--force", help="Force uninstall even if processes are active"),
+    keep_data: bool = typer.Option(True, "--keep-data", help="Preserve configuration, databases, and logs"),
+    remove_data: bool = typer.Option(False, "--remove-data", help="Remove configurations and databases"),
+    remove_models: bool = typer.Option(False, "--remove-models", help="Delete downloaded model files"),
+    remove_providers: bool = typer.Option(False, "--remove-providers", help="Delete model provider credentials"),
+    remove_plugins: bool = typer.Option(False, "--remove-plugins", help="Delete installed plugins"),
+    remove_agents: bool = typer.Option(False, "--remove-agents", help="Delete agent project directories"),
+    remove_backups: bool = typer.Option(False, "--remove-backups", help="Delete all backup zip files"),
+    remove_cache: bool = typer.Option(False, "--remove-cache", help="Clear workspace caches"),
+    remove_logs: bool = typer.Option(False, "--remove-logs", help="Delete all log files"),
+    everything: bool = typer.Option(False, "--everything", help="Complete purge of all files and environments"),
 ) -> None:
-    """Uninstall AAiOS completely.
+    """Uninstall AAiOS completely or selectively according to options."""
+    if not silent and not force:
+        typer.confirm("Are you sure you want to proceed with uninstallation?", abort=True)
 
-    Removes: venv, node_modules, config, data, logs, and the repository.
-    Does NOT remove system dependencies (Python, Node.js, git).
+    config = UninstallConfig(
+        silent=silent,
+        force=force,
+        keep_data=keep_data if not remove_data else False,
+        remove_data=remove_data,
+        remove_models=remove_models,
+        remove_providers=remove_providers,
+        remove_plugins=remove_plugins,
+        remove_agents=remove_agents,
+        remove_backups=remove_backups,
+        remove_cache=remove_cache,
+        remove_logs=remove_logs,
+        everything=everything,
+    )
 
-    Examples:
-      aaios uninstall                        # basic uninstall
-      aaios uninstall --remove-data          # also delete config/data/logs
-      aaios uninstall --remove-data --remove-agents  # nuke everything
-    """
-    import platform
-    import subprocess
+    manager = UninstallManager()
+    console.print("[red]Starting AAiOS Uninstaller...[/red]")
+    report = manager.run_uninstall(config)
 
-    console.print("[red]Uninstalling AAiOS...[/red]")
-
-    if platform.system() == "Windows":
-        script = "deploy/windows/uninstall.ps1"
-        cmd = ["powershell", "-ExecutionPolicy", "Bypass", "-File", script]
-        if remove_data:
-            cmd.append("-RemoveData")
-        if remove_agents:
-            cmd.append("-RemoveAgents")
+    if report.success:
+        console.print("[green]AAiOS uninstalled successfully.[/green]")
+        if report.removed_paths:
+            console.print(f"Removed folders: {report.removed_paths}")
     else:
-        script = "deploy/wsl/uninstall.sh"
-        cmd = ["bash", script]
-        if remove_data:
-            cmd.append("--remove-data")
-        if remove_agents:
-            cmd.append("--remove-agents")
-
-    try:
-        subprocess.run(cmd, check=True)  # noqa: S603
-    except FileNotFoundError:
-        console.print(f"[red]Error:[/red] Could not find {script}")
-        console.print("Run from the AAiOS repository root, or use the one-liner:")
-        if platform.system() == "Windows":
-            console.print(
-                "  irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/uninstall.ps1 | iex"
-            )
-        else:
-            console.print(
-                "  curl -fsSL https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/wsl/uninstall.sh | bash"
-            )
+        console.print(f"[red]Uninstall failed: {report.error}[/red]")
         raise typer.Exit(1)  # noqa: B904
+
+
+@app.command()
+def reset(
+    factory: bool = typer.Option(False, "--factory", help="Restore to clean installation defaults"),
+    workspace: bool = typer.Option(False, "--workspace", help="Clear all workspace folders"),
+    memory: bool = typer.Option(False, "--memory", help="Clear all vector stores and memory db"),
+    providers: bool = typer.Option(False, "--providers", help="Reset provider configurations"),
+    plugins: bool = typer.Option(False, "--plugins", help="Remove all custom plugins"),
+    missions: bool = typer.Option(False, "--missions", help="Purge mission and workflow tracking tables"),
+    database: bool = typer.Option(False, "--database", help="Wipe and rebuild all sqlite databases"),
+    everything: bool = typer.Option(False, "--everything", help="Complete factory wipe of all states"),
+) -> None:
+    """Safely reset system configurations, memory, and database states."""
+    console.print("[yellow]WARNING: This will wipe configuration or data files.[/yellow]")
+    typer.confirm("Do you want to create a restore point and proceed?", abort=True)
+
+    config = ResetConfig(
+        factory=factory,
+        workspace=workspace,
+        memory=memory,
+        providers=providers,
+        plugins=plugins,
+        missions=missions,
+        database=database,
+        everything=everything,
+    )
+
+    manager = ResetManager()
+    with console.status("[bold yellow]Performing reset...[/bold yellow]"):
+        report = manager.run_reset(config)
+
+    if report.success:
+        console.print("[green]System reset completed successfully.[/green]")
+        if report.backup_id:
+            console.print(f"[cyan]Safety restore point created: {report.backup_id}[/cyan]")
+            console.print("To rollback this reset, run: aaios backup restore " + report.backup_id)
+    else:
+        console.print(f"[red]Reset failed: {report.error}[/red]")
+        raise typer.Exit(1)  # noqa: B904
+
+
+@app.command()
+def cleanup(
+    dry_run: bool = typer.Option(False, "--dry-run", help="List items to prune without deleting"),
+    all_items: bool = typer.Option(False, "--all", help="Cleanup logs, caches, and package stores"),
+    cache: bool = typer.Option(False, "--cache", help="Prune local caches and temp folders"),
+    logs: bool = typer.Option(False, "--logs", help="Delete older rotated log files"),
+    backups: bool = typer.Option(False, "--backups", help="Delete backups older than 7 days"),
+    models: bool = typer.Option(False, "--models", help="Remove unused model files"),
+    reports: bool = typer.Option(False, "--reports", help="Clear historical execution reports"),
+) -> None:
+    """Prune logs, caches, and reclaim disk space."""
+    config = CleanupConfig(
+        dry_run=dry_run,
+        all=all_items,
+        cache=cache,
+        logs=logs,
+        backups=backups,
+        models=models,
+        reports=reports,
+    )
+
+    manager = CleanupManager()
+    with console.status("[bold green]Running cleanup manager...[/bold green]"):
+        report = manager.run_cleanup(config)
+
+    if report.success:
+        if dry_run:
+            console.print(f"[yellow]Dry-run: would reclaim {report.reclaimed_bytes} bytes.[/yellow]")
+        else:
+            console.print(f"[green]Reclaimed {report.reclaimed_bytes} bytes of disk space.[/green]")
+
+        if report.cleaned_items:
+            table = Table(title="Cleaned Items", show_header=True)
+            table.add_column("Action / Cleaned Item", style="cyan")
+            for item in report.cleaned_items:
+                table.add_row(item)
+            console.print(table)
+    else:
+        console.print(f"[red]Cleanup failed: {report.error}[/red]")
+        raise typer.Exit(1)  # noqa: B904
+
+
+@app.command("package")
+def package(
+    version: str = typer.Option("5.3.2", "--version", "-v", help="Release version number to package"),
+) -> None:
+    """Build portable zip packages and generate manifests/SBOMs for release."""
+    manager = PackagingManager()
+    with console.status(f"[bold green]Compiling release archives for v{version}...[/bold green]"):
+        manifest = manager.build_release(version)
+
+    table = Table(title=f"Compiled Release Packages (v{version})", show_header=True)
+    table.add_column("Package Type", style="cyan")
+    table.add_column("Filename", style="white")
+    table.add_column("Size (Bytes)", style="green")
+    table.add_column("SHA-256", style="yellow")
+
+    for pkg in manifest.packages:
+        table.add_row(
+            pkg.package_type.value,
+            pkg.filename,
+            str(pkg.size_bytes),
+            pkg.sha256[:16] + "..."
+        )
+    console.print(table)
+    console.print()
+    console.print("[green]Manifests and SBOM exported to releases/[/green]")
+
+
+@app.command("certify")
+def certify() -> None:
+    """Execute complete validation checks and compile production certificates."""
+    manager = CertifyManager()
+    with console.status("[bold green]Executing compliance audits...[/bold green]"):
+        report = manager.run_certification()
+
+    table = Table(title="Certification Compliance Matrix", show_header=True)
+    table.add_column("Control ID", style="cyan")
+    table.add_column("Status", style="green")
+
+    for ctrl in report.compliant_controls:
+        table.add_row(ctrl, "[green]Compliant[/green]")
+    for ctrl in report.non_compliant_controls:
+        table.add_row(ctrl, "[red]Non-Compliant[/red]")
+
+    console.print(table)
+    console.print()
+
+    console.print(Panel(report.production_cert, title="Production Compliance Card"))
+    console.print()
+    console.print(Panel(report.security_cert, title="Security & Cryptography Certificate"))
+
+
+@app.command("benchmark")
+def benchmark() -> None:
+    """Run latencies, throughputs, and memory benchmarks."""
+    manager = BenchmarkManager()
+    with console.status("[bold green]Executing performance benchmarks...[/bold green]"):
+        res = manager.run_benchmark()
+
+    table = Table(title="System Latencies & Boot Speeds", show_header=True)
+    table.add_column("Performance Metric", style="cyan")
+    table.add_column("Value / Latency", style="green")
+
+    table.add_row("Cold Boot Time", f"{res.cold_boot_ms:.2f} ms")
+    table.add_row("Warm Boot Time", f"{res.warm_boot_ms:.2f} ms")
+    table.add_row("Startup Latency", f"{res.startup_latency_ms:.2f} ms")
+    table.add_row("Agent Process Start", f"{res.agent_startup_ms:.2f} ms")
+    table.add_row("Model Provider Ping", f"{res.provider_latency_ms:.2f} ms")
+    table.add_row("Memory Retrieval Delay", f"{res.memory_latency_ms:.2f} ms")
+    table.add_row("Database Write Latency (mean)", f"{res.database_latency_ms:.2f} ms")
+    table.add_row("Workflow Throughput", f"{res.workflow_throughput:.1f} ops/min")
+    table.add_row("Task Throughput", f"{res.task_throughput:.1f} events/sec")
+    table.add_row("Memory Footprint", f"{res.memory_usage_mb:.2f} MB")
+
+    console.print(table)
+    console.print()
+
+    if res.optimization_suggestions:
+        sug_table = Table(title="Performance Optimization Suggestions", show_header=True)
+        sug_table.add_column("Suggestion", style="yellow")
+        for sug in res.optimization_suggestions:
+            sug_table.add_row(sug)
+        console.print(sug_table)
 
 
 def main() -> None:
