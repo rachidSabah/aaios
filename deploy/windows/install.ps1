@@ -1,9 +1,15 @@
-﻿<#
+<#
 .SYNOPSIS
     AAiOS v5.3.2 one-click installer for Windows 11.
 .DESCRIPTION
     Installs AAiOS with all dependencies: Python 3.12, Node.js 22, pnpm, PostgreSQL, Qdrant.
     Sets up the virtual environment, installs packages, and runs `aaios install`.
+
+    When AAiOS is already installed, an interactive menu lets the user choose:
+      [1] Update   — pull latest from GitHub
+      [2] Repair   — rebuild venv / re-install packages (keeps data)
+      [3] Uninstall — fully remove AAiOS (streams the uninstall.ps1 script)
+      [4] Exit     — cancel, do nothing
 .NOTES
     Run from PowerShell as Administrator:
     irm https://raw.githubusercontent.com/rachidSabah/aaios/main/deploy/windows/install.ps1 | iex
@@ -33,48 +39,133 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $env:NODE_OPTIONS = '--no-deprecation'
-$repoUrl = 'https://github.com/rachidSabah/aaios.git'
+$repoUrl  = 'https://github.com/rachidSabah/aaios.git'
+$rawBase  = 'https://raw.githubusercontent.com/rachidSabah/aaios/main'
 
-function Write-Step($msg) {
-    Write-Host "`n==> $msg" -ForegroundColor Cyan
-}
-
-function Write-OK($msg) {
-    Write-Host "  âœ“ $msg" -ForegroundColor Green
-}
-
-function Write-Warn($msg) {
-    Write-Host "  âš  $msg" -ForegroundColor Yellow
-}
-
-function Write-Err($msg) {
-    Write-Host "  âœ— $msg" -ForegroundColor Red
-}
+function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
+function Write-OK($msg)   { Write-Host "  ✓ $msg"  -ForegroundColor Green  }
+function Write-Warn($msg) { Write-Host "  ⚠ $msg"  -ForegroundColor Yellow }
+function Write-Err($msg)  { Write-Host "  ✗ $msg"  -ForegroundColor Red    }
 
 function Test-Command($cmd) {
     return [bool](Get-Command $cmd -ErrorAction SilentlyContinue)
 }
 
-# --- Banner ---
+# ── Banner ───────────────────────────────────────────────────────────────────
 Write-Host @"
-â•”â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•—
-â•‘         AAiOS One-Click Installer v1.0.0         â•‘
-â•‘   Agentic AI Operating System â€” Windows 11       â•‘
-â•šâ•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•â•
+╔═══════════════════════════════════════════════════════╗
+║         AAiOS One-Click Installer v1.0.0              ║
+║   Agentic AI Operating System — Windows 11            ║
+╚═══════════════════════════════════════════════════════╝
 "@ -ForegroundColor Magenta
 
-Write-Host "Install directory: $InstallDir"
-Write-Host "Skip dependencies: $SkipDeps"
+Write-Host "Install directory : $InstallDir"
+Write-Host "Skip dependencies : $SkipDeps"
 Write-Host ""
 
-# --- Check Administrator ---
-$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole([Security.Principal.WindowsBuiltInRole]::Administrator)
+# ── Administrator check ──────────────────────────────────────────────────────
+$isAdmin = ([Security.Principal.WindowsPrincipal] [Security.Principal.WindowsIdentity]::GetCurrent()).IsInRole(
+    [Security.Principal.WindowsBuiltInRole]::Administrator
+)
 if (-not $isAdmin -and -not $SkipDeps) {
     Write-Warn "Not running as Administrator. Dependency installation may fail."
     Write-Warn "Re-run as Admin: Start-Process PowerShell -Verb RunAs"
 }
 
-# --- Step 1: Install dependencies ---
+# ── Existing-install menu ────────────────────────────────────────────────────
+if ((Test-Path "$InstallDir\aaios") -and -not $Force) {
+
+    Write-Host ""
+    Write-Host "  ╔══════════════════════════════════════════════════════════╗" -ForegroundColor Yellow
+    Write-Host "  ║   AAiOS is already installed.                            ║" -ForegroundColor Yellow
+    Write-Host "  ║   $InstallDir\aaios" -ForegroundColor Yellow
+    Write-Host "  ╠══════════════════════════════════════════════════════════╣" -ForegroundColor Yellow
+    Write-Host "  ║  What would you like to do?                              ║" -ForegroundColor Yellow
+    Write-Host "  ║                                                          ║" -ForegroundColor Yellow
+    Write-Host "  ║   [1]  Update     — pull latest from GitHub              ║" -ForegroundColor Cyan
+    Write-Host "  ║   [2]  Repair     — rebuild env, re-install (keep data)  ║" -ForegroundColor Cyan
+    Write-Host "  ║   [3]  Uninstall  — fully remove AAiOS                   ║" -ForegroundColor Red
+    Write-Host "  ║   [4]  Exit       — cancel, do nothing                   ║" -ForegroundColor DarkGray
+    Write-Host "  ║                                                          ║" -ForegroundColor Yellow
+    Write-Host "  ╚══════════════════════════════════════════════════════════╝" -ForegroundColor Yellow
+    Write-Host ""
+
+    do {
+        $choice = Read-Host "  Enter choice [1/2/3/4]"
+    } while ($choice -notin @('1','2','3','4'))
+
+    switch ($choice) {
+
+        '1' {   # ── Update ───────────────────────────────────────────────
+            Write-Step "Updating AAiOS repository..."
+            Set-Location "$InstallDir\aaios"
+            git pull origin main
+            Write-OK "Repository updated to latest"
+            Set-Location "$InstallDir\aaios"
+            # Falls through to re-run setup (pip install, bind-agents, etc.)
+        }
+
+        '2' {   # ── Repair ───────────────────────────────────────────────
+            Write-Step "Repairing AAiOS (your data is kept)..."
+            Set-Location "$InstallDir\aaios"
+            if (Test-Path ".venv") {
+                Remove-Item -Recurse -Force ".venv" -ErrorAction SilentlyContinue
+                Write-OK "Cleared old virtual environment"
+            }
+            # Falls through to re-create venv and install packages
+        }
+
+        '3' {   # ── Uninstall ─────────────────────────────────────────────
+            Write-Host ""
+            Write-Host "  ┌─ Uninstall options ────────────────────────────────┐" -ForegroundColor Red
+            Write-Host "  │                                                    │" -ForegroundColor Red
+            Write-Host "  │  Remove user config, data and logs too?            │" -ForegroundColor Yellow
+            Write-Host "  │    [Y]  Yes — delete everything                    │" -ForegroundColor Red
+            Write-Host "  │    [N]  No  — keep config/data (default)           │" -ForegroundColor Cyan
+            $removeData = Read-Host "  │  Choice [Y/N]"
+
+            Write-Host "  │                                                    │" -ForegroundColor Red
+            Write-Host "  │  Remove AI agent CLIs (claude, hermes) too?        │" -ForegroundColor Yellow
+            Write-Host "  │    [Y]  Yes — uninstall agent tools                │" -ForegroundColor Red
+            Write-Host "  │    [N]  No  — keep them (default)                  │" -ForegroundColor Cyan
+            $removeAgents = Read-Host "  │  Choice [Y/N]"
+            Write-Host "  └────────────────────────────────────────────────────┘" -ForegroundColor Red
+            Write-Host ""
+
+            $uninstallArgs = @()
+            if ($removeData   -in @('y','Y')) { $uninstallArgs += '-RemoveData'   }
+            if ($removeAgents -in @('y','Y')) { $uninstallArgs += '-RemoveAgents' }
+
+            $uninstallUrl = "$rawBase/deploy/windows/uninstall.ps1"
+            Write-Step "Downloading and running uninstaller..."
+            $uninstallScript = (Invoke-RestMethod -Uri $uninstallUrl)
+            & ([scriptblock]::Create($uninstallScript)) @uninstallArgs
+
+            Write-Host ""
+            Write-Host "Press any key to close..." -ForegroundColor DarkGray
+            try { $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') } catch { Start-Sleep 5 }
+            Exit 0
+        }
+
+        '4' {   # ── Exit ─────────────────────────────────────────────────
+            Write-Host ""
+            Write-Host "  Cancelled — no changes were made." -ForegroundColor DarkGray
+            Write-Host ""
+            Write-Host "Press any key to close..." -ForegroundColor DarkGray
+            try { $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') } catch { Start-Sleep 3 }
+            Exit 0
+        }
+    }
+
+    # After Update / Repair we fall through here and continue the setup below.
+    Set-Location "$InstallDir\aaios"
+
+} elseif ($Force -and (Test-Path "$InstallDir\aaios")) {
+    Write-Warn "Existing installation found. Removing (--Force)..."
+    Remove-Item -Recurse -Force "$InstallDir\aaios"
+}
+
+# ── Step 1: Install system dependencies ──────────────────────────────────────
 if (-not $SkipDeps) {
     Write-Step "Checking dependencies..."
 
@@ -122,23 +213,9 @@ if (-not $SkipDeps) {
     }
 }
 
-# --- Step 2: Clone or update repository ---
-Write-Step "Cloning AAiOS repository..."
-
-if (Test-Path "$InstallDir\aaios") {
-    if ($Force) {
-        Write-Warn "Existing installation found. Removing (--Force)..."
-        Remove-Item -Recurse -Force "$InstallDir\aaios"
-    } else {
-        Write-OK "Existing installation found. Updating..."
-        Set-Location "$InstallDir\aaios"
-        git pull origin main
-        Write-OK "Repository updated"
-        Set-Location $InstallDir
-    }
-}
-
+# ── Step 2: Clone repository (fresh install only) ────────────────────────────
 if (-not (Test-Path "$InstallDir\aaios")) {
+    Write-Step "Cloning AAiOS repository..."
     New-Item -ItemType Directory -Force -Path $InstallDir | Out-Null
     Set-Location $InstallDir
     git clone $repoUrl
@@ -147,7 +224,7 @@ if (-not (Test-Path "$InstallDir\aaios")) {
 
 Set-Location "$InstallDir\aaios"
 
-# --- Step 3: Python virtual environment ---
+# ── Step 3: Python virtual environment ───────────────────────────────────────
 Write-Step "Setting up Python environment..."
 
 if (-not (Test-Path ".venv")) {
@@ -157,7 +234,6 @@ if (-not (Test-Path ".venv")) {
     Write-OK "Virtual environment exists"
 }
 
-# Activate and install
 & .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
 Write-Host "Installing Python packages..." -ForegroundColor Yellow
@@ -168,48 +244,44 @@ if ($LASTEXITCODE -ne 0) {
 }
 Write-OK "Python packages installed"
 
-# --- Step 4: Node.js dependencies ---
+# ── Step 4: Node.js dependencies ─────────────────────────────────────────────
 Write-Step "Setting up Node.js environment..."
 
 pnpm install 2>&1 | Out-Null
 Write-OK "Node.js packages installed"
 
-# --- Step 5: Agent Detection & Binding ---
+# ── Step 5: Agent detection & binding ────────────────────────────────────────
 Write-Step "Detecting and binding AI agents..."
 
-# Check for --claude-proxy-url argument
 $claudeProxy = $null
-$claudeKey = $null
+$claudeKey   = $null
 $args | ForEach-Object {
     if ($_ -match '--claude-proxy-url=(.+)') { $claudeProxy = $matches[1] }
-    if ($_ -match '--claude-api-key=(.+)') { $claudeKey = $matches[1] }
+    if ($_ -match '--claude-api-key=(.+)')   { $claudeKey   = $matches[1] }
 }
-# Also check environment
 if (-not $claudeProxy -and $env:ANTHROPIC_BASE_URL) { $claudeProxy = $env:ANTHROPIC_BASE_URL }
-if (-not $claudeKey -and $env:ANTHROPIC_API_KEY) { $claudeKey = $env:ANTHROPIC_API_KEY }
+if (-not $claudeKey   -and $env:ANTHROPIC_API_KEY)  { $claudeKey   = $env:ANTHROPIC_API_KEY  }
 
 $bindArgs = @("scripts/bind_agents.py", "--install-missing")
 if ($claudeProxy) {
     $bindArgs += @("--claude-proxy-url", $claudeProxy)
     Write-Host "  Claude Code proxy: $claudeProxy" -ForegroundColor Yellow
 }
-if ($claudeKey) {
-    $bindArgs += @("--claude-api-key", $claudeKey)
-}
+if ($claudeKey) { $bindArgs += @("--claude-api-key", $claudeKey) }
 
 python $bindArgs 2>&1 | ForEach-Object { Write-Host "  $_" }
 Write-OK "Agent detection and binding complete"
 
-# --- Step 6: Configuration ---
+# ── Step 6: Configuration ────────────────────────────────────────────────────
 Write-Step "Setting up configuration..."
 
 $configDir = "$env:ProgramData\AAiOS\config"
-$dataDir = "$env:ProgramData\AAiOS\data"
-$logDir = "$env:ProgramData\AAiOS\logs"
+$dataDir   = "$env:ProgramData\AAiOS\data"
+$logDir    = "$env:ProgramData\AAiOS\logs"
 
 New-Item -ItemType Directory -Force -Path $configDir | Out-Null
-New-Item -ItemType Directory -Force -Path $dataDir | Out-Null
-New-Item -ItemType Directory -Force -Path $logDir | Out-Null
+New-Item -ItemType Directory -Force -Path $dataDir   | Out-Null
+New-Item -ItemType Directory -Force -Path $logDir    | Out-Null
 
 if (-not (Test-Path "$configDir\config.yaml")) {
     Copy-Item "config\defaults.yaml" "$configDir\config.yaml"
@@ -218,7 +290,7 @@ if (-not (Test-Path "$configDir\config.yaml")) {
     Write-OK "Config already exists at $configDir\config.yaml"
 }
 
-# --- Step 6: Verify ---
+# ── Step 7: Verify ───────────────────────────────────────────────────────────
 Write-Step "Verifying installation..."
 
 $aaiosExe = ".\.venv\Scripts\aaios.exe"
@@ -228,7 +300,6 @@ $ErrorActionPreference = 'Continue'
 if (Test-Path $aaiosExe) {
     $version = & $aaiosExe version 2>&1
 } else {
-    # Fallback: run via python module
     $version = python -m surfaces.cli version 2>&1
 }
 
@@ -242,7 +313,7 @@ if ($LASTEXITCODE -ne 0 -or $version -match "Traceback") {
     Write-OK "AAiOS installed: $version"
 }
 
-# --- Register aaios.exe in user PATH ---
+# ── Register aaios.exe in user PATH ─────────────────────────────────────────
 $aaiosScripts = (Resolve-Path ".\.venv\Scripts").Path
 $userPath = [System.Environment]::GetEnvironmentVariable("Path", "User")
 if ($userPath -notlike "*$aaiosScripts*") {
@@ -253,30 +324,29 @@ if ($userPath -notlike "*$aaiosScripts*") {
     Write-OK "aaios already in PATH"
 }
 
-# Run doctor
+# ── Run aaios install ────────────────────────────────────────────────────────
 Write-Host ""
 Write-Host "Running aaios install (mode: $Mode)..." -ForegroundColor Yellow
 
-# Resolve mode from switch flags
 $resolvedMode = $Mode
 if ($Interactive) { $resolvedMode = "interactive" }
-elseif ($Silent) { $resolvedMode = "silent" }
-elseif ($Minimal) { $resolvedMode = "minimal" }
-elseif ($Developer) { $resolvedMode = "developer" }
-elseif ($Enterprise) { $resolvedMode = "enterprise" }
-elseif ($Portable) { $resolvedMode = "portable" }
-elseif ($Offline) { $resolvedMode = "offline" }
-elseif ($Repair) { $resolvedMode = "repair" }
-elseif ($Upgrade) { $resolvedMode = "upgrade" }
-elseif ($Validate) { $resolvedMode = "validate" }
+elseif ($Silent)   { $resolvedMode = "silent"      }
+elseif ($Minimal)  { $resolvedMode = "minimal"     }
+elseif ($Developer){ $resolvedMode = "developer"   }
+elseif ($Enterprise){$resolvedMode = "enterprise"  }
+elseif ($Portable) { $resolvedMode = "portable"    }
+elseif ($Offline)  { $resolvedMode = "offline"     }
+elseif ($Repair)   { $resolvedMode = "repair"      }
+elseif ($Upgrade)  { $resolvedMode = "upgrade"     }
+elseif ($Validate) { $resolvedMode = "validate"    }
 
 $installArgs = @("install", "--mode", $resolvedMode)
 if ($Workspace) { $installArgs += @("--workspace", $Workspace) }
-if ($Profile) { $installArgs += @("--profile", $Profile) }
+if ($Profile)   { $installArgs += @("--profile",   $Profile)   }
 if ($Force -or $Repair) { $installArgs += "--force" }
 & python -m surfaces.cli @installArgs
 
-# --- Done ---
+# ── Done ─────────────────────────────────────────────────────────────────────
 $installPath = "$InstallDir\aaios"
 Write-Host ""
 Write-Host "╔══════════════════════════════════════════════════════════════════╗" -ForegroundColor Green
@@ -292,8 +362,9 @@ Write-Host "║                                                                 
 Write-Host "║  1. Open a NEW PowerShell window, then run:                     ║" -ForegroundColor Cyan
 Write-Host "║       aaios start                                                ║" -ForegroundColor Cyan
 Write-Host "║                                                                  ║" -ForegroundColor Cyan
-Write-Host "║  2. Open the dashboard in your browser:                         ║" -ForegroundColor Cyan
-Write-Host "║       http://localhost:20128                                      ║" -ForegroundColor Cyan
+Write-Host "║  2. Browser opens automatically:                                 ║" -ForegroundColor Cyan
+Write-Host "║       http://localhost:20128  (9router dashboard)                ║" -ForegroundColor Cyan
+Write-Host "║       http://localhost:8000/docs  (AAiOS API docs)               ║" -ForegroundColor Cyan
 Write-Host "║                                                                  ║" -ForegroundColor Cyan
 Write-Host "║  3. CLI quick-start:                                             ║" -ForegroundColor Cyan
 Write-Host "║       aaios --help                                               ║" -ForegroundColor Cyan
@@ -302,26 +373,22 @@ Write-Host "║       aaios run `"your goal here`"                              
 Write-Host "╚══════════════════════════════════════════════════════════════════╝" -ForegroundColor Cyan
 Write-Host ""
 
-# Offer to launch in a new persistent window (works even with irm|iex)
+# Offer to launch now
 Write-Host "Press ENTER to launch AAiOS now in a new window, or type 'n' + ENTER to skip." -ForegroundColor Yellow
-try {
-    $startNow = [System.Console]::ReadLine()
-} catch {
-    $startNow = 'n'
-}
+try   { $startNow = [System.Console]::ReadLine() }
+catch { $startNow = 'n' }
 
 if ($startNow -ne 'n' -and $startNow -ne 'N') {
     $launchCmd = "Set-Location '$installPath'; & .\.venv\Scripts\Activate.ps1; python scripts\start.py"
     Start-Process powershell.exe -ArgumentList "-NoExit", "-Command", $launchCmd
     Write-Host ""
     Write-Host "  AAiOS is starting — check the new window." -ForegroundColor Green
-    Write-Host "  Dashboard → http://localhost:20128" -ForegroundColor Green
+    Write-Host "  Dashboard → http://localhost:20128"         -ForegroundColor Green
 } else {
     Write-Host ""
     Write-Host "  Run 'aaios start' in any new PowerShell window to start AAiOS." -ForegroundColor Yellow
 }
 
-# Keep installer window open so the user can read the output
 Write-Host ""
 Write-Host "Press any key to close this installer..." -ForegroundColor DarkGray
 try { $null = $Host.UI.RawUI.ReadKey('NoEcho,IncludeKeyDown') } catch { Start-Sleep -Seconds 10 }
