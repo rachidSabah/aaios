@@ -1,4 +1,4 @@
-# AAiOS task runner (Windows PowerShell 7+)
+﻿# AAiOS task runner (Windows PowerShell 7+)
 # ============================================
 # Usage:
 #   .\tasks.ps1 <command>
@@ -27,6 +27,7 @@ param(
 
 $ErrorActionPreference = 'Stop'
 $root = (Resolve-Path $PSScriptRoot).Path
+$env:NODE_OPTIONS = '--no-deprecation'
 
 function Invoke-Section($name) {
     Write-Host ""

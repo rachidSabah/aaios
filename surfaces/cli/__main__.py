@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import platform
+import time
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -28,6 +29,19 @@ import typer
 from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
+
+from services.doctor.manager import DoctorManager
+from services.doctor.models import ScanType
+from services.self_healing.engine import SelfHealingEngine
+from services.self_healing.models import HealingStatus
+from services.backup.manager import BackupManager
+from services.backup.models import BackupType, ExportFormat
+from services.backup.recovery import RecoveryManager
+from services.update.manager import UpdateManager
+from services.update.models import ReleaseChannel, UpdateInfo, UpdateStatus
+from services.validator.manager import ReleaseValidator
+from services.monitoring.monitor import ContinuousHealthMonitor
+from services.monitoring.models import AlertChannel
 
 console = Console()
 app = typer.Typer(
@@ -86,41 +100,74 @@ def version() -> None:
 
 
 @app.command()
-def doctor() -> None:
-    """Run health checks against the local AAiOS installation."""
-    table = Table(title="AAiOS Doctor", show_header=True)
-    table.add_column("Check", style="cyan")
+def doctor(
+    scan: str = typer.Option("quick", "--scan", "-s", help="quick|full|offline|online|security|dependency|performance|memory|storage|provider|agent|plugin|mcp|database|dashboard|api|cli|mission|workflow|graph|vector|config|audit|network|windows"),
+    heal: bool = typer.Option(False, "--heal", "-h", help="Attempt auto-repair of detected failures"),
+    yes: bool = typer.Option(False, "--yes", "-y", help="Auto-approve repairs"),
+) -> None:
+    """Run health checks and optional self-healing."""
+    try:
+        scan_type = ScanType(scan.lower())
+    except ValueError:
+        console.print(f"[red]Error:[/red] Invalid scan type: {scan}. Choose from: {[s.value for s in ScanType]}")
+        raise typer.Exit(1)  # noqa: B904
+
+    manager = DoctorManager()
+    with console.status("[bold green]Running diagnostic scan...[/bold green]"):
+        report = manager.run_scan(scan_type)
+
+    table = Table(title=f"AAiOS Doctor Diagnostic Report ({scan_type.value})", show_header=True)
+    table.add_column("Score Metric", style="cyan")
     table.add_column("Value", style="green")
-    table.add_column("Status", style="yellow")
 
-    table.add_row("Version", _version(), "info")
-    table.add_row("Python", platform.python_version(), "ok")
-    table.add_row("Platform", platform.platform(), "ok")
-
-    # Check API server
-    health = _api_get("/healthz")
-    if "error" in health:
-        table.add_row("API Server", "not running", "error")
-    else:
-        table.add_row("API Server", health.get("status", "unknown"), "ok")
-
-    # Check agents
-    agents = _api_get("/api/v1/agents")
-    if "error" not in agents:
-        count = len(agents.get("agents", []))
-        table.add_row("Agents", f"{count} registered", "ok" if count > 0 else "warning")
-    else:
-        table.add_row("Agents", "unavailable", "warning")
-
-    # Check providers
-    providers = _api_get("/api/v1/providers")
-    if "error" not in providers:
-        count = len(providers.get("providers", []))
-        table.add_row("Providers", f"{count} configured", "ok" if count > 0 else "warning")
-    else:
-        table.add_row("Providers", "unavailable", "warning")
+    table.add_row("Health Score", f"{report.health_score}/100")
+    table.add_row("Production Score", f"{report.production_score}/100")
+    table.add_row("Risk Score", f"{report.risk_score}/100")
+    table.add_row("Dependency Score", f"{report.dependency_score}/100")
+    table.add_row("Security Score", f"{report.security_score}/100")
+    table.add_row("Performance Score", f"{report.performance_score}/100")
+    table.add_row("Availability Score", f"{report.availability_score}/100")
 
     console.print(table)
+    console.print()
+
+    if report.issues:
+        issues_table = Table(title="Detected Issues", show_header=True)
+        issues_table.add_column("ID", style="red")
+        issues_table.add_column("Severity", style="magenta")
+        issues_table.add_column("Description", style="white")
+        issues_table.add_column("Recommended Fix", style="green")
+        issues_table.add_column("Auto-Repair", style="blue")
+
+        for issue in report.issues:
+            issues_table.add_row(
+                issue.id,
+                issue.severity.value,
+                issue.description,
+                issue.recommended_fix,
+                "Yes" if issue.repair_available else "No"
+            )
+        console.print(issues_table)
+    else:
+        console.print("[green]No issues found! System is healthy.[/green]")
+
+    if heal:
+        console.print("\n[yellow]Starting self-healing engine...[/yellow]")
+        healing_engine = SelfHealingEngine(doctor_mgr=manager)
+        import asyncio
+        records = asyncio.run(healing_engine.run_healing(auto_approve=yes))
+        if records:
+            rep_table = Table(title="Self-Healing Executions", show_header=True)
+            rep_table.add_column("Trigger", style="cyan")
+            rep_table.add_column("Action", style="yellow")
+            rep_table.add_column("Status", style="green")
+            rep_table.add_column("Details", style="white")
+
+            for r in records:
+                rep_table.add_row(r.trigger.value, r.action_type.value, r.status.value, r.details)
+            console.print(rep_table)
+        else:
+            console.print("[green]No healing actions were required.[/green]")
 
 
 @app.command()
@@ -465,40 +512,276 @@ def start(
 
 @app.command()
 def update(
-    auto: bool = typer.Option(False, "--auto", "-a", help="Run in auto mode (background loop)"),
-    interval: int = typer.Option(
-        30, "--interval", "-i", help="Check interval in minutes (auto mode)"
-    ),
-    check_only: bool = typer.Option(False, "--check", "-c", help="Only check, do not update"),
+    channel: str = typer.Option("stable", "--channel", help="Release channel: stable|lts|beta|nightly|enterprise"),
+    check_only: bool = typer.Option(False, "--check", "-c", help="Only check for updates"),
+    pin: str | None = typer.Option(None, "--pin", help="Pin system version"),
+    offline: str | None = typer.Option(None, "--offline", help="Path to offline update zip package"),
 ) -> None:
-    """Check for updates from GitHub and pull them.
+    """Manage AAiOS system updates and migrations."""
+    manager = UpdateManager()
 
-    Pulls new commits, reinstalls Python + Node packages, and re-binds agents.
-    With --auto, runs in a background loop checking every N minutes.
-
-    Examples:
-      aaios update              # check + update once
-      aaios update --check      # just check, don't update
-      aaios update --auto       # background loop (30 min)
-      aaios update --auto -i 60 # check every 60 min
-    """
-    import subprocess
-    import sys
-
-    cmd = [sys.executable, "scripts/auto_update.py"]
-    if auto:
-        cmd.append("--auto")
-        cmd.extend(["--interval", str(interval)])
-    if check_only:
-        cmd.append("--check-only")
+    if pin:
+        manager.pin_version(pin)
+        console.print(f"[green]Pinned system version to {pin}[/green]")
+        return
 
     try:
-        subprocess.run(cmd, check=True)  # noqa: S603
-    except FileNotFoundError:
-        console.print("[red]Error:[/red] Could not find scripts/auto_update.py")
+        chan_enum = ReleaseChannel(channel.lower())
+    except ValueError:
+        console.print(f"[red]Error:[/red] Invalid channel: {channel}. Choose from: {[c.value for c in ReleaseChannel]}")
         raise typer.Exit(1)  # noqa: B904
+
+    if offline:
+        offline_path = Path(offline)
+        if not offline_path.exists():
+            console.print(f"[red]Error:[/red] Offline package not found: {offline}")
+            raise typer.Exit(1)  # noqa: B904
+        info = UpdateInfo(
+            version="offline-package",
+            channel=chan_enum,
+            release_notes="Offline delta package update",
+            package_url=offline_path.as_uri(),
+            size_bytes=offline_path.stat().st_size,
+            checksum="",
+        )
+        console.print("[yellow]Installing offline update package...[/yellow]")
+        import asyncio
+        report = asyncio.run(manager.install_update(info, offline_path))
+        if report.status == UpdateStatus.SUCCESS:
+            console.print("[green]Offline update installed successfully![/green]")
+        else:
+            console.print(f"[red]Offline update failed: {report.error}[/red]")
+        return
+
+    info = manager.check_for_updates(chan_enum)
+    if not info:
+        console.print("[green]Already up to date.[/green]")
+        return
+
+    console.print(f"[yellow]New update available: v{info.version} on channel '{info.channel.value}'[/yellow]")
+    console.print(f"Notes: {info.release_notes}")
+
+    if check_only:
+        return
+
+    with console.status("[bold green]Downloading update...[/bold green]"):
+        package_path = manager.download_update(info)
+
+    console.print("[yellow]Installing update and running migrations...[/yellow]")
+    import asyncio
+    report = asyncio.run(manager.install_update(info, package_path))
+    if report.status == UpdateStatus.SUCCESS:
+        console.print(f"[green]Successfully upgraded to v{info.version}![/green]")
+    else:
+        console.print(f"[red]Upgrade failed: {report.error}[/red]")
+        if report.rollback_done:
+            console.print("[yellow]System successfully rolled back to pre-upgrade state.[/yellow]")
+
+
+@app.command()
+def validate() -> None:
+    """Run static, dependency, and performance validations."""
+    validator = ReleaseValidator()
+    with console.status("[bold green]Running release validation...[/bold green]"):
+        val_report = validator.run_validation()
+        cert_report = validator.generate_certification_report(val_report)
+        readiness_report = validator.generate_readiness_report(val_report)
+
+    val_table = Table(title="Enterprise Validation Report", show_header=True)
+    val_table.add_column("Stage / Validation Check", style="cyan")
+    val_table.add_column("Status", style="green")
+
+    val_table.add_row("Static Analysis", "Passed" if val_report.static_analysis_ok else "Failed")
+    val_table.add_row("Runtime Validation", "Passed" if val_report.runtime_ok else "Failed")
+    val_table.add_row("Dependency Validation", "Passed" if val_report.dependencies_ok else "Failed")
+    val_table.add_row("Provider Validation", "Passed" if val_report.providers_ok else "Failed")
+    val_table.add_row("Plugin & MCP Validation", "Passed" if (val_report.plugins_ok and val_report.mcp_ok) else "Failed")
+    val_table.add_row("Database Validation", "Passed" if val_report.database_ok else "Failed")
+    val_table.add_row("Performance Validation", "Passed" if val_report.performance_ok else "Failed")
+    val_table.add_row("Security Validation", "Passed" if val_report.security_ok else "Failed")
+
+    console.print(val_table)
+    console.print()
+
+    cert_panel = Panel.fit(
+        f"[cyan]Certification ID:[/cyan]  {cert_report.certification_id}\n"
+        f"[cyan]Compliance Level:[/cyan]  {cert_report.compliance_level}\n"
+        f"[cyan]Checked Controls:[/cyan]  {cert_report.checked_controls}\n"
+        f"[cyan]Passed Controls:[/cyan]   {cert_report.passed_controls}\n"
+        f"[cyan]Status:[/cyan]            {cert_report.status.upper()}\n"
+        f"[cyan]Notes:[/cyan]             {cert_report.notes}",
+        title="Enterprise Certification Report",
+    )
+    console.print(cert_panel)
+    console.print()
+
+    color = "green" if readiness_report.is_ready else "red"
+    readiness_panel = Panel.fit(
+        f"[cyan]Readiness Score:[/cyan]  {readiness_report.readiness_score}/100\n"
+        f"[cyan]Ready for Prod:[/cyan]   [{color}]{readiness_report.is_ready}[/{color}]\n"
+        f"[cyan]Blockers:[/cyan]         {', '.join(readiness_report.blockers) or 'None'}\n"
+        f"[cyan]Recommendations:[/cyan]  {', '.join(readiness_report.recommendations) or 'None'}",
+        title="Deployment Readiness Report",
+    )
+    console.print(readiness_panel)
+
+
+@app.command()
+def monitor(
+    interval: int = typer.Option(5, "--interval", "-i", help="Monitoring interval in seconds"),
+    slack: str | None = typer.Option(None, "--slack", help="Slack webhook URL"),
+    discord: str | None = typer.Option(None, "--discord", help="Discord webhook URL"),
+) -> None:
+    """Start continuous health monitoring loop."""
+    monitor_svc = ContinuousHealthMonitor()
+    if slack:
+        monitor_svc.configure_channel(AlertChannel.SLACK, slack)
+    if discord:
+        monitor_svc.configure_channel(AlertChannel.DISCORD, discord)
+
+    console.print("[green]Continuous Health Monitor started. Press Ctrl+C to exit.[/green]")
+    try:
+        while True:
+            metrics = monitor_svc.collect_metrics()
+            statuses = monitor_svc.check_components()
+            alerts = monitor_svc.evaluate_rules(metrics, statuses)
+            if alerts:
+                monitor_svc.dispatch_alerts(alerts)
+            else:
+                console.print(f"[dim]{datetime.now(UTC).isoformat()[:19]} - System healthy. CPU: {metrics.cpu_percent:.1f}% | RAM: {metrics.ram_used_gb:.1f}GB[/dim]")
+            time.sleep(interval)
     except KeyboardInterrupt:
-        console.print("\n[yellow]Update stopped.[/yellow]")
+        console.print("\n[yellow]Monitoring loop stopped.[/yellow]")
+
+
+backup_app = typer.Typer(help="Manage enterprise backups and snapshots.")
+app.add_typer(backup_app, name="backup")
+
+
+@backup_app.command("create")
+def backup_create(
+    backup_type: str = typer.Option("full", "--type", help="full|incremental|differential"),
+    format_type: str = typer.Option("zip", "--format", help="zip|tar|json|yaml"),
+    encrypt: bool = typer.Option(False, "--encrypt", "-e", help="Encrypt the backup archive"),
+    tag: list[str] = typer.Option([], "--tag", help="Tags to apply to the backup"),
+) -> None:
+    """Create a new backup."""
+    try:
+        b_type = BackupType(backup_type.lower())
+        f_type = ExportFormat(format_type.lower())
+    except ValueError:
+        console.print("[red]Error:[/red] Invalid type or format options")
+        raise typer.Exit(1)  # noqa: B904
+
+    manager = BackupManager()
+    with console.status("[bold green]Creating backup...[/bold green]"):
+        meta = manager.create_backup(b_type, f_type, encrypt=encrypt, tags=tag)
+    console.print(f"[green]Backup created successfully: {meta.id}[/green]")
+    console.print(f"Size: {meta.size_bytes} bytes")
+
+
+@backup_app.command("list")
+def backup_list() -> None:
+    """List all available backups."""
+    manager = BackupManager()
+    backups = manager.list_backups()
+    if not backups:
+        console.print("[yellow]No backups found.[/yellow]")
+        return
+    table = Table(title="Available Backups", show_header=True)
+    table.add_column("ID", style="cyan")
+    table.add_column("Timestamp", style="white")
+    table.add_column("Type", style="magenta")
+    table.add_column("Format", style="yellow")
+    table.add_column("Size (Bytes)", style="green")
+    table.add_column("Encrypted", style="blue")
+
+    for b in backups:
+        table.add_row(b.id, b.timestamp.isoformat()[:19], b.backup_type.value, b.format.value, str(b.size_bytes), "Yes" if b.encrypted else "No")
+    console.print(table)
+
+
+@backup_app.command("delete")
+def backup_delete(backup_id: str = typer.Argument(..., help="Backup ID to delete")) -> None:
+    """Delete a backup."""
+    manager = BackupManager()
+    if manager.delete_backup(backup_id):
+        console.print(f"[green]Deleted backup {backup_id}[/green]")
+    else:
+        console.print(f"[red]Failed to delete backup {backup_id}[/red]")
+
+
+@backup_app.command("restore")
+def backup_restore(
+    backup_id: str = typer.Argument(..., help="Backup ID to restore"),
+    components: str | None = typer.Option(None, "--components", help="Comma-separated list of components to selectively restore"),
+) -> None:
+    """Restore a backup with automatic rollback validation."""
+    manager = BackupManager()
+    recovery = RecoveryManager(backup_mgr=manager)
+    comp_list = components.split(",") if components else None
+
+    console.print(f"[yellow]Restoring backup {backup_id}...[/yellow]")
+    import asyncio
+    report = asyncio.run(recovery.restore_backup(backup_id, selective_components=comp_list))
+    if report.success:
+        console.print("[green]Backup restored successfully![/green]")
+    else:
+        console.print(f"[red]Restore failed: {', '.join(report.errors)}[/red]")
+        if report.rolled_back:
+            console.print("[yellow]Automatically rolled back to pre-restore state.[/yellow]")
+
+
+@backup_app.command("snapshot-create")
+def snapshot_create(
+    tag: list[str] = typer.Option([], "--tag", help="Tags to apply to the snapshot"),
+) -> None:
+    """Create an immutable snapshot."""
+    manager = BackupManager()
+    with console.status("[bold green]Creating snapshot...[/bold green]"):
+        meta = manager.create_backup(BackupType.FULL, ExportFormat.ZIP, encrypt=False, tags=tag, is_snapshot=True)
+    console.print(f"[green]Snapshot created successfully: {meta.id}[/green]")
+    console.print(f"Git Commit: {meta.git_commit or 'N/A'}")
+
+
+@backup_app.command("snapshot-list")
+def snapshot_list() -> None:
+    """List all available snapshots."""
+    manager = BackupManager()
+    snapshots = manager.list_backups(is_snapshot=True)
+    if not snapshots:
+        console.print("[yellow]No snapshots found.[/yellow]")
+        return
+    table = Table(title="Available Snapshots", show_header=True)
+    table.add_column("ID", style="cyan")
+    table.add_column("Timestamp", style="white")
+    table.add_column("Git Commit", style="magenta")
+    table.add_column("Tags", style="yellow")
+    table.add_column("Size (Bytes)", style="green")
+
+    for s in snapshots:
+        table.add_row(s.id, s.timestamp.isoformat()[:19], s.git_commit or "N/A", ", ".join(s.tags), str(s.size_bytes))
+    console.print(table)
+
+
+@backup_app.command("snapshot-compare")
+def snapshot_compare(
+    snap_a: str = typer.Argument(..., help="First snapshot ID"),
+    snap_b: str = typer.Argument(..., help="Second snapshot ID"),
+) -> None:
+    """Compare two snapshots."""
+    manager = BackupManager()
+    diff = manager.compare_snapshots(snap_a, snap_b)
+    console.print(f"[cyan]Comparing Snapshot A ({snap_a}) vs Snapshot B ({snap_b})[/cyan]\n")
+    console.print(f"[green]Added files:[/green] {len(diff['added'])}")
+    for f in diff['added'][:10]:
+        console.print(f"  + {f}")
+    console.print(f"\n[red]Deleted files:[/red] {len(diff['deleted'])}")
+    for f in diff['deleted'][:10]:
+        console.print(f"  - {f}")
+    console.print(f"\n[yellow]Modified files:[/yellow] {len(diff['modified'])}")
+    for f in diff['modified'][:10]:
+        console.print(f"  * {f}")
 
 
 @app.command()
