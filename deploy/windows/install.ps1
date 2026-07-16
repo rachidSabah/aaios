@@ -32,6 +32,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$env:NODE_OPTIONS = '--no-deprecation'
 $repoUrl = 'https://github.com/rachidSabah/aaios.git'
 
 function Write-Step($msg) {

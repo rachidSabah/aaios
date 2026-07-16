@@ -17,6 +17,7 @@ param(
 )
 
 $ErrorActionPreference = 'Continue'
+$env:NODE_OPTIONS = '--no-deprecation'
 
 function Write-Step($msg) { Write-Host "`n==> $msg" -ForegroundColor Cyan }
 function Write-OK($msg) { Write-Host "  ✓ $msg" -ForegroundColor Green }
