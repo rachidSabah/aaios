@@ -267,16 +267,16 @@ def main() -> int:
     # One-shot update
     result = do_update()
     if result["status"] == "updated":
-        print(f"✓ Updated: {result['message']}")
+        print(f"[+] Updated: {result['message']}")
         for commit in result.get("commits", []):
             print(f"  {commit}")
         if args.restart:
             print("\nRestarting AAiOS...")
             # The restart is handled by the caller (CLI or systemd)
     elif result["status"] == "up_to_date":
-        print("✓ Already up to date")
+        print("[+] Already up to date")
     else:
-        print(f"✗ Error: {result.get('message', 'unknown')}")
+        print(f"[-] Error: {result.get('message', 'unknown')}")
         return 1
 
     return 0

@@ -451,7 +451,7 @@ def main() -> int:
     print("\nAgent Detection Results:")
     print("=" * 50)
     for name, result in results.items():
-        status_icon = "✓" if result.status in ("found", "installed") else "✗"
+        status_icon = "[+]" if result.status in ("found", "installed") else "[-]"
         print(f"  {status_icon} {result.name}: {result.status.value}")
         if result.path:
             print(f"    Path: {result.path}")
