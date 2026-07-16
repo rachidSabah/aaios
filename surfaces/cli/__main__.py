@@ -1549,7 +1549,7 @@ def cognitive_learning() -> None:
         console.print(f"  [{i.get('category', '')}] {i.get('finding', '')[:80]}")
     metrics = data.get("metrics", [])
     if metrics:
-        console.print(f"\n[cyan]Metrics:[/cyan]")
+        console.print("\n[cyan]Metrics:[/cyan]")
         for m in metrics:
             console.print(f"  {m.get('name', '')}: {m.get('value', 0):.4f} {m.get('unit', '')}")
 
@@ -1732,7 +1732,7 @@ def knowledge_rag(
     console.print(f"[cyan]Sources:[/cyan]    {len(data.get('sources', []))}")
     console.print(f"\n[cyan]Context:[/cyan]\n{data.get('context', '')[:2000]}")
     if data.get("citations"):
-        console.print(f"\n[cyan]Citations:[/cyan]")
+        console.print("\n[cyan]Citations:[/cyan]")
         for c in data["citations"]:
             console.print(f"  {c.get('source', '')}: {c.get('title', '')} (score: {c.get('score', 0):.3f})")
 
@@ -1781,6 +1781,340 @@ def knowledge_stats() -> None:
         f"[cyan]Memory total:[/cyan] {data.get('memory', {}).get('total', 0)}",
         title="Knowledge Platform Statistics",
     ))
+
+
+# ---------------------------------------------------------------------------
+# Engineering Intelligence — Phase 25 CLI Integration
+# ---------------------------------------------------------------------------
+
+engineering_app = typer.Typer(help="Engineering Intelligence — review, metrics, architecture, repository, release, health, documentation, dependencies, planning.")
+app.add_typer(engineering_app, name="engineering")
+
+architecture_app = typer.Typer(help="Architecture analysis and recommendations.")
+app.add_typer(architecture_app, name="architecture")
+
+review_app = typer.Typer(help="Engineering reviews — 12 review types.")
+app.add_typer(review_app, name="review")
+
+metrics_app = typer.Typer(help="Engineering metrics — complexity, debt, coverage.")
+app.add_typer(metrics_app, name="metrics")
+
+repository_app = typer.Typer(help="Repository intelligence and evolution.")
+app.add_typer(repository_app, name="repository")
+
+release_app = typer.Typer(help="Release readiness and certification.")
+app.add_typer(release_app, name="release")
+
+health_app = typer.Typer(help="Repository health center.")
+app.add_typer(health_app, name="health")
+
+documentation_app = typer.Typer(help="Documentation intelligence.")
+app.add_typer(documentation_app, name="documentation")
+
+dependencies_app = typer.Typer(help="Dependency review.")
+app.add_typer(dependencies_app, name="dependencies")
+
+planning_app = typer.Typer(help="Engineering planning — WBS, roadmaps, dependencies.")
+app.add_typer(planning_app, name="planning")
+
+
+def _emit(data: Any, fmt: str) -> None:
+    """Render ``data`` in the requested format (json/yaml/markdown/table)."""
+    import json as _json
+    if fmt == "json":
+        console.print_json(_json.dumps(data, default=str))
+        return
+    if fmt == "yaml":
+        try:
+            import yaml
+            console.print(yaml.safe_dump(data, default_flow_style=False, sort_keys=False))
+        except ImportError:
+            console.print_json(_json.dumps(data, default=str))
+        return
+    if fmt == "markdown":
+        if isinstance(data, dict):
+            for k, v in data.items():
+                console.print(f"**{k}:** {v}")
+        elif isinstance(data, list):
+            for item in data:
+                console.print(f"- {item}")
+        else:
+            console.print(str(data))
+        return
+    # Default table format
+    if isinstance(data, dict):
+        for k, v in data.items():
+            console.print(f"[cyan]{k}:[/cyan] {v}")
+    elif isinstance(data, list):
+        for item in data:
+            console.print(f"- {item}")
+    else:
+        console.print(str(data))
+
+
+@engineering_app.command("overview")
+def engineering_overview(
+    fmt: str = typer.Option("table", "--format", "-f", help="Output format: table|json|yaml|markdown"),
+) -> None:
+    """Show engineering overview."""
+    try:
+        data = _api_get("/api/v1/engineering/overview")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@engineering_app.command("agents")
+def engineering_agents(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """List engineering agents."""
+    try:
+        data = _api_get("/api/v1/engineering/agents")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@architecture_app.command("recommendations")
+def architecture_recommendations(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """List architecture recommendations."""
+    try:
+        data = _api_get("/api/v1/engineering/architecture/recommendations")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@review_app.command("run")
+def review_run(
+    review_type: str = typer.Argument(..., help="Review type: architecture|code|security|performance|dependency|documentation|testing|api|database|workflow|plugin|mission"),
+    target: str = typer.Argument(".", help="Target path or mission id"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Run a single engineering review."""
+    try:
+        data = _api_post(
+            f"/api/v1/engineering/reviews/{review_type}",
+            body={"target": target},
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@review_app.command("all")
+def review_all(
+    target: str = typer.Argument(".", help="Target path"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Run all 12 review types against the target."""
+    try:
+        data = _api_post("/api/v1/engineering/reviews", body={"target": target})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@metrics_app.command("show")
+def metrics_show(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show engineering metrics."""
+    try:
+        data = _api_get("/api/v1/engineering/metrics")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@repository_app.command("analyze")
+def repository_analyze(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Analyze the repository."""
+    try:
+        data = _api_get("/api/v1/engineering/repository/analysis")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@repository_app.command("evolution")
+def repository_evolution(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show repository evolution dashboard."""
+    try:
+        data = _api_get("/api/v1/engineering/repository/evolution")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@repository_app.command("timeline")
+def repository_timeline(
+    limit: int = typer.Option(50, "--limit"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show repository timeline."""
+    try:
+        data = _api_get(f"/api/v1/engineering/repository/timeline?limit={limit}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@release_app.command("readiness")
+def release_readiness(
+    version: str = typer.Option("", "--version", help="Version string for the release"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Evaluate release readiness."""
+    try:
+        data = _api_post("/api/v1/engineering/release/readiness", body={"version": version})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@release_app.command("certify")
+def release_certify(
+    version: str = typer.Option("", "--version"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Generate a certification report."""
+    try:
+        data = _api_post("/api/v1/engineering/release/certification", body={"version": version})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@health_app.command("show")
+def health_show(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show repository health report."""
+    try:
+        data = _api_get("/api/v1/engineering/health")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@documentation_app.command("analyze")
+def documentation_analyze(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Analyze documentation."""
+    try:
+        data = _api_get("/api/v1/engineering/documentation/analysis")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@documentation_app.command("recommendations")
+def documentation_recommendations(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show documentation recommendations."""
+    try:
+        data = _api_get("/api/v1/engineering/documentation/recommendations")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@dependencies_app.command("review")
+def dependencies_review(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Run a dependency review."""
+    try:
+        data = _api_post("/api/v1/engineering/reviews/dependency", body={"target": "."})
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@planning_app.command("create")
+def planning_create(
+    title: str = typer.Option("", "--title"),
+    description: str = typer.Option("", "--description"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Create an engineering plan."""
+    try:
+        data = _api_post(
+            "/api/v1/engineering/planning/create",
+            body={"title": title, "description": description},
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@planning_app.command("impact")
+def planning_impact(
+    target: str = typer.Argument(..., help="Target file or module to analyze impact for"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Analyze the impact of a change to ``target``."""
+    try:
+        data = _api_post(
+            "/api/v1/engineering/planning/impact",
+            body={"target": target},
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@engineering_app.command("test-intelligence")
+def engineering_test_intelligence(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show test intelligence analysis."""
+    try:
+        data = _api_get("/api/v1/engineering/test-intelligence/analysis")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@engineering_app.command("productivity")
+def engineering_productivity(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show developer productivity dashboard."""
+    try:
+        data = _api_get("/api/v1/engineering/productivity/dashboard")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
 
 
 if __name__ == "__main__":

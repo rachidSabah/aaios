@@ -57,11 +57,17 @@ class Subscriber:
           - prefix match: ``agent`` matches ``agent.dispatched`` and
             ``agent.health_changed`` (but not ``agents.foo``)
           - wildcard ``*`` matches everything
+          - trailing wildcard ``prefix.*`` matches any ``prefix.<segment>``
+            (e.g. ``test.*`` matches ``test.integration``)
         """
         if self.topic == "*":
             return True
         if self.topic == event_topic:
             return True
+        # Trailing wildcard: "test.*" matches "test.anything"
+        if self.topic.endswith(".*"):
+            prefix = self.topic[:-2]
+            return event_topic.startswith(prefix + ".")
         return event_topic.startswith(self.topic + ".")
 
 

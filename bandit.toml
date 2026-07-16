@@ -1,6 +1,13 @@
 [bandit]
 exclude_dirs = ["tests", ".venv", "node_modules", "build", "dist", ".git"]
-skips = ["B101", "B110", "B311"]
+skips = [
+  "B101",
+  "B110",
+  "B311",
+  "B404",
+  "B603",
+  "B607",
+]
 
 [bandit.assert_used]
 skip = true

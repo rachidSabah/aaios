@@ -2,6 +2,107 @@
 
 All notable changes to AAiOS are documented in this file.
 
+## [5.2.0] — 2026-07-16
+
+### Autonomous Software Engineering Platform — Complete
+
+#### Phase 17 — Engineering Review Engine
+- 12 review types: architecture, code, security, performance, dependency, documentation, testing, API, database, workflow, plugin, mission
+- Every review produces: summary, strengths, weaknesses, observations, evidence, risk score, confidence, recommendations, approval requirement, historical comparison
+- READ-ONLY — never modifies code
+
+#### Phase 18 — Test Intelligence Engine
+- Analyzes unit/integration/e2e/performance/stress/security/mutation tests
+- Detects flaky tests, long-running tests, missing tests, duplicate tests, unused fixtures
+- Generates coverage reports, risk reports, recommended test cases (engineer writes them — never auto-generates code)
+- Computes mutation readiness score and regression predictions
+
+#### Phase 19 — Documentation Intelligence
+- Continuously analyzes README, architecture, developer, API, CLI, SDK, migration, release notes, user manuals
+- Detects outdated, missing, broken-reference, unused pages, missing examples
+- Computes completeness score, consistency score, documentation coverage %
+
+#### Phase 20 — Repository Evolution Engine
+- Tracks commits, branches, releases, tags
+- Generates timeline, evolution dashboard, growth analytics, historical comparisons
+- Uses new `core/gateway/git.py` (GitGateway) — read-only, whitelisted git commands (INV-02 compliant)
+
+#### Phase 21 — Release Readiness Engine
+- 10 readiness dimensions: architecture compliance, security, performance, testing, documentation, packaging, dependencies, migration, compatibility, operational readiness
+- Go / Conditional-Go / No-Go recommendation
+- Certification report (none / basic / standard / strict) and required approvals list
+
+#### Phase 22 — Developer Productivity Engine
+- DORA metrics (deployment frequency, lead time, change failure rate, recovery time)
+- Cycle time, review time, planning accuracy, testing efficiency, documentation completion
+- Classifies team as Low / Medium / High / Elite
+- Productivity dashboards with weekly trends and optimization opportunities
+
+#### Phase 23 — Repository Health Center
+- 8 health dimensions: repository, architecture, dependency, documentation, security, testing, release, knowledge
+- Weighted overall score, 12-point trend history, prioritized improvement recommendations
+
+#### Phase 24 — Dashboard Integration
+- 8 new pages: /engineering, /repository, /architecture, /reviews, /test-intelligence, /release-readiness, /repository-health, /features, /dependencies
+- All pages: live updates, dark/light mode, responsive design
+
+#### Phase 25 — CLI Integration
+- 10 new command groups: engineering, architecture, review, metrics, repository, release, health, documentation, dependencies, planning
+- All commands support --format json|yaml|markdown|table
+
+#### Phase 26 — API Integration
+- 22 new REST endpoints under /api/v1/engineering/
+- OpenAPI auto-generated
+
+#### Infrastructure
+- New `core/gateway/git.py` — GitGateway centralizing all git I/O (INV-02)
+- 56 new tests in `tests/unit/test_engineering_part1b2.py`
+- Total tests: 1138 passing (up from 1082)
+- Total API endpoints: 174 (up from 152)
+- Total CLI command groups: 23 (up from 13)
+
+#### Quality Gates
+- Ruff: clean
+- Mypy --strict on services/engineering/: clean (14 source files)
+- Bandit: 0 Medium/High severity on new code
+- Pytest: 1138/1138 passing
+- Architecture invariants (INV-02, INV-09): enforced
+
+## [5.1.0] — 2026-07-16
+
+### Enterprise Knowledge & Memory Platform
+
+#### Knowledge Platform
+- 15 memory types coordinated by MemoryOrchestrator (promote/demote/merge/compress)
+- KnowledgePlatform with entries, versions, collections, workspaces
+- HybridSearchEngine (TF-IDF + fuzzy)
+- RetrievalEngine (RAG with citations, conflict detection, dedup)
+- KnowledgeGovernance (RBAC, approval, legal hold)
+- EnterpriseKnowledgeGraph (20+ node types)
+
+#### Knowledge Intelligence
+- KnowledgeIntelligenceEngine (gap/conflict/freshness/coverage/relationship detection)
+- AutonomousLearningEngine (lessons from executions/approvals/feedback, playbooks)
+- RecommendationEngine
+- RepositoryIntelligenceEngine (AST analysis)
+- DocumentIntelligence (Python/Markdown/JSON/CSV)
+- QualityAssurance
+
+## [5.0.0] — 2026-07-15
+
+### Enterprise Cognitive Intelligence Platform
+
+#### Cognitive Layer
+- CognitiveExperience (20+ fields)
+- CognitiveLearningEngine (explainable stats)
+- CognitivePredictionEngine (7 types with explanations)
+- CognitiveOptimizationEngine (4 types, never auto-applied)
+- EnterpriseKnowledgeGraph (14 node types)
+- ArchitectureIntelligence
+- RepositoryIntelligence
+- EnterpriseReporting
+- CognitiveManager facade
+
 ## [4.1.0] — 2026-07-16
 
 ### Production Completion

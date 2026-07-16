@@ -1,4 +1,4 @@
-"""Engineering Intelligence Manager — top-level facade for v5.2 Part 1A.
+"""Engineering Intelligence Manager — top-level facade for v5.2.
 
 Wires together:
   - RepositoryIntelligenceEngine (discovery, analysis, issues)
@@ -7,6 +7,13 @@ Wires together:
   - EngineeringAgentOrganization (16 specialized agents)
   - CapabilityRegistry (languages, frameworks, domains)
   - EngineeringWorkspaceManager (repository sessions)
+  - EngineeringReviewEngine (12 review types) [Phase 17]
+  - TestIntelligenceEngine [Phase 18]
+  - DocumentationIntelligenceEngine [Phase 19]
+  - RepositoryEvolutionEngine [Phase 20]
+  - ReleaseReadinessEngine [Phase 21]
+  - DeveloperProductivityEngine [Phase 22]
+  - RepositoryHealthCenter [Phase 23]
 """
 
 from __future__ import annotations
@@ -20,14 +27,23 @@ from services.engineering.agents import (
     EngineeringAgentOrganization,
     EngineeringWorkspaceManager,
 )
+from services.engineering.documentation_intelligence import (
+    DocumentationIntelligenceEngine,
+)
+from services.engineering.evolution_engine import RepositoryEvolutionEngine
+from services.engineering.health_center import RepositoryHealthCenter
 from services.engineering.models import (
     EngCapability,
 )
+from services.engineering.productivity_engine import DeveloperProductivityEngine
+from services.engineering.release_readiness import ReleaseReadinessEngine
 from services.engineering.repository_engine import (
     ArchitectureIntelligenceEngine,
     CodeIntelligenceEngine,
     RepositoryIntelligenceEngine,
 )
+from services.engineering.review_engine import EngineeringReviewEngine, ReviewType
+from services.engineering.test_intelligence import TestIntelligenceEngine
 
 _log = get_logger(__name__)
 
@@ -41,17 +57,28 @@ class EngineeringManager:
         mgr = EngineeringManager(repo_root=Path("."))
         analysis = await mgr.analyze_repository()
         recs = await mgr.architecture_recommendations()
-        agents = mgr.list_engineering_agents()
+        review = await mgr.review("code", ".")
+        health = await mgr.health()
+        readiness = await mgr.release_readiness(version="5.2.0")
     """
 
     def __init__(self, repo_root: Path | str = ".") -> None:
         self._root = Path(repo_root)
+        # Phase 1A engines
         self.repo_intelligence = RepositoryIntelligenceEngine(self._root)
         self.code_intelligence = CodeIntelligenceEngine()
         self.architecture = ArchitectureIntelligenceEngine(self._root)
         self.agents = EngineeringAgentOrganization()
         self.capabilities = CapabilityRegistry()
         self.workspaces = EngineeringWorkspaceManager()
+        # Phase 1B-2 engines
+        self.review_engine = EngineeringReviewEngine()
+        self.test_intelligence = TestIntelligenceEngine()
+        self.documentation = DocumentationIntelligenceEngine()
+        self.evolution = RepositoryEvolutionEngine(self._root)
+        self.release_readiness_engine = ReleaseReadinessEngine()
+        self.productivity = DeveloperProductivityEngine()
+        self.health_center = RepositoryHealthCenter(self._root)
 
     # --- Repository Intelligence ---
 
@@ -72,6 +99,105 @@ class EngineeringManager:
     async def architecture_recommendations(self) -> list[dict[str, Any]]:
         recs = await self.architecture.inspect()
         return [r.to_dict() for r in recs]
+
+    # --- Engineering Review (Phase 17) ---
+
+    async def review(
+        self,
+        review_type: ReviewType | str,
+        target: str | Path,
+        *,
+        history: list[Any] | None = None,
+        context: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
+        report = await self.review_engine.review(review_type, target, history=history, context=context)
+        return report.to_dict()
+
+    async def review_all(
+        self,
+        target: str | Path,
+        *,
+        history: list[Any] | None = None,
+    ) -> dict[str, Any]:
+        results = await self.review_engine.review_all(target, history=history)
+        return {k: v.to_dict() for k, v in results.items()}
+
+    # --- Test Intelligence (Phase 18) ---
+
+    async def test_suite_analysis(self) -> dict[str, Any]:
+        report = await self.test_intelligence.analyze_suite(self._root / "tests")
+        return report.to_dict()
+
+    async def test_coverage(self) -> dict[str, Any]:
+        report = await self.test_intelligence.coverage_report(self._root)
+        return report.to_dict()
+
+    async def test_risk(self, *, recent_failures: list[dict[str, Any]] | None = None) -> dict[str, Any]:
+        report = await self.test_intelligence.risk_report(self._root, recent_failures=recent_failures)
+        return report.to_dict()
+
+    # --- Documentation Intelligence (Phase 19) ---
+
+    async def documentation_analysis(self) -> dict[str, Any]:
+        report = await self.documentation.analyze(self._root)
+        return report.to_dict()
+
+    async def documentation_recommendations(self) -> list[dict[str, Any]]:
+        return await self.documentation.recommendations(self._root)
+
+    # --- Repository Evolution (Phase 20) ---
+
+    async def evolution_timeline(self, limit: int = 100) -> list[dict[str, Any]]:
+        timeline = await self.evolution.timeline(limit=limit)
+        return [t.to_dict() for t in timeline]
+
+    async def evolution_dashboard(self) -> dict[str, Any]:
+        dash = await self.evolution.dashboard()
+        return dash.to_dict()
+
+    async def evolution_report(self) -> dict[str, Any]:
+        report = await self.evolution.report()
+        return report.to_dict()
+
+    # --- Release Readiness (Phase 21) ---
+
+    async def release_readiness(self, *, version: str = "") -> dict[str, Any]:
+        report = await self.release_readiness_engine.evaluate(self._root, version=version)
+        return report.to_dict()
+
+    async def certification_report(self, *, version: str = "") -> dict[str, Any]:
+        cert = await self.release_readiness_engine.certification_report(self._root, version=version)
+        return cert.to_dict()
+
+    # --- Developer Productivity (Phase 22) ---
+
+    def record_productivity_event(self, event: dict[str, Any]) -> None:
+        self.productivity.record_event(event)
+
+    async def productivity_metrics(self) -> dict[str, Any]:
+        m = await self.productivity.metrics()
+        return m.to_dict()
+
+    async def productivity_dora(self) -> dict[str, Any]:
+        d = await self.productivity.dora()
+        return d.to_dict()
+
+    async def productivity_dashboard(self) -> dict[str, Any]:
+        dash = await self.productivity.dashboard()
+        return dash.to_dict()
+
+    async def productivity_report(self) -> dict[str, Any]:
+        report = await self.productivity.report()
+        return report.to_dict()
+
+    # --- Repository Health Center (Phase 23) ---
+
+    async def health(self) -> dict[str, Any]:
+        report = await self.health_center.assess()
+        return report.to_dict()
+
+    async def health_quick_score(self) -> float:
+        return await self.health_center.quick_score()
 
     # --- Engineering Agents ---
 
@@ -132,13 +258,15 @@ class EngineeringManager:
     # --- Summary ---
 
     async def get_overview(self) -> dict[str, Any]:
-        """Get engineering overview."""
+        """Get engineering overview — aggregates all subsystems."""
         analysis = await self.repo_intelligence.analyze()
         recs = await self.architecture.inspect()
+        health = await self.health_center.quick_score()
         return {
             "repository": analysis.to_dict(),
             "architecture_recommendations": len(recs),
             "engineering_agents": len(self.agents.list_agents()),
             "capabilities": await self.capabilities.stats(),
             "workspaces": len(await self.workspaces.list_workspaces()),
+            "health_score": round(health, 2),
         }

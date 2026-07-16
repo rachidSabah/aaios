@@ -26,10 +26,10 @@ from __future__ import annotations
 
 import asyncio
 from datetime import UTC, datetime
-from typing import Any
+from typing import Any, cast
 from uuid import UUID, uuid4
 
-from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import Body, FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
@@ -1665,8 +1665,9 @@ def create_app() -> FastAPI:
         nonlocal _repo_intelligence
         if _repo_intelligence is None:
             from pathlib import Path
+
             from services.knowledge import RepositoryIntelligenceEngine
-            _repo_intelligence = RepositoryIntelligenceEngine(Path("."))
+            _repo_intelligence = RepositoryIntelligenceEngine(Path())
         return _repo_intelligence
 
     def _get_document_intelligence() -> Any:
@@ -1728,7 +1729,7 @@ def create_app() -> FastAPI:
         """Get lessons learned."""
         engine = _get_autonomous_learning()
         lessons = await engine.get_lessons(category=category, limit=limit)
-        return {"lessons": [l.to_dict() for l in lessons], "count": len(lessons)}
+        return {"lessons": [lesson.to_dict() for lesson in lessons], "count": len(lessons)}
 
     @app.get("/api/v1/knowledge/playbooks", tags=["knowledge"])
     async def knowledge_playbooks(limit: int = 20) -> dict[str, Any]:
@@ -1901,5 +1902,293 @@ def create_app() -> FastAPI:
         """Get engineering overview."""
         mgr = _get_engineering_manager()
         return await mgr.get_overview()
+
+    # --- Engineering Intelligence endpoints (v5.2 Part 1B-1) ---
+
+    _planning_engine: Any = None
+    _metrics_engine: Any = None
+    _arch_analysis_engine: Any = None
+    _impact_analysis_engine: Any = None
+    _eng_recommendation_engine: Any = None
+    _risk_engine: Any = None
+
+    def _get_planning_engine() -> Any:
+        nonlocal _planning_engine
+        if _planning_engine is None:
+            from services.engineering import PlanningEngine
+            _planning_engine = PlanningEngine()
+        return _planning_engine
+
+    def _get_metrics_engine() -> Any:
+        nonlocal _metrics_engine
+        if _metrics_engine is None:
+            from services.engineering import MetricsEngine
+            _metrics_engine = MetricsEngine()
+        return _metrics_engine
+
+    def _get_arch_analysis() -> Any:
+        nonlocal _arch_analysis_engine
+        if _arch_analysis_engine is None:
+            from services.engineering.intelligence import ArchitectureAnalysisEngine
+            _arch_analysis_engine = ArchitectureAnalysisEngine()
+        return _arch_analysis_engine
+
+    def _get_impact_analysis() -> Any:
+        nonlocal _impact_analysis_engine
+        if _impact_analysis_engine is None:
+            from services.engineering.intelligence import ImpactAnalysisEngine
+            _impact_analysis_engine = ImpactAnalysisEngine()
+        return _impact_analysis_engine
+
+    def _get_eng_rec_engine() -> Any:
+        nonlocal _eng_recommendation_engine
+        if _eng_recommendation_engine is None:
+            from services.engineering.intelligence import RecommendationEngine
+            _eng_recommendation_engine = RecommendationEngine()
+        return _eng_recommendation_engine
+
+    def _get_risk_engine() -> Any:
+        nonlocal _risk_engine
+        if _risk_engine is None:
+            from services.engineering import RiskEngine
+            _risk_engine = RiskEngine()
+        return _risk_engine
+
+    @app.post("/api/v1/engineering/plan", tags=["engineering"])
+    async def engineering_plan(body: dict[str, Any]) -> dict[str, Any]:
+        """Create an engineering plan."""
+        engine = _get_planning_engine()
+        plan = await engine.create_plan(
+            title=body.get("title", ""),
+            description=body.get("description", ""),
+            requirements=body.get("requirements", []),
+            max_hours=body.get("max_hours", 100.0),
+        )
+        return cast("dict[str, Any]", plan.to_dict())
+
+    @app.get("/api/v1/engineering/metrics", tags=["engineering"])
+    async def engineering_metrics() -> dict[str, Any]:
+        """Get engineering metrics."""
+        from pathlib import Path
+        engine = _get_metrics_engine()
+        metrics = await engine.compute_metrics(Path())
+        return cast("dict[str, Any]", metrics.to_dict())
+
+    @app.get("/api/v1/engineering/architecture/analysis", tags=["engineering"])
+    async def engineering_arch_analysis() -> dict[str, Any]:
+        """Get architecture analysis."""
+        from pathlib import Path
+        engine = _get_arch_analysis()
+        result = await engine.analyze(Path())
+        return cast("dict[str, Any]", result.to_dict())
+
+    @app.post("/api/v1/engineering/impact", tags=["engineering"])
+    async def engineering_impact(body: dict[str, Any]) -> dict[str, Any]:
+        """Analyze impact of a change."""
+        from pathlib import Path
+        engine = _get_impact_analysis()
+        result = await engine.analyze_impact(
+            Path(),
+            body.get("target_file", ""),
+            body.get("change_description", ""),
+        )
+        return cast("dict[str, Any]", result.to_dict())
+
+    @app.get("/api/v1/engineering/recommendations", tags=["engineering"])
+    async def engineering_recommendations() -> dict[str, Any]:
+        """Get engineering recommendations."""
+        from pathlib import Path
+        metrics_engine = _get_metrics_engine()
+        arch_engine = _get_arch_analysis()
+        rec_engine = _get_eng_rec_engine()
+        metrics = await metrics_engine.compute_metrics(Path())
+        arch = await arch_engine.analyze(Path())
+        recs = await rec_engine.recommend_all(metrics, arch)
+        return {"recommendations": [r.to_dict() for r in recs], "count": len(recs)}
+
+    @app.get("/api/v1/engineering/risks", tags=["engineering"])
+    async def engineering_risks() -> dict[str, Any]:
+        """Get engineering risk assessment."""
+        from pathlib import Path
+        metrics_engine = _get_metrics_engine()
+        arch_engine = _get_arch_analysis()
+        risk_engine = _get_risk_engine()
+        metrics = await metrics_engine.compute_metrics(Path())
+        arch = await arch_engine.analyze(Path())
+        risks = await risk_engine.assess_all(metrics, arch)
+        return {"risks": [r.to_dict() for r in risks], "count": len(risks)}
+
+    # ------------------------------------------------------------------
+    # Phase 26 — Engineering API Integration (Review, Test Intel, Docs,
+    # Evolution, Release Readiness, Productivity, Health Center)
+    # ------------------------------------------------------------------
+
+    # --- Reviews (Phase 17) ---
+
+    @app.post("/api/v1/engineering/reviews", tags=["engineering"])
+    async def engineering_review_all(body: dict[str, Any] = Body({})) -> dict[str, Any]:
+        """Run all 12 review types against the target."""
+        target = body.get("target", ".")
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.review_all(target))
+
+    @app.post("/api/v1/engineering/reviews/{review_type}", tags=["engineering"])
+    async def engineering_review(review_type: str, body: dict[str, Any] = Body({})) -> dict[str, Any]:
+        """Run a single review of the given type."""
+        target = body.get("target", ".")
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.review(review_type, target))
+
+    @app.get("/api/v1/engineering/reviews/types", tags=["engineering"])
+    async def engineering_review_types() -> dict[str, Any]:
+        """List the 12 supported review types."""
+        from services.engineering import ReviewType
+        return {"review_types": [rt.value for rt in ReviewType]}
+
+    # --- Test Intelligence (Phase 18) ---
+
+    @app.get("/api/v1/engineering/test-intelligence/analysis", tags=["engineering"])
+    async def test_intelligence_analysis() -> dict[str, Any]:
+        """Analyze the test suite."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.test_suite_analysis())
+
+    @app.get("/api/v1/engineering/test-intelligence/coverage", tags=["engineering"])
+    async def test_intelligence_coverage() -> dict[str, Any]:
+        """Generate a test coverage report."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.test_coverage())
+
+    @app.post("/api/v1/engineering/test-intelligence/risk", tags=["engineering"])
+    async def test_intelligence_risk(body: dict[str, Any] = Body({})) -> dict[str, Any]:
+        """Generate a test risk report."""
+        mgr = _get_engineering_manager()
+        recent_failures = body.get("recent_failures")
+        return cast("dict[str, Any]", await mgr.test_risk(recent_failures=recent_failures))
+
+    # --- Documentation Intelligence (Phase 19) ---
+
+    @app.get("/api/v1/engineering/documentation/analysis", tags=["engineering"])
+    async def documentation_analysis() -> dict[str, Any]:
+        """Analyze the documentation."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.documentation_analysis())
+
+    @app.get("/api/v1/engineering/documentation/recommendations", tags=["engineering"])
+    async def documentation_recommendations() -> dict[str, Any]:
+        """Get documentation recommendations."""
+        mgr = _get_engineering_manager()
+        recs = cast("list[dict[str, Any]]", await mgr.documentation_recommendations())
+        return {"recommendations": recs, "count": len(recs)}
+
+    # --- Repository Evolution (Phase 20) ---
+
+    @app.get("/api/v1/engineering/repository/evolution", tags=["engineering"])
+    async def repository_evolution() -> dict[str, Any]:
+        """Get the repository evolution dashboard."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.evolution_dashboard())
+
+    @app.get("/api/v1/engineering/repository/timeline", tags=["engineering"])
+    async def repository_timeline(limit: int = 50) -> dict[str, Any]:
+        """Get the repository timeline."""
+        mgr = _get_engineering_manager()
+        entries = cast("list[dict[str, Any]]", await mgr.evolution_timeline(limit=limit))
+        return {"entries": entries, "count": len(entries)}
+
+    @app.get("/api/v1/engineering/repository/analysis", tags=["engineering"])
+    async def repository_analysis_v2() -> dict[str, Any]:
+        """Analyze the repository structure."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.analyze_repository())
+
+    # --- Release Readiness (Phase 21) ---
+
+    @app.post("/api/v1/engineering/release/readiness", tags=["engineering"])
+    async def release_readiness(body: dict[str, Any] = Body({})) -> dict[str, Any]:
+        """Evaluate release readiness."""
+        version = body.get("version", "")
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.release_readiness(version=version))
+
+    @app.post("/api/v1/engineering/release/certification", tags=["engineering"])
+    async def release_certification(body: dict[str, Any] = Body({})) -> dict[str, Any]:
+        """Generate a certification report."""
+        version = body.get("version", "")
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.certification_report(version=version))
+
+    # --- Developer Productivity (Phase 22) ---
+
+    @app.get("/api/v1/engineering/productivity/dashboard", tags=["engineering"])
+    async def productivity_dashboard() -> dict[str, Any]:
+        """Get the developer productivity dashboard."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.productivity_dashboard())
+
+    @app.get("/api/v1/engineering/productivity/metrics", tags=["engineering"])
+    async def productivity_metrics() -> dict[str, Any]:
+        """Get current productivity metrics."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.productivity_metrics())
+
+    @app.get("/api/v1/engineering/productivity/dora", tags=["engineering"])
+    async def productivity_dora() -> dict[str, Any]:
+        """Get DORA metrics."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.productivity_dora())
+
+    @app.post("/api/v1/engineering/productivity/events", tags=["engineering"])
+    async def productivity_record_event(body: dict[str, Any] = Body(...)) -> dict[str, str]:
+        """Record a productivity event."""
+        mgr = _get_engineering_manager()
+        mgr.record_productivity_event(body)
+        return {"status": "recorded"}
+
+    @app.get("/api/v1/engineering/productivity/report", tags=["engineering"])
+    async def productivity_report() -> dict[str, Any]:
+        """Get the full productivity report."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.productivity_report())
+
+    # --- Repository Health Center (Phase 23) ---
+
+    @app.get("/api/v1/engineering/health", tags=["engineering"])
+    async def engineering_health() -> dict[str, Any]:
+        """Get the repository health report."""
+        mgr = _get_engineering_manager()
+        return cast("dict[str, Any]", await mgr.health())
+
+    @app.get("/api/v1/engineering/health/score", tags=["engineering"])
+    async def engineering_health_score() -> dict[str, float]:
+        """Get the overall repository health score (0..100)."""
+        mgr = _get_engineering_manager()
+        score = await mgr.health_quick_score()
+        return {"score": round(score, 2)}
+
+    # --- Planning (Phase 25 CLI / API) ---
+
+    @app.post("/api/v1/engineering/planning/create", tags=["engineering"])
+    async def planning_create(body: dict[str, Any] = Body({})) -> dict[str, Any]:
+        """Create an engineering plan."""
+        from services.engineering import PlanningEngine
+        title = body.get("title", "")
+        description = body.get("description", "")
+        requirements = body.get("requirements", [])
+        engine = PlanningEngine()
+        plan = await engine.create_plan(
+            title=title, description=description, requirements=requirements,
+        )
+        return plan.to_dict()
+
+    @app.post("/api/v1/engineering/planning/impact", tags=["engineering"])
+    async def planning_impact(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        """Analyze the impact of a change to ``target``."""
+        from pathlib import Path
+        target = body.get("target", "")
+        change_description = body.get("change_description", "")
+        engine = _get_impact_analysis()
+        result = await engine.analyze_impact(Path(), target, change_description)
+        return cast("dict[str, Any]", result.to_dict())
 
     return app

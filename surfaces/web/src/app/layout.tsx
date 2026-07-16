@@ -21,6 +21,13 @@ const navItems = [
   { href: '/analytics', label: 'Analytics' },
   { href: '/experience', label: 'Experience' },
   { href: '/learning', label: 'Learning' },
+  { href: '/engineering', label: 'Engineering' },
+  { href: '/repository', label: 'Repository' },
+  { href: '/architecture', label: 'Architecture' },
+  { href: '/reviews', label: 'Reviews' },
+  { href: '/test-intelligence', label: 'Test Intel' },
+  { href: '/release-readiness', label: 'Release' },
+  { href: '/repository-health', label: 'Health' },
 ];
 
 export default function RootLayout({
