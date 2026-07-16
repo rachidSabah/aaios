@@ -160,7 +160,12 @@ if (-not (Test-Path ".venv")) {
 # Activate and install
 & .\.venv\Scripts\Activate.ps1
 python -m pip install --upgrade pip
-pip install -e ".[dev,windows]" 2>&1 | Out-Null
+Write-Host "Installing Python packages..." -ForegroundColor Yellow
+pip install -e ".[dev,windows]"
+if ($LASTEXITCODE -ne 0) {
+    Write-Err "Failed to install Python packages. Please check the errors above."
+    Exit 1
+}
 Write-OK "Python packages installed"
 
 # --- Step 4: Node.js dependencies ---
@@ -217,12 +222,23 @@ if (-not (Test-Path "$configDir\config.yaml")) {
 Write-Step "Verifying installation..."
 
 $aaiosExe = ".\.venv\Scripts\aaios.exe"
+$oldErrorAction = $ErrorActionPreference
+$ErrorActionPreference = 'Continue'
+
 if (Test-Path $aaiosExe) {
     $version = & $aaiosExe version 2>&1
-    Write-OK "AAiOS installed: $version"
 } else {
     # Fallback: run via python module
     $version = python -m surfaces.cli version 2>&1
+}
+
+$ErrorActionPreference = $oldErrorAction
+
+if ($LASTEXITCODE -ne 0 -or $version -match "Traceback") {
+    Write-Err "Verification failed. Output:"
+    Write-Host "  $version" -ForegroundColor Red
+    Exit 1
+} else {
     Write-OK "AAiOS installed: $version"
 }
 
