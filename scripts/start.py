@@ -371,8 +371,28 @@ async def boot_and_serve(
     from surfaces.api.app import create_app
 
     app = create_app()
-    config = uvicorn.Config(app, host=host, port=port, log_level="info")
+    config = uvicorn.Config(
+        app,
+        host=host,
+        port=port,
+        log_config=None,  # we use structlog
+    )
     server = uvicorn.Server(config)
+
+    async def _open_browser_when_ready() -> None:
+        """Wait for uvicorn to be ready, then open both dashboards."""
+        await asyncio.sleep(2.0)
+        import webbrowser
+        try:
+            # Open 9router dashboard first
+            webbrowser.open("http://localhost:20128")
+            # Then open AAiOS API docs
+            webbrowser.open(f"http://{host}:{port}/docs")
+            _log.info("aaios.start.browser_opened", router_url="http://localhost:20128", api_url=f"http://{host}:{port}/docs")
+        except Exception as e:
+            _log.warning("aaios.start.browser_open_failed", error=str(e))
+
+    asyncio.create_task(_open_browser_when_ready())
     await server.serve()
 
 
