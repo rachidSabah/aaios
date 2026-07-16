@@ -410,10 +410,10 @@ async def boot_and_serve(
     print(f"\n{'=' * 60}")
     print("  AAiOS v1.0.0 is LIVE")
     print(f"  Dashboard: http://localhost:3000")
-    print(f"  API:       http://{host}:{port}")
-    print(f"  Docs:      http://{host}:{port}/docs")
+    print(f"  API:       http://{host}:{bind_port}")
+    print(f"  Docs:      http://{host}:{bind_port}/docs")
     print(f"  9router:   http://localhost:20128")
-    print(f"  Health:    http://{host}:{port}/healthz")
+    print(f"  Health:    http://{host}:{bind_port}/healthz")
     print(f"  Agents:    {', '.join(agents_registered) or 'none (install agents)'}")
     print(f"  Providers: {len(router.list_providers())}")
     print(f"{'=' * 60}\n")
@@ -423,11 +423,39 @@ async def boot_and_serve(
 
     from surfaces.api.app import create_app
 
+    # Pick a usable port: if the requested one is taken, find the next free one
+    # instead of crashing with a bind error.
+    bind_port = port
+    try:
+        with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+            s.bind((host, port))
+    except OSError:
+        # Search for the next available port
+        found = False
+        for candidate in range(port + 1, port + 100):
+            try:
+                with socket.socket(socket.AF_INET, socket.SOCK_STREAM) as s:
+                    s.bind((host, candidate))
+                bind_port = candidate
+                found = True
+                break
+            except OSError:
+                continue
+        if not found:
+            _log.error("aaios.start.no_free_port", requested=port)
+            raise
+        _log.warning(
+            "aaios.start.port_in_use",
+            requested=port,
+            using=bind_port,
+            msg="Requested port was busy; using next free port.",
+        )
+
     app = create_app()
     config = uvicorn.Config(
         app,
         host=host,
-        port=port,
+        port=bind_port,
         log_config=None,  # we use structlog
     )
     server = uvicorn.Server(config)
