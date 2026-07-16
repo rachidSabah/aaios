@@ -11,11 +11,11 @@
 > A **Windows-first**, modular, production-grade operating system for autonomous AI agents — orchestrating multiple LLM providers, multiple **generic** agents, MCP servers, vector memory, knowledge graphs, plugins, and workflows behind a single supervisor. Built around a **Generic Agent Runtime** where Claude Code, Hermes, and any future agent (OpenHands, Cline, Roo Code, Gemini CLI, Codex CLI, custom) are all just replaceable implementations.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Status: v5.2.0 Released](https://img.shields.io/badge/Status-v5.2.0%20Released-brightgreen)](https://github.com/rachidSabah/aaios/releases)
+[![Status: v5.3.0 Released](https://img.shields.io/badge/Status-v5.3.0%20Released-brightgreen)](https://github.com/rachidSabah/aaios/releases)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
 [![Windows 11](https://img.shields.io/badge/Platform-Windows%2011%20first-blue.svg)](https://www.microsoft.com/windows/)
-[![Tests: 1138 passing](https://img.shields.io/badge/Tests-1138%20passing-brightgreen)]()
+[![Tests: 1220 passing](https://img.shields.io/badge/Tests-1220%20passing-brightgreen)]()
 [![Ruff](https://img.shields.io/badge/Ruff-clean-brightgreen)]()
 [![Mypy --strict](https://img.shields.io/badge/Mypy-strict%20clean-brightgreen)]()
 
@@ -230,6 +230,12 @@ This repository is being built phase-by-phase. The current state is:
 | 24 | ✅ Complete | v5.2 Part 1B-2: Dashboard Integration (8 new pages) |
 | 25 | ✅ Complete | v5.2 Part 1B-2: CLI Integration (10 new command groups) |
 | 26 | ✅ Complete | v5.2 Part 1B-2: API Integration (22 new endpoints) — **1138 tests passing** |
+| 27 | ✅ Complete | v5.3 Part 1A: Enterprise Research Engine (projects, sessions, plans, tasks, pipelines, templates, memory, workspaces, timeline) |
+| 28 | ✅ Complete | v5.3 Part 1A: Multi-Agent Research (10 specialized agents) |
+| 29 | ✅ Complete | v5.3 Part 1A: Multi-Model Reasoning (consensus, conflict detection, minority opinions) |
+| 30 | ✅ Complete | v5.3 Part 1A: Evidence Graph (6 node types, 5 edge types, searchable) |
+| 31 | ✅ Complete | v5.3 Part 1A: Fact Verification (5-tier source reliability, verification reports) |
+| 32 | ✅ Complete | v5.3 Part 1A: Knowledge Synthesis (9 standard sections) — **1220 tests passing** |
 
 See [`docs/architecture/09-roadmap.md`](docs/architecture/09-roadmap.md) for the full plan.
 

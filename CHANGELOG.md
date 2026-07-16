@@ -2,6 +2,67 @@
 
 All notable changes to AAiOS are documented in this file.
 
+## [5.3.0] — 2026-07-16
+
+### Enterprise Research & Reasoning Platform
+
+#### Phase 1 — Enterprise Research Engine
+- Research Projects, Sessions, Plans, Tasks, Pipelines
+- Research History, Templates, Memory, Workspace, Timeline
+- Full lifecycle management with audit trail
+
+#### Phase 2 — Multi-Agent Research (10 Specialized Agents)
+- Literature, Scientific, Legal, Business, Technology, Market, News, Financial, Policy, Open Data agents
+- Each agent produces structured findings with confidence, evidence, limitations, and follow-up questions
+- ResearchAgentOrganization with heuristic agent selection
+
+#### Phase 3 — Multi-Model Reasoning
+- Independent analysis from multiple LLMs
+- Conflict detection (negation, numerical disagreement)
+- Consensus generation with confidence scoring
+- Minority opinion recording
+- Evidence ranking by model confidence and provider reliability
+- Explainable reasoning process
+
+#### Phase 4 — Evidence Graph
+- 6 node types: claim, fact, source, document, report, session
+- 5 edge types: support, contradiction, dependency, reference, citation
+- Evidence strength computation
+- Searchable graph with neighbor traversal
+
+#### Phase 5 — Fact Verification
+- Cross-reference multiple sources
+- Stance classification (supports / contradicts / neutral)
+- Source reliability ranking (5 tiers)
+- Verification status: verified, partially_verified, contradicted, unverified, unverifiable
+- Verification reports with confidence, evidence, and source ranking
+
+#### Phase 6 — Knowledge Synthesis
+- 9 standard sections: executive summary, technical summary, timeline, entities, relationships, decision support, insights, recommendations, open questions
+- Entity extraction via capitalized n-grams, dates, and metric detection
+- Relationship map via entity co-occurrence
+- Overall confidence from section confidence and source reliability
+
+#### CLI Integration
+- New `aaios research` command group (11 subcommands)
+- All commands support `--format json|yaml|markdown|table`
+
+#### API Integration
+- 13 new REST endpoints under `/api/v1/research/`
+- OpenAPI auto-generated
+
+#### Dashboard Integration
+- New `/research` page with platform overview and agent registry
+- Dark/light mode aware, responsive
+
+#### Quality Gates
+- Ruff: clean
+- Mypy --strict on services/research/: clean (9 source files)
+- Bandit: no Medium/High severity
+- Pytest: 1220/1220 passing (1138 pre-existing + 82 new)
+- Architecture invariants (INV-02, INV-09): enforced
+- Backward compatible with v5.2
+
 ## [5.2.0] — 2026-07-16
 
 ### Autonomous Software Engineering Platform — Complete

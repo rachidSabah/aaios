@@ -2117,5 +2117,193 @@ def engineering_productivity(
     _emit(data, fmt)
 
 
+# ---------------------------------------------------------------------------
+# Research Platform — v5.3 CLI Integration
+# ---------------------------------------------------------------------------
+
+research_app = typer.Typer(help="Enterprise Research & Reasoning Platform — projects, sessions, agents, reasoning, evidence, verification, synthesis.")
+app.add_typer(research_app, name="research")
+
+
+@research_app.command("overview")
+def research_overview(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show research platform overview."""
+    try:
+        data = _api_get("/api/v1/research/overview")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("projects")
+def research_projects(
+    status: str = typer.Option("", "--status", help="Filter by status"),
+    domain: str = typer.Option("", "--domain", help="Filter by domain"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """List research projects."""
+    params = []
+    if status:
+        params.append(f"status={status}")
+    if domain:
+        params.append(f"domain={domain}")
+    qs = "?" + "&".join(params) if params else ""
+    try:
+        data = _api_get(f"/api/v1/research/projects{qs}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("create-project")
+def research_create_project(
+    title: str = typer.Option(..., "--title"),
+    description: str = typer.Option("", "--description"),
+    domain: str = typer.Option("", "--domain"),
+    owner: str = typer.Option("", "--owner"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Create a new research project."""
+    try:
+        data = _api_post(
+            "/api/v1/research/projects",
+            body={"title": title, "description": description, "domain": domain, "owner": owner},
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("agents")
+def research_agents(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """List the 10 specialized research agents."""
+    try:
+        data = _api_get("/api/v1/research/agents")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("research")
+def research_run(
+    agent_type: str = typer.Argument(..., help="Agent type: literature|scientific|legal|business|technology|market|news|financial|policy|open_data"),
+    query: str = typer.Argument(..., help="Research query"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Run research with a specific agent."""
+    try:
+        data = _api_post(
+            f"/api/v1/research/agents/{agent_type}/research",
+            body={"query": query},
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("reason")
+def research_reason(
+    question: str = typer.Argument(..., help="Question for multi-model reasoning"),
+    models: str = typer.Option("", "--models", help="Comma-separated list of models (placeholder)"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Run multi-model reasoning on a question."""
+    try:
+        data = _api_post(
+            "/api/v1/research/reasoning",
+            body={"question": question, "models": models.split(",") if models else []},
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("evidence")
+def research_evidence(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show evidence graph statistics."""
+    try:
+        data = _api_get("/api/v1/research/evidence-graph")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("verify")
+def research_verify(
+    fact: str = typer.Argument(..., help="Fact to verify"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Verify a fact (no sources = unverifiable)."""
+    try:
+        data = _api_post(
+            "/api/v1/research/verification",
+            body={"fact_text": fact, "sources": []},
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("synthesize")
+def research_synthesize(
+    title: str = typer.Option("Synthesis", "--title"),
+    project_id: str = typer.Option("cli", "--project-id"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Synthesize knowledge (empty corpus = low-confidence placeholder)."""
+    try:
+        data = _api_post(
+            "/api/v1/research/synthesis",
+            body={"project_id": project_id, "title": title, "documents": []},
+        )
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("timeline")
+def research_timeline(
+    project_id: str = typer.Option("", "--project-id"),
+    limit: int = typer.Option(50, "--limit"),
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show research timeline."""
+    qs = f"?limit={limit}" + (f"&project_id={project_id}" if project_id else "")
+    try:
+        data = _api_get(f"/api/v1/research/timeline{qs}")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
+@research_app.command("stats")
+def research_stats(
+    fmt: str = typer.Option("table", "--format", "-f"),
+) -> None:
+    """Show research engine statistics."""
+    try:
+        data = _api_get("/api/v1/research/stats")
+    except Exception as e:
+        console.print(f"[red]Error:[/red] {e}")
+        raise typer.Exit(1) from e
+    _emit(data, fmt)
+
+
 if __name__ == "__main__":
     main()

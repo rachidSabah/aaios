@@ -2191,4 +2191,188 @@ def create_app() -> FastAPI:
         result = await engine.analyze_impact(Path(), target, change_description)
         return cast("dict[str, Any]", result.to_dict())
 
+    # ------------------------------------------------------------------
+    # v5.3 — Research & Reasoning Platform API
+    # ------------------------------------------------------------------
+
+    _research_manager: Any = None
+
+    def _get_research_manager() -> Any:
+        nonlocal _research_manager
+        if _research_manager is None:
+            from services.research import ResearchManager
+            _research_manager = ResearchManager()
+        return _research_manager
+
+    @app.get("/api/v1/research/overview", tags=["research"])
+    async def research_overview() -> dict[str, Any]:
+        """Research platform overview."""
+        mgr = _get_research_manager()
+        return cast("dict[str, Any]", await mgr.get_overview())
+
+    @app.get("/api/v1/research/projects", tags=["research"])
+    async def research_projects(
+        status: str | None = None, domain: str | None = None,
+    ) -> dict[str, Any]:
+        """List research projects."""
+        mgr = _get_research_manager()
+        projects = await mgr.list_projects(status=status, domain=domain)
+        return {"projects": [p.to_dict() for p in projects], "count": len(projects)}
+
+    @app.post("/api/v1/research/projects", tags=["research"])
+    async def research_create_project(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        """Create a research project."""
+        mgr = _get_research_manager()
+        project = await mgr.create_project(
+            body.get("title", ""),
+            body.get("description", ""),
+            domain=body.get("domain", ""),
+            owner=body.get("owner", ""),
+        )
+        return cast("dict[str, Any]", project.to_dict())
+
+    @app.get("/api/v1/research/projects/{project_id}", tags=["research"])
+    async def research_get_project(project_id: str) -> dict[str, Any]:
+        """Get a research project."""
+        mgr = _get_research_manager()
+        project = await mgr.get_project(project_id)
+        if not project:
+            raise HTTPException(status_code=404, detail="Project not found")
+        return cast("dict[str, Any]", project.to_dict())
+
+    @app.get("/api/v1/research/agents", tags=["research"])
+    async def research_agents() -> dict[str, Any]:
+        """List the 10 specialized research agents."""
+        mgr = _get_research_manager()
+        return {"agents": mgr.list_research_agents(), "count": 10}
+
+    @app.post("/api/v1/research/agents/{agent_type}/research", tags=["research"])
+    async def research_agent_run(
+        agent_type: str, body: dict[str, Any] = Body(...),
+    ) -> dict[str, Any]:
+        """Run research with a specific agent."""
+        mgr = _get_research_manager()
+        query = body.get("query", "")
+        source_material = body.get("source_material")
+        finding = await mgr.research_with_agent(
+            agent_type, query, source_material=source_material,
+        )
+        if not finding:
+            raise HTTPException(status_code=404, detail=f"Unknown agent type: {agent_type}")
+        return cast("dict[str, Any]", finding.to_dict())
+
+    @app.post("/api/v1/research/reasoning", tags=["research"])
+    async def research_reasoning(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        """Run multi-model reasoning.
+
+        Accepts a ``question`` and an optional list of pre-computed ``analyses``
+        (each with model, provider, claims, confidence, response). If no
+        analyses are provided, returns a low-confidence placeholder.
+        """
+        mgr = _get_research_manager()
+        from services.research import ModelAnalysis
+        question = body.get("question", "")
+        raw_analyses = body.get("analyses", []) or []
+        analyses: list[ModelAnalysis] = []
+        for a in raw_analyses:
+            analyses.append(ModelAnalysis(
+                model=a.get("model", ""),
+                provider=a.get("provider", ""),
+                response=a.get("response", ""),
+                reasoning=a.get("reasoning", ""),
+                claims=a.get("claims", []),
+                confidence=float(a.get("confidence", 0.5)),
+            ))
+        result = await mgr.reason(question, analyses)
+        return cast("dict[str, Any]", result.to_dict())
+
+    @app.get("/api/v1/research/evidence-graph", tags=["research"])
+    async def research_evidence_graph() -> dict[str, Any]:
+        """Evidence graph statistics."""
+        mgr = _get_research_manager()
+        return cast("dict[str, Any]", mgr.evidence_graph_stats())
+
+    @app.get("/api/v1/research/evidence-graph/search", tags=["research"])
+    async def research_evidence_graph_search(
+        q: str = "", kinds: str | None = None,
+    ) -> dict[str, Any]:
+        """Search the evidence graph."""
+        mgr = _get_research_manager()
+        kind_list = kinds.split(",") if kinds else None
+        nodes = mgr.evidence_graph_search(q, kinds=kind_list)
+        return {"nodes": nodes, "count": len(nodes)}
+
+    @app.post("/api/v1/research/verification", tags=["research"])
+    async def research_verification(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        """Verify a fact against a list of sources."""
+        mgr = _get_research_manager()
+        from services.research import Source
+        fact_text = body.get("fact_text", "")
+        raw_sources = body.get("sources", []) or []
+        sources: list[Source] = []
+        for s in raw_sources:
+            sources.append(Source(
+                title=s.get("title", ""),
+                url=s.get("url", ""),
+                abstract=s.get("abstract", ""),
+                reliability=s.get("reliability", "tier_3_established"),
+                reliability_score=float(s.get("reliability_score", 0.5)),
+                source_type=s.get("source_type", ""),
+                authors=s.get("authors", []),
+            ))
+        report = await mgr.verify_fact(fact_text, sources)
+        return cast("dict[str, Any]", report.to_dict())
+
+    @app.post("/api/v1/research/synthesis", tags=["research"])
+    async def research_synthesis(body: dict[str, Any] = Body(...)) -> dict[str, Any]:
+        """Synthesize knowledge from multiple documents."""
+        mgr = _get_research_manager()
+        from datetime import datetime
+
+        from services.research import Source
+        project_id = body.get("project_id", "")
+        title = body.get("title", "Synthesis")
+        description = body.get("description", "")
+        research_question = body.get("research_question", "")
+        raw_docs = body.get("documents", []) or []
+        documents: list[Source] = []
+        for d in raw_docs:
+            published_at_str = d.get("published_at")
+            published_at = None
+            if published_at_str:
+                try:
+                    published_at = datetime.fromisoformat(published_at_str)
+                except (ValueError, TypeError):
+                    published_at = None
+            documents.append(Source(
+                title=d.get("title", ""),
+                url=d.get("url", ""),
+                abstract=d.get("abstract", ""),
+                reliability=d.get("reliability", "tier_3_established"),
+                reliability_score=float(d.get("reliability_score", 0.5)),
+                source_type=d.get("source_type", ""),
+                authors=d.get("authors", []),
+                published_at=published_at,
+            ))
+        synthesis = await mgr.synthesize(
+            project_id, title, documents,
+            description=description, research_question=research_question,
+        )
+        return cast("dict[str, Any]", synthesis.to_dict())
+
+    @app.get("/api/v1/research/timeline", tags=["research"])
+    async def research_timeline(
+        project_id: str | None = None, limit: int = 50,
+    ) -> dict[str, Any]:
+        """Research timeline."""
+        mgr = _get_research_manager()
+        entries = await mgr.timeline(project_id=project_id, limit=limit)
+        return {"entries": entries, "count": len(entries)}
+
+    @app.get("/api/v1/research/stats", tags=["research"])
+    async def research_stats() -> dict[str, Any]:
+        """Research engine statistics."""
+        mgr = _get_research_manager()
+        return cast("dict[str, Any]", await mgr.stats())
+
     return app
