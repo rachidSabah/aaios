@@ -13,8 +13,12 @@ Usage:
 
 from __future__ import annotations
 
+
 import asyncio
+import json
 import os
+import shutil
+import socket
 import sys
 from pathlib import Path
 from typing import Any
@@ -24,6 +28,116 @@ from core.logging import LoggingConfig, get_logger, init_logging
 _log = get_logger(__name__)
 
 __all__ = ["boot_and_serve", "main"]
+
+
+async def _start_9router() -> None:
+    """Check if 9router is running. If not, start it in the background."""
+    # 1. Route standalone Claude Code CLI through 9router
+    try:
+        claude_dir = Path.home() / ".claude"
+        claude_dir.mkdir(parents=True, exist_ok=True)
+        config_path = claude_dir / "config.json"
+        
+        config_data = {}
+        if config_path.is_file():
+            try:
+                config_data = json.loads(config_path.read_text(encoding="utf-8"))
+            except Exception:
+                pass
+                
+        config_data["anthropic_api_base"] = "http://localhost:20128/v1"
+        if not config_data.get("anthropic_api_key"):
+            config_data["anthropic_api_key"] = "sk_9router"
+            
+        config_path.write_text(json.dumps(config_data, indent=2), encoding="utf-8")
+        _log.info("aaios.start.claude_cli_routed", config_path=str(config_path))
+    except Exception as e:
+        _log.warning("aaios.start.claude_routing_failed", error=str(e))
+
+    # 2. Check if already running on port 20128
+    is_running = False
+    try:
+        with socket.create_connection(("127.0.0.1", 20128), timeout=0.5):
+            is_running = True
+    except Exception:
+        pass
+        
+    if is_running:
+        _log.info("aaios.start.9router_already_running", port=20128)
+        return
+
+    # 3. Find 9router binary path
+    binary_path = None
+    try:
+        config_paths = [
+            Path(os.environ.get("ProgramData", "C:\\ProgramData")) / "AAiOS" / "config" / "agents.json",
+            Path.home() / ".config" / "aaios" / "agents.json",
+            Path("config") / "agents.json"
+        ]
+        for p in config_paths:
+            if p.is_file():
+                with open(p, "r", encoding="utf-8") as f:
+                    data = json.load(f)
+                    cfg = data.get("9router", {})
+                    if cfg.get("binary_path"):
+                        binary_path = cfg["binary_path"]
+                        break
+    except Exception:
+        pass
+
+    if not binary_path:
+        binary_path = shutil.which("9router")
+
+    if not binary_path:
+        _log.warning("aaios.start.9router_binary_not_found", msg="9router binary not found. Skipping startup.")
+        return
+
+    # 4. Spawn 9router process in the background
+    _log.info("aaios.start.starting_9router", binary=binary_path)
+    try:
+        # Run in tray mode, port 20128, no browser
+        if binary_path.lower().endswith((".cmd", ".bat")):
+            proc = await asyncio.create_subprocess_shell(
+                f'"{binary_path}" -p 20128 -n -t',
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                binary_path, "-p", "20128", "-n", "-t",
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+        
+        await asyncio.sleep(1.0)
+        
+        is_running_now = False
+        try:
+            with socket.create_connection(("127.0.0.1", 20128), timeout=0.5):
+                is_running_now = True
+        except Exception:
+            pass
+            
+        if is_running_now:
+            _log.info("aaios.start.9router_started_successfully", port=20128)
+        else:
+            _log.warning("aaios.start.9router_tray_failed_trying_direct")
+            if binary_path.lower().endswith((".cmd", ".bat")):
+                proc = await asyncio.create_subprocess_shell(
+                    f'"{binary_path}" -p 20128 -n',
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL
+                )
+            else:
+                proc = await asyncio.create_subprocess_exec(
+                    binary_path, "-p", "20128", "-n",
+                    stdout=asyncio.subprocess.DEVNULL,
+                    stderr=asyncio.subprocess.DEVNULL
+                )
+            await asyncio.sleep(1.0)
+            _log.info("aaios.start.9router_started_direct", port=20128)
+    except Exception as e:
+        _log.error("aaios.start.9router_launch_failed", error=str(e))
 
 
 async def boot_and_serve(
@@ -51,6 +165,9 @@ async def boot_and_serve(
     # 1. Logging
     init_logging(LoggingConfig(level="INFO", json_output=True))
     _log.info("aaios.start.beginning", host=host, port=port)
+
+    # Start 9router if configured/available
+    await _start_9router()
 
     # 2. Kernel boot
     from core.bootstrap import KernelConfig, boot_kernel
