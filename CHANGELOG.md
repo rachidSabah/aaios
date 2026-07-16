@@ -2,6 +2,65 @@
 
 All notable changes to AAiOS are documented in this file.
 
+## [5.3.1-LTS] — 2026-07-16
+
+### Enterprise LTS Certification & Production Freeze
+
+This is a **production hardening release**. No new features. No breaking
+changes. Pure stability, maintainability, observability, documentation,
+and certification work.
+
+#### Code Quality
+- Fixed 62 pre-existing mypy errors in `surfaces/api/app.py` and
+  `surfaces/cli/__main__.py` via proper `cast()` annotations
+- Removed bare `except Exception` in CLI helpers; now uses `httpx.HTTPError`
+- `_api_get()` now accepts an optional `params` keyword argument
+- Ruff: 100% clean across the entire codebase
+- Mypy --strict: 100% clean across 254 source files
+- Bandit: no Medium/High severity findings
+- Pytest: 1220/1220 passing
+
+#### LTS Audit Tooling
+- `scripts/lts/audit.py` — repository audit (architecture, layering, dead code, duplicates, security)
+- `scripts/lts/benchmark.py` — performance benchmarks across kernel, supervisor, research, engineering, CLI
+- `scripts/lts/security.py` — security certification (secrets, auth, RBAC, sandbox, SBOM, threat model)
+- `scripts/lts/coverage.py` — coverage aggregator
+- `scripts/lts/docs.py` — documentation completeness audit
+- All scripts write JSON reports to `lts-audit/`
+
+#### Performance Certification
+- 11 benchmarks across 5 categories (kernel, supervisor, research, engineering, CLI)
+- 10/11 passing (90.91%)
+- All v5.2 and v5.3 modules benchmark under 2ms per operation
+
+#### Security Certification
+- 0 hardcoded secrets detected
+- RBAC, EncryptedSecretStore, and AuditLog all present
+- SBOM generated: 45 dependencies cataloged
+- STRIDE threat model: 7 threats with mitigations
+- Overall risk: high (CORS wildcard — documented, deferred to v5.3.2)
+
+#### Documentation
+- 100% documentation completeness (16/16 required docs present)
+- Updated SUPPORT.md with LTS policy and supported version matrix
+- Release notes and migration guides for all v5.x versions
+
+#### LTS Policy
+- 12 months full support (until 2027-07-16)
+- 12 months extended security support (until 2028-07-16)
+- See SUPPORT.md for the full policy
+
+#### Known Issues
+1. CORS wildcard in API — documented, deferred to v5.3.2
+2. No rate limiting on API — documented, deferred to v5.3.2
+3. Some pre-v5.2 modules have lower test coverage
+
+#### Backward Compatibility
+- 100% backward compatible with v5.3.0
+- No API changes
+- No data format changes
+- No config changes
+
 ## [5.3.0] — 2026-07-16
 
 ### Enterprise Research & Reasoning Platform

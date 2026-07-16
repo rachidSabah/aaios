@@ -866,7 +866,7 @@ def create_app() -> FastAPI:
         engine = _get_learning_engine()
         try:
             record = await engine.get(UUID(experience_id))
-            return record.to_dict()
+            return cast("dict[str, Any]", record.to_dict())
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -885,18 +885,17 @@ def create_app() -> FastAPI:
             workflow_id=req.workflow_id,
         )
         stored = await engine.record(record)
-        return stored.to_dict()
+        return cast("dict[str, Any]", stored.to_dict())
 
     @app.post("/api/v1/experience/search", tags=["experience"])
     async def search_experiences(req: ExperienceSearchRequest) -> dict[str, Any]:
         engine = _get_learning_engine()
-        return await engine.search(req.query, search_type=req.search_type, limit=req.limit)
-
+        return cast("dict[str, Any]", await engine.search(req.query, search_type=req.search_type, limit=req.limit))
     @app.post("/api/v1/experience/{experience_id}/replay", tags=["experience"])
     async def replay_experience(experience_id: str, req: ExperienceReplayRequest) -> dict[str, Any]:
         engine = _get_learning_engine()
         result = await engine.replay(UUID(experience_id), mode=req.mode, comparison_agent_id=req.comparison_agent_id)
-        return result.to_dict()
+        return cast("dict[str, Any]", result.to_dict())
 
     @app.get("/api/v1/experience/export/{format}", tags=["experience"])
     async def export_experiences(format: str, agent_id: str | None = None, limit: int = 10000) -> dict[str, Any]:
@@ -910,7 +909,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/learning/stats", tags=["learning"])
     async def learning_stats() -> dict[str, Any]:
         engine = _get_learning_engine()
-        return (await engine.learning_stats()).to_dict()
+        return cast("dict[str, Any]", (await engine.learning_stats()).to_dict())
 
     @app.get("/api/v1/learning/trends", tags=["learning"])
     async def learning_trends(days: int = 30, bucket: str = "day") -> dict[str, Any]:
@@ -935,7 +934,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/learning/patterns", tags=["learning"])
     async def learning_patterns() -> dict[str, Any]:
         engine = _get_learning_engine()
-        return (await engine.discover_patterns()).to_dict()
+        return cast("dict[str, Any]", (await engine.discover_patterns()).to_dict())
 
     @app.get("/api/v1/learning/recommendations/{capability}", tags=["learning"])
     async def recommend_agent(capability: str) -> dict[str, Any]:
@@ -943,7 +942,7 @@ def create_app() -> FastAPI:
         rec = await engine.recommend_agent_for_capability(capability)
         if rec is None:
             raise HTTPException(status_code=404, detail=f"No experience data for capability '{capability}'")
-        return rec
+        return cast("dict[str, Any]", rec)
 
     # --- Mission & Organization endpoints (v3.0) ---
 
@@ -1006,13 +1005,13 @@ def create_app() -> FastAPI:
         mgr = _get_mission_manager()
         deadline = datetime.fromisoformat(req.deadline) if req.deadline else None
         mission = await mgr.create_mission(title=req.title, description=req.description, objectives=req.objectives, deliverables=req.deliverables, priority=req.priority, budget_total_usd=req.budget_total_usd, deadline=deadline, owner=req.owner, tags=req.tags, decompose=req.decompose, decomposition_strategy=req.decomposition_strategy)
-        return mission.to_dict()
+        return cast("dict[str, Any]", mission.to_dict())
 
     @app.get("/api/v1/missions/{mission_id}", tags=["missions"])
     async def get_mission(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
         try:
-            return (await mgr.get_mission(mission_id)).to_dict()
+            return cast("dict[str, Any]", (await mgr.get_mission(mission_id)).to_dict())
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -1034,7 +1033,7 @@ def create_app() -> FastAPI:
             changes["tags"] = req.tags
         if req.budget_total_usd is not None:
             changes["budget_total_usd"] = req.budget_total_usd
-        return (await mgr.update_mission(mission_id, changes)).to_dict()
+        return cast("dict[str, Any]", (await mgr.update_mission(mission_id, changes)).to_dict())
 
     @app.delete("/api/v1/missions/{mission_id}", tags=["missions"])
     async def delete_mission(mission_id: str) -> dict[str, Any]:
@@ -1045,7 +1044,7 @@ def create_app() -> FastAPI:
     async def start_mission(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
         try:
-            return (await mgr.start_mission(mission_id)).to_dict()
+            return cast("dict[str, Any]", (await mgr.start_mission(mission_id)).to_dict())
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -1053,7 +1052,7 @@ def create_app() -> FastAPI:
     async def pause_mission(mission_id: str, reason: str = "") -> dict[str, Any]:
         mgr = _get_mission_manager()
         try:
-            return (await mgr.pause_mission(mission_id, reason=reason)).to_dict()
+            return cast("dict[str, Any]", (await mgr.pause_mission(mission_id, reason=reason)).to_dict())
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -1061,7 +1060,7 @@ def create_app() -> FastAPI:
     async def resume_mission(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
         try:
-            return (await mgr.resume_mission(mission_id)).to_dict()
+            return cast("dict[str, Any]", (await mgr.resume_mission(mission_id)).to_dict())
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
@@ -1069,14 +1068,14 @@ def create_app() -> FastAPI:
     async def cancel_mission(mission_id: str, reason: str = "") -> dict[str, Any]:
         mgr = _get_mission_manager()
         try:
-            return (await mgr.cancel_mission(mission_id, reason=reason)).to_dict()
+            return cast("dict[str, Any]", (await mgr.cancel_mission(mission_id, reason=reason)).to_dict())
         except Exception as e:
             raise HTTPException(status_code=400, detail=str(e)) from e
 
     @app.post("/api/v1/missions/{mission_id}/replay", tags=["missions"])
     async def replay_mission(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
-        return (await mgr.replay_mission(mission_id)).to_dict()
+        return cast("dict[str, Any]", (await mgr.replay_mission(mission_id)).to_dict())
 
     @app.get("/api/v1/missions/{mission_id}/timeline", tags=["missions"])
     async def mission_timeline(mission_id: str) -> dict[str, Any]:
@@ -1087,8 +1086,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/missions/{mission_id}/analytics", tags=["missions"])
     async def mission_analytics_endpoint(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
-        return await mgr.get_mission_analytics(mission_id)
-
+        return cast("dict[str, Any]", await mgr.get_mission_analytics(mission_id))
     @app.get("/api/v1/missions/{mission_id}/artifacts", tags=["missions"])
     async def mission_artifacts(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
@@ -1098,13 +1096,12 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/missions/{mission_id}/graph", tags=["missions"])
     async def mission_graph_endpoint(mission_id: str) -> dict[str, Any]:
         mgr = _get_mission_manager()
-        return await mgr.get_mission_graph(mission_id)
-
+        return cast("dict[str, Any]", await mgr.get_mission_graph(mission_id))
     @app.post("/api/v1/missions/{mission_id}/wbs", tags=["missions"])
     async def add_wbs_node(mission_id: str, req: WBSNodeCreateRequest) -> dict[str, Any]:
         mgr = _get_mission_manager()
         node = await mgr.add_wbs_node(mission_id, req.node_type, title=req.title, description=req.description, parent_id=req.parent_id, depends_on=req.depends_on, capabilities_required=req.capabilities_required, assigned_agent_id=req.assigned_agent_id, assigned_provider=req.assigned_provider)
-        return node.to_dict()
+        return cast("dict[str, Any]", node.to_dict())
 
     @app.get("/api/v1/missions/{mission_id}/evaluate", tags=["missions"])
     async def evaluate_mission(mission_id: str) -> dict[str, Any]:
@@ -1115,7 +1112,7 @@ def create_app() -> FastAPI:
     @app.get("/api/v1/missions/portfolio/metrics", tags=["missions"])
     async def portfolio_metrics() -> dict[str, Any]:
         mgr = _get_mission_manager()
-        return (await mgr.get_portfolio_metrics()).to_dict()
+        return cast("dict[str, Any]", (await mgr.get_portfolio_metrics()).to_dict())
 
     @app.post("/api/v1/missions/search", tags=["missions"])
     async def search_missions(req: MissionSearchRequest) -> dict[str, Any]:
@@ -1139,7 +1136,7 @@ def create_app() -> FastAPI:
         """Get enterprise health score."""
         mgr = _get_intelligence_manager()
         health = await mgr.compute_health()
-        return health.to_dict()
+        return cast("dict[str, Any]", health.to_dict())
 
     @app.get("/api/v1/intelligence/forecast", tags=["intelligence"])
     async def intelligence_forecast() -> dict[str, Any]:
@@ -1216,21 +1213,20 @@ def create_app() -> FastAPI:
         """Get digital twin snapshot."""
         mgr = _get_intelligence_manager()
         twin = await mgr.digital_twin_snapshot()
-        return twin.to_dict()
+        return cast("dict[str, Any]", twin.to_dict())
 
     @app.get("/api/v1/intelligence/report/{report_type}", tags=["intelligence"])
     async def intelligence_report(report_type: str) -> dict[str, Any]:
         """Generate an intelligence report."""
         mgr = _get_intelligence_manager()
         report = await mgr.generate_report(report_type)
-        return report.to_dict()
+        return cast("dict[str, Any]", report.to_dict())
 
     @app.get("/api/v1/intelligence/all", tags=["intelligence"])
     async def intelligence_all() -> dict[str, Any]:
         """Get all intelligence data in one response."""
         mgr = _get_intelligence_manager()
-        return await mgr.get_all_intelligence()
-
+        return cast("dict[str, Any]", await mgr.get_all_intelligence())
     # --- Execution endpoints (v4.0) ---
 
     _execution_manager: Any = None
@@ -1275,7 +1271,7 @@ def create_app() -> FastAPI:
             tags=req.tags,
         )
         result = await mgr.execute(request)
-        return result.to_dict()
+        return cast("dict[str, Any]", result.to_dict())
 
     @app.get("/api/v1/execution", tags=["execution"])
     async def list_executions(
@@ -1294,7 +1290,7 @@ def create_app() -> FastAPI:
         mgr = _get_execution_manager()
         try:
             result = await mgr.get_status(execution_id)
-            return result.to_dict()
+            return cast("dict[str, Any]", result.to_dict())
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -1304,7 +1300,7 @@ def create_app() -> FastAPI:
         mgr = _get_execution_manager()
         try:
             result = await mgr.cancel(execution_id, reason=reason)
-            return result.to_dict()
+            return cast("dict[str, Any]", result.to_dict())
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -1357,7 +1353,7 @@ def create_app() -> FastAPI:
         mgr = _get_execution_manager()
         try:
             result = await mgr.replay(execution_id)
-            return result.to_dict()
+            return cast("dict[str, Any]", result.to_dict())
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -1367,7 +1363,7 @@ def create_app() -> FastAPI:
         mgr = _get_execution_manager()
         try:
             result = await mgr.rollback(execution_id)
-            return result.to_dict()
+            return cast("dict[str, Any]", result.to_dict())
         except Exception as e:
             raise HTTPException(status_code=404, detail=str(e)) from e
 
@@ -1393,8 +1389,7 @@ def create_app() -> FastAPI:
     async def cognitive_experience_stats() -> dict[str, Any]:
         """Get experience statistics."""
         mgr = _get_cognitive_manager()
-        return await mgr.experience_stats()
-
+        return cast("dict[str, Any]", await mgr.experience_stats())
     @app.get("/api/v1/cognitive/experience/timeline", tags=["cognitive"])
     async def cognitive_experience_timeline(limit: int = 50) -> dict[str, Any]:
         """Get experience timeline."""
@@ -1441,7 +1436,7 @@ def create_app() -> FastAPI:
     async def cognitive_knowledge_graph() -> dict[str, Any]:
         """Get knowledge graph snapshot."""
         mgr = _get_cognitive_manager()
-        return mgr.graph_snapshot()
+        return cast("dict[str, Any]", mgr.graph_snapshot())
 
     @app.get("/api/v1/cognitive/knowledge-graph/search", tags=["cognitive"])
     async def cognitive_kg_search(q: str) -> dict[str, Any]:
@@ -1454,7 +1449,7 @@ def create_app() -> FastAPI:
     async def cognitive_kg_impact(node_id: str) -> dict[str, Any]:
         """Impact analysis for a knowledge graph node."""
         mgr = _get_cognitive_manager()
-        return mgr.graph_impact_analysis(node_id)
+        return cast("dict[str, Any]", mgr.graph_impact_analysis(node_id))
 
     @app.get("/api/v1/cognitive/architecture", tags=["cognitive"])
     async def cognitive_architecture() -> dict[str, Any]:
@@ -1467,14 +1462,12 @@ def create_app() -> FastAPI:
     async def cognitive_repo_health() -> dict[str, Any]:
         """Get repository health report."""
         mgr = _get_cognitive_manager()
-        return await mgr.repo_health()
-
+        return cast("dict[str, Any]", await mgr.repo_health())
     @app.get("/api/v1/cognitive/reports/{report_type}", tags=["cognitive"])
     async def cognitive_report(report_type: str) -> dict[str, Any]:
         """Generate a cognitive report."""
         mgr = _get_cognitive_manager()
-        return await mgr.generate_report(report_type)
-
+        return cast("dict[str, Any]", await mgr.generate_report(report_type))
     @app.get("/api/v1/cognitive/reports/{report_type}/export/{format}", tags=["cognitive"])
     async def cognitive_report_export(report_type: str, format: str) -> dict[str, Any]:
         """Export a cognitive report."""
@@ -1486,8 +1479,7 @@ def create_app() -> FastAPI:
     async def cognitive_all() -> dict[str, Any]:
         """Get all cognitive data in one response."""
         mgr = _get_cognitive_manager()
-        return await mgr.get_all()
-
+        return cast("dict[str, Any]", await mgr.get_all())
     # --- Knowledge Platform endpoints (v5.1) ---
 
     _knowledge_platform: Any = None
@@ -1521,7 +1513,7 @@ def create_app() -> FastAPI:
         platform = _get_knowledge_platform()
         entry = KnowledgeEntry(**body)
         created = await platform.create_entry(entry)
-        return created.to_dict()
+        return cast("dict[str, Any]", created.to_dict())
 
     @app.get("/api/v1/knowledge/{entry_id}", tags=["knowledge"])
     async def knowledge_get(entry_id: str) -> dict[str, Any]:
@@ -1530,7 +1522,7 @@ def create_app() -> FastAPI:
         entry = await platform.get_entry(entry_id)
         if entry is None:
             raise HTTPException(status_code=404, detail="Entry not found")
-        return entry.to_dict()
+        return cast("dict[str, Any]", entry.to_dict())
 
     @app.get("/api/v1/knowledge/{entry_id}/versions", tags=["knowledge"])
     async def knowledge_versions(entry_id: str) -> dict[str, Any]:
@@ -1563,14 +1555,12 @@ def create_app() -> FastAPI:
             workspace_id=body.get("workspace_id"),
             include_citations=body.get("include_citations", True),
         )
-        return await platform.rag(request)
-
+        return cast("dict[str, Any]", await platform.rag(request))
     @app.get("/api/v1/knowledge/graph", tags=["knowledge"])
     async def knowledge_graph() -> dict[str, Any]:
         """Get knowledge graph snapshot."""
         platform = _get_knowledge_platform()
-        return await platform.graph_snapshot()
-
+        return cast("dict[str, Any]", await platform.graph_snapshot())
     @app.get("/api/v1/knowledge/graph/search", tags=["knowledge"])
     async def knowledge_graph_search(q: str) -> dict[str, Any]:
         """Search the knowledge graph."""
@@ -1582,8 +1572,7 @@ def create_app() -> FastAPI:
     async def knowledge_graph_impact(node_id: str) -> dict[str, Any]:
         """Impact analysis for a graph node."""
         platform = _get_knowledge_platform()
-        return await platform.graph_impact(node_id)
-
+        return cast("dict[str, Any]", await platform.graph_impact(node_id))
     @app.get("/api/v1/knowledge/collections", tags=["knowledge"])
     async def knowledge_collections(workspace_id: str | None = None) -> dict[str, Any]:
         """List knowledge collections."""
@@ -1602,14 +1591,12 @@ def create_app() -> FastAPI:
     async def knowledge_stats() -> dict[str, Any]:
         """Get knowledge platform statistics."""
         platform = _get_knowledge_platform()
-        return await platform.stats()
-
+        return cast("dict[str, Any]", await platform.stats())
     @app.get("/api/v1/knowledge/memory", tags=["knowledge"])
     async def knowledge_memory_stats() -> dict[str, Any]:
         """Get memory platform statistics."""
         platform = _get_knowledge_platform()
-        return await platform.memory_stats()
-
+        return cast("dict[str, Any]", await platform.memory_stats())
     @app.post("/api/v1/knowledge/memory", tags=["knowledge"])
     async def knowledge_memory_store(body: dict[str, Any]) -> dict[str, Any]:
         """Store a memory record."""
@@ -1617,7 +1604,7 @@ def create_app() -> FastAPI:
         platform = _get_knowledge_platform()
         record = MemoryRecord(**body)
         stored = await platform.store_memory(record)
-        return stored.to_dict()
+        return cast("dict[str, Any]", stored.to_dict())
 
     @app.post("/api/v1/knowledge/memory/search", tags=["knowledge"])
     async def knowledge_memory_search(body: dict[str, Any]) -> dict[str, Any]:
@@ -1692,7 +1679,7 @@ def create_app() -> FastAPI:
         engine = _get_knowledge_intelligence()
         await engine.ingest_entries(entries)
         report = await engine.quality_report()
-        return report.to_dict()
+        return cast("dict[str, Any]", report.to_dict())
 
     @app.get("/api/v1/knowledge/insights", tags=["knowledge"])
     async def knowledge_insights() -> dict[str, Any]:
@@ -1719,7 +1706,7 @@ def create_app() -> FastAPI:
             retries=body.get("retries", 0),
             feedback=body.get("feedback"),
         )
-        return lesson.to_dict()
+        return cast("dict[str, Any]", lesson.to_dict())
 
     @app.get("/api/v1/knowledge/lessons", tags=["knowledge"])
     async def knowledge_lessons(
@@ -1754,14 +1741,13 @@ def create_app() -> FastAPI:
     async def knowledge_learning_stats() -> dict[str, Any]:
         """Get learning statistics."""
         engine = _get_autonomous_learning()
-        return await engine.stats()
-
+        return cast("dict[str, Any]", await engine.stats())
     @app.get("/api/v1/repository/analyze", tags=["repository"])
     async def repository_analyze() -> dict[str, Any]:
         """Analyze the repository."""
         engine = _get_repo_intelligence()
         analysis = await engine.analyze()
-        return analysis.to_dict()
+        return cast("dict[str, Any]", analysis.to_dict())
 
     @app.get("/api/v1/repository/health", tags=["repository"])
     async def repository_health() -> dict[str, Any]:
@@ -1786,7 +1772,7 @@ def create_app() -> FastAPI:
             body.get("file_path", ""),
             body.get("content", ""),
         )
-        return result.to_dict()
+        return cast("dict[str, Any]", result.to_dict())
 
     @app.get("/api/v1/knowledge/validate", tags=["knowledge"])
     async def knowledge_validate() -> dict[str, Any]:
@@ -1817,8 +1803,7 @@ def create_app() -> FastAPI:
     async def engineering_repo_analyze() -> dict[str, Any]:
         """Analyze the repository."""
         mgr = _get_engineering_manager()
-        return await mgr.analyze_repository()
-
+        return cast("dict[str, Any]", await mgr.analyze_repository())
     @app.get("/api/v1/engineering/repository/discover", tags=["engineering"])
     async def engineering_repo_discover() -> dict[str, Any]:
         """Discover repositories."""
@@ -1830,7 +1815,7 @@ def create_app() -> FastAPI:
     async def engineering_code_analyze(body: dict[str, Any]) -> dict[str, Any]:
         """Analyze a source file."""
         mgr = _get_engineering_manager()
-        return await mgr.analyze_file(body.get("file_path", ""))
+        return cast("dict[str, Any]", await mgr.analyze_file(body.get("file_path", "")))
 
     @app.get("/api/v1/engineering/architecture/recommendations", tags=["engineering"])
     async def engineering_arch_recs() -> dict[str, Any]:
@@ -1853,7 +1838,7 @@ def create_app() -> FastAPI:
         agent = mgr.get_engineering_agent(agent_id)
         if agent is None:
             raise HTTPException(status_code=404, detail="Agent not found")
-        return agent
+        return cast("dict[str, Any]", agent)
 
     @app.post("/api/v1/engineering/agents/select", tags=["engineering"])
     async def engineering_agent_select(body: dict[str, Any]) -> dict[str, Any]:
@@ -1866,7 +1851,7 @@ def create_app() -> FastAPI:
         )
         if agent is None:
             raise HTTPException(status_code=404, detail="No matching agent found")
-        return agent
+        return cast("dict[str, Any]", agent)
 
     @app.get("/api/v1/engineering/capabilities", tags=["engineering"])
     async def engineering_capabilities() -> dict[str, Any]:
@@ -1879,8 +1864,7 @@ def create_app() -> FastAPI:
     async def engineering_cap_stats() -> dict[str, Any]:
         """Get capability statistics."""
         mgr = _get_engineering_manager()
-        return await mgr.capability_stats()
-
+        return cast("dict[str, Any]", await mgr.capability_stats())
     @app.get("/api/v1/engineering/workspaces", tags=["engineering"])
     async def engineering_workspaces() -> dict[str, Any]:
         """List engineering workspaces."""
@@ -1892,17 +1876,16 @@ def create_app() -> FastAPI:
     async def engineering_create_workspace(body: dict[str, Any]) -> dict[str, Any]:
         """Create an engineering workspace."""
         mgr = _get_engineering_manager()
-        return await mgr.create_workspace(
+        return cast("dict[str, Any]", await mgr.create_workspace(
             body.get("name", ""),
             body.get("repo_paths", []),
-        )
+        ))
 
     @app.get("/api/v1/engineering/overview", tags=["engineering"])
     async def engineering_overview() -> dict[str, Any]:
         """Get engineering overview."""
         mgr = _get_engineering_manager()
-        return await mgr.get_overview()
-
+        return cast("dict[str, Any]", await mgr.get_overview())
     # --- Engineering Intelligence endpoints (v5.2 Part 1B-1) ---
 
     _planning_engine: Any = None

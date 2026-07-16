@@ -47,17 +47,18 @@ def _version() -> str:
         return "0.1.0.dev0 (dev)"
 
 
-def _api_get(path: str) -> dict[str, Any]:
+def _api_get(path: str, *, params: dict[str, str] | None = None) -> dict[str, Any]:
     """Make a GET request to the local API server."""
     import httpx
 
     try:
-        resp = httpx.get(f"http://127.0.0.1:8000{path}", timeout=5.0)
+        url = f"http://127.0.0.1:8000{path}"
+        resp = httpx.get(url, params=params, timeout=5.0)
         resp.raise_for_status()
-        data: dict[str, Any] = resp.json()
+        data: dict[str, Any] = dict(resp.json())
         return data
-    except Exception as e:
-        return {"error": str(e)}
+    except httpx.HTTPError as exc:
+        return {"error": str(exc)}
 
 
 def _api_post(path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
@@ -67,10 +68,10 @@ def _api_post(path: str, body: dict[str, Any] | None = None) -> dict[str, Any]:
     try:
         resp = httpx.post(f"http://127.0.0.1:8000{path}", json=body or {}, timeout=10.0)
         resp.raise_for_status()
-        data: dict[str, Any] = resp.json()
+        data: dict[str, Any] = dict(resp.json())
         return data
-    except Exception as e:
-        return {"error": str(e)}
+    except httpx.HTTPError as exc:
+        return {"error": str(exc)}
 
 
 # ---------------------------------------------------------------------------
@@ -789,7 +790,7 @@ def learning_analyze() -> None:
 def learning_agents(limit: int = typer.Option(10, "--limit")) -> None:
     """Rank agents by reliability."""
     try:
-        data = _api_get("/api/v1/learning/agents", params={"limit": limit})
+        data = _api_get("/api/v1/learning/agents", params={"limit": str(limit)})
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
@@ -824,7 +825,7 @@ def learning_agents(limit: int = typer.Option(10, "--limit")) -> None:
 def learning_providers(limit: int = typer.Option(10, "--limit")) -> None:
     """Rank providers by reliability."""
     try:
-        data = _api_get("/api/v1/learning/providers", params={"limit": limit})
+        data = _api_get("/api/v1/learning/providers", params={"limit": str(limit)})
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
@@ -1417,16 +1418,16 @@ def exec_list(
     table.add_column("Status", style="green")
     table.add_column("Duration", style="yellow")
     table.add_column("Error", style="red")
-    for e in execs:
-        st = e.get("status", "")
+    for ex in execs:
+        st = ex.get("status", "")
         color = "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
         table.add_row(
-            str(e.get("execution_id", ""))[:8],
-            e.get("domain", ""),
-            e.get("action", ""),
+            str(ex.get("execution_id", ""))[:8],
+            ex.get("domain", ""),
+            ex.get("action", ""),
             f"[{color}]{st}[/{color}]",
-            f"{e.get('duration_s', 0):.2f}s",
-            str(e.get("error", ""))[:30],
+            f"{ex.get('duration_s', 0):.2f}s",
+            str(ex.get("error", ""))[:30],
         )
     console.print(table)
 

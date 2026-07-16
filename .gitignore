@@ -37,6 +37,8 @@ ENV/
 .cache
 nosetests.xml
 coverage.xml
+coverage/
+lts-audit/
 *.cover
 *.py,cover
 .hypothesis/

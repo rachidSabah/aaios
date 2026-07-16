@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "aaios"
-version = "5.3.0"
+version = "5.3.1"
 description = "Agentic AI Operating System — a Windows-first, modular runtime for orchestrating generic AI agents."
 readme = "README.md"
 license = "Apache-2.0"
@@ -221,7 +221,7 @@ ignore = [
 
 [tool.ruff.lint.per-file-ignores]
 "tests/**" = ["S", "D", "PLR2004"]            # tests can use asserts, magic values
-"scripts/**" = ["S", "D"]
+"scripts/**" = ["S", "D", "PLR0912", "C901"]  # audit scripts: complex analysis
 "surfaces/web/**" = []
 "surfaces/cli/**" = ["B008", "PLR0912"]                   # typer.Option in defaults is the standard pattern
 "services/execution/handlers.py" = ["PLR0912", "S310", "ASYNC210", "ASYNC230"]  # git branches, urllib, file I/O
