@@ -140,6 +140,54 @@ async def _start_9router() -> None:
         _log.error("aaios.start.9router_launch_failed", error=str(e))
 
 
+async def _start_web_ui() -> None:
+    """Check if Next.js Web UI is running. If not, start it in the background."""
+    import socket
+    import shutil
+    from pathlib import Path
+
+    # 1. Check if already running on port 3000
+    is_running = False
+    try:
+        with socket.create_connection(("127.0.0.1", 3000), timeout=0.5):
+            is_running = True
+    except Exception:
+        pass
+
+    if is_running:
+        _log.info("aaios.start.web_ui_already_running", port=3000)
+        return
+
+    # 2. Find pnpm binary
+    pnpm_path = shutil.which("pnpm")
+    if not pnpm_path:
+        _log.warning("aaios.start.pnpm_not_found", msg="pnpm binary not found. Skipping web UI startup.")
+        return
+
+    # 3. Start Next.js dev server in the background
+    app_root = Path(__file__).parent.parent.resolve()
+    _log.info("aaios.start.starting_web_ui", root=str(app_root), binary=pnpm_path)
+
+    try:
+        if pnpm_path.lower().endswith((".cmd", ".bat")):
+            proc = await asyncio.create_subprocess_shell(
+                f'"{pnpm_path}" --filter @aaios/web dev',
+                cwd=str(app_root),
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+        else:
+            proc = await asyncio.create_subprocess_exec(
+                pnpm_path, "--filter", "@aaios/web", "dev",
+                cwd=str(app_root),
+                stdout=asyncio.subprocess.DEVNULL,
+                stderr=asyncio.subprocess.DEVNULL
+            )
+        _log.info("aaios.start.web_ui_started_background", pid=proc.pid)
+    except Exception as e:
+        _log.error("aaios.start.web_ui_launch_failed", error=str(e))
+
+
 async def boot_and_serve(
     *,
     host: str = "127.0.0.1",
@@ -168,6 +216,9 @@ async def boot_and_serve(
 
     # Start 9router if configured/available
     await _start_9router()
+
+    # Start Web UI (Next.js Dashboard) if available
+    await _start_web_ui()
 
     # 2. Kernel boot
     from core.bootstrap import KernelConfig, boot_kernel
@@ -380,15 +431,22 @@ async def boot_and_serve(
     server = uvicorn.Server(config)
 
     async def _open_browser_when_ready() -> None:
-        """Wait for uvicorn to be ready, then open both dashboards."""
+        """Wait for uvicorn to be ready, then open dashboards."""
         await asyncio.sleep(2.0)
         import webbrowser
         try:
-            # Open 9router dashboard first
+            # Open Next.js Web Dashboard
+            webbrowser.open("http://localhost:3000")
+            # Open 9router dashboard
             webbrowser.open("http://localhost:20128")
             # Then open AAiOS API docs
             webbrowser.open(f"http://{host}:{port}/docs")
-            _log.info("aaios.start.browser_opened", router_url="http://localhost:20128", api_url=f"http://{host}:{port}/docs")
+            _log.info(
+                "aaios.start.browser_opened",
+                dashboard_url="http://localhost:3000",
+                router_url="http://localhost:20128",
+                api_url=f"http://{host}:{port}/docs"
+            )
         except Exception as e:
             _log.warning("aaios.start.browser_open_failed", error=str(e))
 
