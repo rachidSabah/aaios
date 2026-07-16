@@ -1,0 +1,7 @@
+{
+  "LTS": {
+    "start": "2026-07-16",
+    "end": "2028-07-16",
+    "policy": "Security updates and patch fixes only"
+  }
+}

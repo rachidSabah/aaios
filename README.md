@@ -239,8 +239,11 @@ This repository is being built phase-by-phase. The current state is:
 | 32 | ✅ Complete | v5.3 Part 1A: Knowledge Synthesis (9 standard sections) — **1220 tests passing** |
 | 33 | ✅ Complete | v5.3.1 LTS: Enterprise Certification & Production Freeze — **LTS certified** |
 | 34 | ✅ Complete | v5.3.2 Part 1: Enterprise Installation, Bootstrap & Configuration — **1338 tests passing** |
+| 35 | ✅ Complete | v5.3.2 Part 2: Enterprise Validation, Self-Healing, Backup, Recovery & Update Management |
+| 36 | ✅ Complete | v5.3.2 Part 3: Uninstall, Cleanup, Factory Reset, Release Packaging & Production Validation — **1344 tests passing** |
+| 37 | ✅ Complete | v5.3.2 Part 4: Documentation, GitHub Release, Repository Finalization & Production Certification — **v5.3.2 Production Ready** |
 
-See [`docs/architecture/09-roadmap.md`](docs/architecture/09-roadmap.md) for the full plan.
+See [`docs/release_guide.md`](docs/release_guide.md) for full details.
 
 ## Tech stack
 

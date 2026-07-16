@@ -1,0 +1,18 @@
+{
+  "timestamp": "2026-07-16T16:20:12.964201Z",
+  "cold_boot_ms": 184.0059000533074,
+  "warm_boot_ms": 0.000100000761449337,
+  "memory_usage_mb": 77.6328125,
+  "cpu_usage_pct": 22.2,
+  "startup_latency_ms": 184.00600005406886,
+  "agent_startup_ms": 45.0,
+  "provider_latency_ms": 120.0,
+  "memory_latency_ms": 5.342300049960613,
+  "database_latency_ms": 4.25556099973619,
+  "workflow_throughput": 85.5,
+  "task_throughput": 145.0,
+  "optimization_suggestions": [
+    "Database writes are performing optimally (<5ms).",
+    "Memory footprint is within safe boundaries (<500MB)."
+  ]
+}

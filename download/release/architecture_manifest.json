@@ -1,0 +1,8 @@
+{
+  "style": "Decoupled Monolith / Modular layers",
+  "invariants": [
+    "INV-01: Core does not import from surfaces/cli or services",
+    "INV-02: Services import strictly standard API models",
+    "INV-03: Surfaces interact strictly via dynamic service facades"
+  ]
+}

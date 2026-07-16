@@ -1,0 +1,21 @@
+{
+  "compliant": [
+    "CTRL-INSTALL",
+    "CTRL-UPGRADE",
+    "CTRL-REPAIR",
+    "CTRL-BACKUP",
+    "CTRL-RESTORE",
+    "CTRL-RESET",
+    "CTRL-DASHBOARD",
+    "CTRL-CLI",
+    "CTRL-MEMORY",
+    "CTRL-MISSION",
+    "CTRL-WORKFLOW",
+    "CTRL-SECURITY",
+    "CTRL-PLATFORM"
+  ],
+  "non_compliant": [
+    "CTRL-API"
+  ],
+  "is_certified": false
+}

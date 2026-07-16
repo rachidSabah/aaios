@@ -1,0 +1,7 @@
+{
+  "platforms": {
+    "windows_11": "Full native compatibility",
+    "ubuntu_linux": "WSL2 or standard host compatibility",
+    "docker": "Isolated container builds"
+  }
+}

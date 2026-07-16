@@ -161,7 +161,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="AAiOS API",
         description="Agentic AI Operating System — REST + WebSocket API",
-        version="0.1.0.dev0",
+        version="5.3.2",
         docs_url="/docs",
         redoc_url="/redoc",
     )
@@ -180,7 +180,7 @@ def create_app() -> FastAPI:
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, Any]:
         """Liveness probe."""
-        return {"status": "ok", "version": "0.1.0.dev0", "timestamp": datetime.now(UTC).isoformat()}
+        return {"status": "ok", "version": "5.3.2", "timestamp": datetime.now(UTC).isoformat()}
 
     @app.get("/readyz", tags=["health"])
     async def readyz() -> dict[str, Any]:

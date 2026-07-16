@@ -1,0 +1,22 @@
+{
+  "release": "v5.3.2",
+  "components": {
+    "kernel": "core.bootstrap",
+    "api": "surfaces.api",
+    "cli": "surfaces.cli",
+    "services": [
+      "services.doctor",
+      "services.self_healing",
+      "services.backup",
+      "services.update",
+      "services.validator",
+      "services.monitoring",
+      "services.uninstall",
+      "services.reset",
+      "services.cleanup",
+      "services.packaging",
+      "services.certify",
+      "services.benchmark"
+    ]
+  }
+}

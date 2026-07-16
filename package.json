@@ -1,6 +1,6 @@
 {
   "name": "aaios-monorepo",
-  "version": "0.1.0-dev",
+  "version": "5.3.2",
   "private": true,
   "description": "Agentic AI Operating System — monorepo root (pnpm workspace).",
   "license": "Apache-2.0",

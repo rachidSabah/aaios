@@ -1,0 +1,8 @@
+AAiOS v5.3.2 Dependency Tree
+├── fastapi (0.115.14)
+├── pydantic (2.10.0)
+│   └── pydantic-core (2.27.2)
+├── uvicorn (0.34.0)
+├── typer (0.15.1)
+├── rich (13.9.4)
+└── cryptography (44.0.0)
