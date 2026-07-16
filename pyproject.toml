@@ -113,7 +113,7 @@ neo4j = [
 ]
 
 [project.scripts]
-aaios = "aaios.surfaces.cli.__main__:main"
+aaios = "surfaces.cli.__main__:main"
 
 [project.urls]
 Homepage = "https://github.com/rachidSabah/aaios"
