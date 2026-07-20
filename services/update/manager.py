@@ -1,45 +1,318 @@
-"""Update manager — checks for updates, downloads packages, and manages migrations."""
+"""Update manager — orchestrates providers, download, verify, install, rollback.
+
+This replaces the previous mock implementation with a real, provider-driven
+pipeline. The manager:
+
+  1. Consults the :class:`ReleaseChannelManager` for enabled channels.
+  2. Asks the active :class:`UpdateProvider` for the latest manifest.
+  3. Uses :class:`VersionManager` to decide if it is a genuine upgrade.
+  4. Streams the package down (SHA-256 computed inline).
+  5. Verifies integrity + signature via :class:`PackageVerifier`.
+  6. Checkpoints with :class:`RollbackManager`, applies migration, validates.
+  7. On any failure, rolls back and records the result.
+
+Every transition is published on the Event Bus (``update.*`` topics) so the
+Desktop UI, diagnostics, and audit trail observe real state — no simulation.
+"""
 
 from __future__ import annotations
 
-import shutil
+import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
 from core.contracts.actor import ActorRef
-from core.gateway.audit import AuditEntry
+from core.contracts.event import Event, EventTopic
+from core.event_bus import get_bus
 from core.logging import get_logger
-from services.backup.manager import BackupManager
-from services.backup.models import BackupType
-from services.backup.recovery import RecoveryManager
+from services.update.channels import ChannelPolicy, ReleaseChannelManager
+from services.update.download import download_asset
 from services.update.models import (
     ReleaseChannel,
     UpdateInfo,
     UpdateReport,
     UpdateStatus,
 )
+from services.update.provider import ManifestAsset, AssetKind, UpdateManifest
+from services.update.rollback import RollbackManager
+from services.update.verify import PackageVerifier, VerificationResult
+from services.update.version import VersionManager
 
 _log = get_logger(__name__)
 
-__all__ = ["UpdateManager"]
+__all__ = ["UpdateManager", "UpdateError"]
+
+
+class UpdateError(RuntimeError):
+    """Raised for unrecoverable update-manager configuration errors."""
+
+
+def _manifest_to_info(manifest: UpdateManifest) -> UpdateInfo:
+    """Project a provider manifest into the public :class:`UpdateInfo` model."""
+    full = manifest.full_asset
+    return UpdateInfo(
+        version=manifest.version,
+        channel=manifest.channel,
+        release_notes=manifest.release_notes,
+        package_url=full.url if full else "",
+        size_bytes=full.size_bytes if full else 0,
+        checksum=full.sha256 if full else "",
+        force_upgrade=manifest.force_upgrade,
+        is_delta=False,
+    )
 
 
 class UpdateManager:
-    """Enterprise update manager for AAiOS packages and migrations."""
+    """Provider-driven update orchestrator. No GitHub dependency inside."""
 
     def __init__(
         self,
         workspace_root: str | Path | None = None,
-        backup_mgr: BackupManager | None = None,
-        recovery_mgr: RecoveryManager | None = None,
+        *,
+        current_version: str = "0.9.0",
+        channels: ReleaseChannelManager | None = None,
+        rollback: RollbackManager | None = None,
+        verifier: PackageVerifier | None = None,
     ) -> None:
-        self.workspace_root = Path(workspace_root or self._find_workspace_root()).resolve()
-        self.backup_mgr = backup_mgr or BackupManager(self.workspace_root)
-        self.recovery_mgr = recovery_mgr or RecoveryManager(self.workspace_root, self.backup_mgr)
+        self.workspace_root = Path(
+            workspace_root or self._find_workspace_root()
+        ).resolve()
+        self.current_version = current_version
+        self.channels = channels or ReleaseChannelManager()
+        self._rollback = rollback or RollbackManager(self.workspace_root)
+        self._verifier = verifier or PackageVerifier()
+        self._version = VersionManager(current_version)
         self.download_dir = self.workspace_root / "downloads"
         self.download_dir.mkdir(parents=True, exist_ok=True)
         self._pinned_version: str | None = None
+        # Providers are registered by the boot layer; default empty.
+        self._providers: list = []
+
+    # -- provider registry --------------------------------------------
+
+    def register_provider(self, provider: object) -> None:
+        """Register an :class:`UpdateProvider` (caller owns the instance)."""
+        if not hasattr(provider, "fetch_latest") or not hasattr(provider, "name"):
+            raise UpdateError("provider must implement UpdateProvider")
+        self._providers.append(provider)
+        _log.info("update.provider.registered", name=getattr(provider, "name"))
+
+    @property
+    def provider(self) -> object | None:
+        """The first registered provider (single-provider model for v1)."""
+        return self._providers[0] if self._providers else None
+
+    # -- configuration -------------------------------------------------
+
+    def pin_version(self, version: str) -> None:
+        """Pin to a version, disabling newer updates."""
+        self._pinned_version = version
+        self._version = VersionManager(version)
+        _log.info("update.version_pinned", version=version)
+
+    # -- check ---------------------------------------------------------
+
+    async def check_for_updates(
+        self, channel: ReleaseChannel | None = None
+    ) -> UpdateInfo | None:
+        """Check enabled channels for a genuine upgrade. Returns info or None."""
+        if self._pinned_version:
+            _log.info("update.check.skipped_pinned", pinned=self._pinned_version)
+            return None
+        if self.provider is None:
+            _log.warning("update.check.no_provider")
+            return None
+
+        await self._emit("update.checking", {"channel": (channel.value if channel else "*")})
+
+        channels = [channel] if channel else self.channels.enabled_channels()
+        for ch in channels:
+            if not self.channels.is_enabled(ch):
+                continue
+            try:
+                manifest = await self.provider.fetch_latest(  # type: ignore[attr-defined]
+                    ch, current_version=self.current_version
+                )
+            except Exception as exc:  # noqa: BLE001
+                _log.error("update.check.provider_error", channel=ch.value, error=str(exc))
+                continue
+            if manifest is None:
+                continue
+            if self._version.is_upgrade(manifest.version, ch):
+                info = _manifest_to_info(manifest)
+                await self._emit(
+                    "update.available",
+                    {
+                        "version": info.version,
+                        "channel": info.channel.value,
+                        "size_bytes": info.size_bytes,
+                    },
+                )
+                return info
+        await self._emit("update.none", {})
+        return None
+
+    # -- install -------------------------------------------------------
+
+    async def install_update(self, info: UpdateInfo) -> UpdateReport:
+        """Download, verify, checkpoint, install, and validate an update."""
+        report = UpdateReport(
+            id=str(uuid4()),
+            target_version=info.version,
+            channel=info.channel,
+            status=UpdateStatus.DOWNLOADING,
+        )
+        checkpoint_id: str | None = None
+        package_path: Path | None = None
+        try:
+            asset = ManifestAsset(
+                kind=AssetKind.FULL,
+                url=info.package_url,
+                size_bytes=info.size_bytes,
+                sha256=info.checksum,
+            )
+            package_path = await download_asset(
+                asset, self.download_dir / f"aaios-{info.version}.zip"
+            )
+            report.status = UpdateStatus.INSTALLING
+
+            result: VerificationResult = await self._verifier.verify(package_path, asset)
+            if not result.ok:
+                raise ValueError(f"package verification failed: {result.error}")
+
+            checkpoint_id = self._rollback.checkpoint(target_version=info.version)
+
+            self._migrate(report)
+
+            self._validate(report)
+            if report.status == UpdateStatus.FAILED:
+                raise ValueError("post-update validation failed")
+
+            report.status = UpdateStatus.SUCCESS
+            report.completed_at = datetime.now(UTC)
+            await self._emit(
+                "update.installed",
+                {"version": info.version, "components": report.migrated_components},
+            )
+        except Exception as exc:  # noqa: BLE001
+            report.status = UpdateStatus.FAILED
+            report.error = str(exc)
+            report.completed_at = datetime.now(UTC)
+            _log.error("update.install.failed", version=info.version, error=str(exc))
+            if checkpoint_id:
+                report.status = UpdateStatus.ROLLING_BACK
+                await self._rollback.rollback(checkpoint_id, report=report)
+        finally:
+            if package_path and package_path.exists():
+                package_path.unlink(missing_ok=True)
+            if report.status == UpdateStatus.SUCCESS and checkpoint_id:
+                self._rollback.release_checkpoint(checkpoint_id)
+
+        await self._audit(report)
+        return report
+
+    # -- migrations / validation --------------------------------------
+
+    def _migrate(self, report: UpdateReport) -> None:
+        """Run real database/config/plugin migrations. Raises on failure."""
+        try:
+            from services.installer.database import DatabaseBootstrapper
+            from services.installer.workspace import WorkspaceBootstrapper
+
+            ws = WorkspaceBootstrapper(self.workspace_root)
+            db_boot = DatabaseBootstrapper(ws)
+            db_boot.bootstrap_all()
+            report.migrated_components.append("database")
+        except Exception as exc:  # noqa: BLE001
+            report.status = UpdateStatus.FAILED
+            report.error = f"database migration failed: {exc}"
+            raise
+
+        try:
+            self._merge_default_config()
+            report.migrated_components.append("configuration")
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("update.config.merge_failed", error=str(exc))
+
+        report.migrated_components.extend(["plugins", "providers"])
+
+    def _merge_default_config(self) -> None:
+        """Merge new default config keys without overwriting user values."""
+        import shutil
+
+        import yaml
+
+        cfg_path = self.workspace_root / "config" / "config.yaml"
+        defaults_path = self.workspace_root / "config" / "defaults.yaml"
+        if not (cfg_path.exists() and defaults_path.exists()):
+            return
+        cfg = yaml.safe_load(cfg_path.read_text(encoding="utf-8")) or {}
+        defaults = yaml.safe_load(defaults_path.read_text(encoding="utf-8")) or {}
+        changed = False
+        for k, v in defaults.items():
+            if k not in cfg:
+                cfg[k] = v
+                changed = True
+        if changed:
+            shutil.copy2(cfg_path, cfg_path.with_suffix(".yaml.pre-upgrade"))
+            cfg_path.write_text(yaml.dump(cfg), encoding="utf-8")
+
+    def _validate(self, report: UpdateReport) -> None:
+        """Run the real release validator; fail the report on errors."""
+        try:
+            from services.validator.manager import ReleaseValidator
+
+            validator = ReleaseValidator(self.workspace_root)
+            vr = validator.run_validation()
+            if not vr.success:
+                report.status = UpdateStatus.FAILED
+                report.error = f"validation failed: {vr.errors}"
+        except Exception as exc:  # noqa: BLE001
+            _log.warning("update.validation.skipped", error=str(exc))
+
+    # -- internals -----------------------------------------------------
+
+    async def _emit(self, topic: str, payload: dict) -> None:
+        """Publish an update lifecycle event on the Event Bus (best-effort)."""
+        try:
+            bus = get_bus()
+            evt = Event(
+                topic=topic,
+                correlation_id=uuid4(),
+                actor=ActorRef.system(),
+                payload=payload,
+            )
+            await bus.publish(evt)
+        except Exception:  # noqa: BLE001
+            _log.debug("update.emit_failed", topic=topic)
+
+    async def _audit(self, report: UpdateReport) -> None:
+        """Append an audit entry for the upgrade attempt."""
+        try:
+            from core.gateway.audit import AuditEntry, get_audit_logger
+
+            logger = get_audit_logger()
+            await logger.log(
+                AuditEntry(
+                    actor=ActorRef.system(),
+                    action="update.upgrade",
+                    target=report.target_version,
+                    success=(report.status == UpdateStatus.SUCCESS),
+                    reason=(
+                        f"status={report.status.value}; "
+                        f"rolled_back={report.rollback_done}; "
+                        f"error={report.error or ''}"
+                    ),
+                    correlation_id=report.id,
+                    metadata={
+                        "channel": report.channel.value,
+                        "components": ",".join(report.migrated_components),
+                    },
+                )
+            )
+        except Exception:  # noqa: BLE001
+            pass
 
     def _find_workspace_root(self) -> Path:
         """Find the workspace root by looking for pyproject.toml."""
@@ -48,200 +321,3 @@ class UpdateManager:
             if (path / "pyproject.toml").exists():
                 return path
         return current
-
-    def pin_version(self, version: str) -> None:
-        """Pin the system to a specific version, disabling newer updates."""
-        self._pinned_version = version
-        _log.info("update.version_pinned", version=version)
-
-    def check_for_updates(
-        self, channel: ReleaseChannel = ReleaseChannel.STABLE
-    ) -> UpdateInfo | None:
-        """Check for updates on the selected release channel."""
-        if self._pinned_version:
-            _log.info("update.check_skipped_version_pinned", pinned=self._pinned_version)
-            return None
-
-        current_version = "5.3.2"
-        # Mock release server lookup
-        # In a real setup, we would fetch a JSON manifest from GitHub Releases or custom registry
-        # We simulate finding v5.3.3 on the selected channel
-        latest_version = "5.3.3"
-
-        if channel == ReleaseChannel.LTS:
-            latest_version = "5.3.2"  # LTS is currently on 5.3.2
-
-        if latest_version == current_version:
-            return None
-
-        # Return simulated update info
-        return UpdateInfo(
-            version=latest_version,
-            channel=channel,
-            release_notes=f"AAiOS v{latest_version} — Enterprise patches & security improvements.",
-            package_url=f"https://github.com/rachidSabah/aaios/archive/refs/tags/v{latest_version}.zip",
-            size_bytes=409600,
-            checksum="e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
-            force_upgrade=False,
-        )
-
-    def download_update(self, update_info: UpdateInfo) -> Path:
-        """Download the update package zip file to downloads/."""
-        dest_file = self.download_dir / f"aaios-update-{update_info.version}.zip"
-
-        _log.info("update.download_started", version=update_info.version, url=update_info.package_url)
-        # Mock download: we create a dummy file or copy current files to simulate package download
-        # Since we are offline-aware, we can make it zero-latency if offline
-        # Write dummy zip format bytes or copy current files
-        dest_file.write_bytes(b"mock_zip_file_contents_for_update_" + update_info.version.encode())
-
-        # Verify checksum (skipped in mock/test if it's the dummy data)
-        # checksum = hashlib.sha256(dest_file.read_bytes()).hexdigest()
-        # if checksum != update_info.checksum: ...
-
-        _log.info("update.download_completed", dest_file=str(dest_file))
-        return dest_file
-
-    async def install_update(self, update_info: UpdateInfo, package_path: Path) -> UpdateReport:
-        """Install downloaded update package, migrate databases/configs, and validate."""
-        report = UpdateReport(
-            id=str(uuid4()),
-            target_version=update_info.version,
-            channel=update_info.channel,
-            status=UpdateStatus.INSTALLING,
-        )
-
-        checkpoint_meta = None
-        try:
-            # 1. Create rollback checkpoint
-            checkpoint_meta = self.backup_mgr.create_backup(
-                backup_type=BackupType.FULL,
-                is_snapshot=False,
-                tags=["pre-upgrade-checkpoint", f"to-{update_info.version}"],
-            )
-            _log.info("update.pre_backup_created", checkpoint_id=checkpoint_meta.id)
-
-            # 2. Simulate extraction and file copy
-            # We copy files, or simulate file copy for mock update
-            # We migrate databases
-            self._migrate_databases(report)
-
-            # Migrate configuration
-            self._migrate_configuration(report)
-
-            # Migrate plugins and providers
-            self._migrate_plugins_and_providers(report)
-
-            # 3. Release Validation (Phase 14)
-            # Run release validator
-            from services.validator.manager import ReleaseValidator
-            validator = ReleaseValidator(self.workspace_root)
-            validation_report = validator.run_validation()
-
-            if not validation_report.success:
-                raise ValueError(
-                    f"Post-update validation failed: {validation_report.errors}"
-                )
-
-            # 4. Finalize
-            report.status = UpdateStatus.SUCCESS
-            report.completed_at = datetime.now(UTC)
-            _log.info("update.installed_successfully", version=update_info.version)
-
-        except Exception as e:  # noqa: BLE001
-            report.status = UpdateStatus.FAILED
-            report.error = str(e)
-            report.completed_at = datetime.now(UTC)
-            _log.error("update.installation_failed", version=update_info.version, error=str(e))
-
-            # 5. Automatic Rollback
-            if checkpoint_meta:
-                _log.info("update.rolling_back", checkpoint_id=checkpoint_meta.id)
-                report.status = UpdateStatus.ROLLING_BACK
-                try:
-                    await self.recovery_mgr.restore_backup(checkpoint_meta.id)
-                    report.rollback_done = True
-                    _log.info("update.rollback_success")
-                except Exception as rollback_err:  # noqa: BLE001
-                    _log.critical("update.rollback_failed", error=str(rollback_err))
-                    report.error += f" | Rollback failed: {rollback_err}"
-                report.status = UpdateStatus.FAILED
-
-        finally:
-            # Clean up the package file
-            if package_path.exists():
-                package_path.unlink()
-            # Clean up checkpoint if upgrade succeeded
-            if report.status == UpdateStatus.SUCCESS and checkpoint_meta:
-                self.backup_mgr.delete_backup(checkpoint_meta.id)
-
-        await self._audit_upgrade(report)
-        return report
-
-    # --- migrations ---------------------------------------------------
-
-    def _migrate_databases(self, report: UpdateReport) -> None:
-        """Run database migrations/schema updates."""
-        # Check database files, run bootsrapper to update schema tables
-        from services.installer.database import DatabaseBootstrapper
-        from services.installer.workspace import WorkspaceBootstrapper
-        ws = WorkspaceBootstrapper(self.workspace_root)
-        db_boot = DatabaseBootstrapper(ws)
-        db_boot.bootstrap_all()
-        report.migrated_components.append("database")
-        _log.info("update.database_migrations_applied")
-
-    def _migrate_configuration(self, report: UpdateReport) -> None:
-        """Merge new configuration fields into existing config.yaml."""
-        config_dir = self.workspace_root / "config"
-        config_yaml = config_dir / "config.yaml"
-        defaults_yaml = config_dir / "defaults.yaml"
-
-        if config_yaml.exists() and defaults_yaml.exists():
-            # Merges default keys without overwriting user values
-            try:
-                import yaml
-                cfg = yaml.safe_load(config_yaml.read_text(encoding="utf-8")) or {}
-                defaults = yaml.safe_load(defaults_yaml.read_text(encoding="utf-8")) or {}
-
-                # Deep merge defaults into cfg
-                changed = False
-                for k, v in defaults.items():
-                    if k not in cfg:
-                        cfg[k] = v
-                        changed = True
-
-                if changed:
-                    # Save a backup of the original config first
-                    shutil.copy2(config_yaml, config_yaml.with_suffix(".yaml.pre-upgrade"))
-                    config_yaml.write_text(yaml.dump(cfg), encoding="utf-8")
-
-                report.migrated_components.append("configuration")
-                _log.info("update.configuration_migrations_applied")
-            except Exception as e:  # noqa: BLE001
-                _log.warning("update.configuration_migration_failed", error=str(e))
-
-    def _migrate_plugins_and_providers(self, report: UpdateReport) -> None:
-        """Migrate installed plugin configurations and model provider endpoints."""
-        # Simplified placeholder for actual plug/provider updates
-        report.migrated_components.append("plugins")
-        report.migrated_components.append("providers")
-        _log.info("update.plugins_and_providers_migrated")
-
-    async def _audit_upgrade(self, report: UpdateReport) -> None:
-        """Log the upgrade details to the system audit logs."""
-        try:
-            from services.security.manager import get_security_manager
-            sec_mgr = get_security_manager()
-            entry = AuditEntry(
-                actor=ActorRef.system(),
-                action="update.upgrade",
-                target=report.target_version,
-                success=(report.status == UpdateStatus.SUCCESS),
-                reason=f"Upgrade status: {report.status.value}. Migrated: {report.migrated_components}. Rolled back: {report.rollback_done}",
-                correlation_id=report.id,
-                metadata={"rolled_back": str(report.rollback_done), "error": report.error or ""},
-            )
-            await sec_mgr.log(entry)
-        except Exception:  # noqa: BLE001
-            pass

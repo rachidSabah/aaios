@@ -36,6 +36,7 @@ dependencies = [
   # --- Validation & ORM ---
   "pydantic>=2.9,<3",
   "pydantic-settings>=2.5,<3",
+  "semver>=3.0,<4",
   "sqlalchemy[asyncio]>=2.0.35,<3",
   "alembic>=1.13,<2",
   "aiosqlite>=0.20,<1",         # dev/test DB
