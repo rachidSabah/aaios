@@ -11,7 +11,7 @@
 > A **Windows-first**, modular, production-grade operating system for autonomous AI agents — orchestrating multiple LLM providers, multiple **generic** agents, MCP servers, vector memory, knowledge graphs, plugins, and workflows behind a single supervisor. Built around a **Generic Agent Runtime** where Claude Code, Hermes, and any future agent (OpenHands, Cline, Roo Code, Gemini CLI, Codex CLI, custom) are all just replaceable implementations.
 
 [![License: Apache 2.0](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
-[![Status: v5.3.2](https://img.shields.io/badge/Status-v5.3.2-brightgreen)](https://github.com/rachidSabah/aaios/releases)
+[![Status: v1.0.0-rc1](https://img.shields.io/badge/Status-v1.0.0-rc1-brightgreen)](https://github.com/rachidSabah/aaios/releases)
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12+-blue.svg)](https://www.python.org/downloads/)
 [![Next.js 16](https://img.shields.io/badge/Next.js-16-black.svg)](https://nextjs.org/)
 [![Windows 11](https://img.shields.io/badge/Platform-Windows%2011%20first-blue.svg)](https://www.microsoft.com/windows/)
@@ -242,6 +242,7 @@ This repository is being built phase-by-phase. The current state is:
 | 35 | ✅ Complete | v5.3.2 Part 2: Enterprise Validation, Self-Healing, Backup, Recovery & Update Management |
 | 36 | ✅ Complete | v5.3.2 Part 3: Uninstall, Cleanup, Factory Reset, Release Packaging & Production Validation — **1344 tests passing** |
 | 37 | ✅ Complete | v5.3.2 Part 4: Documentation, GitHub Release, Repository Finalization & Production Certification — **v5.3.2 Production Ready** |
+| 38 | ✅ Complete | **Phase 4 — Milestone 6: Desktop Runtime** — Native desktop application with Desktop Runtime Manager, Window Manager, Workspace Manager, Multi-window Support, Docking Layout Manager, Native Notification Service, System Tray, Native File Integration, Native Terminal Integration, Native Process Manager, Native Credential Store, Native Logging, Diagnostics Manager, Crash Reporter, Performance Monitor, Native Plugin Loader, Offline Runtime Manager, Local AI Runtime Manager, Local Database Manager, Background Services, Provider-based Update Framework, Automatic Updates with Rollback, SHA-256 + Digital Signature Verification, GitHub Release Provider, REST Desktop API (22 endpoints), Windows MSI/EXE/ZIP packaging — **v1.0.0-rc1 Desktop Runtime** |
 
 See [`docs/release_guide.md`](docs/release_guide.md) for full details.
 
@@ -251,7 +252,7 @@ See [`docs/release_guide.md`](docs/release_guide.md) for full details.
 |-------|-----------|
 | Backend runtime | Python 3.12, asyncio, Pydantic v2, SQLAlchemy 2 (async) |
 | Frontend | Next.js 16, React 19, Tailwind 4, shadcn/ui |
-| Desktop shell | Tauri 2 (WebView2 on Windows) |
+| Desktop shell | Tauri 2 (WebView2 on Windows) + Native adapters |
 | Relational DB | PostgreSQL 16 (prod, native Windows installer) + SQLite (dev/test) |
 | Vector DB | Qdrant (Windows binary) |
 | Knowledge graph | NetworkX (in-process) with optional Neo4j adapter |

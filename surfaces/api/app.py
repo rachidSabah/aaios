@@ -271,7 +271,7 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title="AAiOS API",
         description="Agentic AI Operating System — REST + WebSocket API",
-        version="5.3.2",
+        version="1.0.0-rc1",
         docs_url="/docs",
         redoc_url="/redoc",
     )
@@ -290,7 +290,7 @@ def create_app() -> FastAPI:
     @app.get("/healthz", tags=["health"])
     async def healthz() -> dict[str, Any]:
         """Liveness probe."""
-        return {"status": "ok", "version": "5.3.2", "timestamp": datetime.now(UTC).isoformat()}
+        return {"status": "ok", "version": "1.0.0-rc1", "timestamp": datetime.now(UTC).isoformat()}
 
     @app.get("/readyz", tags=["health"])
     async def readyz() -> dict[str, Any]:
@@ -2477,6 +2477,224 @@ def create_app() -> FastAPI:
         return {
             "agents": [r.to_dict() for r in results],
             "count": len(results),
+        }
+
+    # ------------------------------------------------------------------
+    # Desktop Runtime API (Phase 4 — Milestone 6)
+    # ------------------------------------------------------------------
+
+    _desktop_runtime: Any = None
+
+    def _get_desktop_runtime() -> Any:
+        nonlocal _desktop_runtime
+        if _desktop_runtime is None:
+            from surfaces.desktop import get_runtime
+            _desktop_runtime = get_runtime()
+        return _desktop_runtime
+
+    @app.get("/api/v1/desktop/status", tags=["desktop"])
+    async def desktop_status() -> dict[str, Any]:
+        """Get the Desktop Runtime status."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"booted": False, "message": "Desktop Runtime not loaded"}
+        return runtime.as_dict()
+
+    @app.get("/api/v1/desktop/diagnostics", tags=["desktop"])
+    async def desktop_diagnostics() -> dict[str, Any]:
+        """Run and return all diagnostic checks."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"checks": [], "error": "Desktop Runtime not loaded"}
+        diagnostics = runtime.get("diagnostics")
+        if diagnostics is None:
+            return {"checks": []}
+        checks = await diagnostics.run_all()
+        return {"checks": [{"name": c.name, "status": c.status, "message": c.message, "details": c.details} for c in checks]}
+
+    @app.get("/api/v1/desktop/perfmon", tags=["desktop"])
+    async def desktop_perfmon() -> dict[str, Any]:
+        """Get performance monitoring data."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"error": "Desktop Runtime not loaded"}
+        perfmon = runtime.get("perfmon")
+        if perfmon is None:
+            return {"error": "Performance Monitor not loaded"}
+        return perfmon.as_dict()
+
+    @app.get("/api/v1/desktop/perfmon/history", tags=["desktop"])
+    async def desktop_perfmon_history(
+        metric: str = "cpu_percent",
+        limit: int = 100,
+    ) -> dict[str, Any]:
+        """Get performance metric history."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"error": "Desktop Runtime not loaded"}
+        perfmon = runtime.get("perfmon")
+        if perfmon is None:
+            return {"error": "Performance Monitor not loaded"}
+        return {"metric": metric, "series": perfmon.history(metric=metric, limit=limit)}
+
+    @app.get("/api/v1/desktop/offline", tags=["desktop"])
+    async def desktop_offline_status() -> dict[str, Any]:
+        """Get offline mode status."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"online": True, "error": "Desktop Runtime not loaded"}
+        offline = runtime.get("offline")
+        if offline is None:
+            return {"online": True, "note": "Offline manager not loaded"}
+        return offline.as_dict()
+
+    @app.get("/api/v1/desktop/local-ai", tags=["desktop"])
+    async def desktop_local_ai() -> dict[str, Any]:
+        """Get local AI engine status."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"error": "Desktop Runtime not loaded"}
+        local_ai = runtime.get("local_ai")
+        if local_ai is None:
+            return {"error": "Local AI not loaded"}
+        return local_ai.as_dict()
+
+    @app.get("/api/v1/desktop/notifications", tags=["desktop"])
+    async def desktop_notifications(
+        limit: int = 50,
+        level: str | None = None,
+    ) -> dict[str, Any]:
+        """Get recent desktop notifications."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"notifications": [], "error": "Desktop Runtime not loaded"}
+        notifications = runtime.get("notifications")
+        if notifications is None:
+            return {"notifications": []}
+        history = notifications.history(limit=limit, level=level)
+        return {
+            "notifications": [
+                {"id": n.id, "title": n.title, "level": n.level,
+                 "category": n.category, "timestamp": n.timestamp,
+                 "message": n.message, "dismissed": n.dismissed}
+                for n in history
+            ],
+            "count": len(history),
+        }
+
+    @app.get("/api/v1/desktop/windows", tags=["desktop"])
+    async def desktop_windows() -> dict[str, Any]:
+        """Get open window states."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"windows": []}
+        wm = runtime.get("window_manager")
+        if wm is None:
+            return {"windows": []}
+        return {"windows": wm.as_dict().get("windows", [])}
+
+    @app.get("/api/v1/desktop/workspaces", tags=["desktop"])
+    async def desktop_workspaces() -> dict[str, Any]:
+        """Get workspace information."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"workspaces": []}
+        wsm = runtime.get("workspace_manager")
+        if wsm is None:
+            return {"workspaces": []}
+        return wsm.as_dict()
+
+    @app.get("/api/v1/desktop/plugins", tags=["desktop"])
+    async def desktop_plugins() -> dict[str, Any]:
+        """Get installed desktop plugins."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"plugins": []}
+        plugins = runtime.get("plugin_loader")
+        if plugins is None:
+            return {"plugins": []}
+        return plugins.as_dict()
+
+    @app.get("/api/v1/desktop/logs", tags=["desktop"])
+    async def desktop_logs(limit: int = 100, level: str | None = None) -> dict[str, Any]:
+        """Get recent desktop logs."""
+        from core.logging import LogManager
+        try:
+            mgr = LogManager()
+            entries = mgr.recent(limit=limit, level=level)
+            return {"entries": entries, "count": len(entries)}
+        except Exception as exc:
+            return {"entries": [], "error": str(exc)}
+
+    @app.get("/api/v1/desktop/updates", tags=["desktop"])
+    async def desktop_updates() -> dict[str, Any]:
+        """Get update status."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"current_version": "unknown"}
+        updater = runtime.get("updater")
+        if updater is None:
+            return {"current_version": "unknown"}
+        return updater.as_dict()
+
+    @app.post("/api/v1/desktop/updates/check", tags=["desktop"])
+    async def desktop_updates_check() -> dict[str, Any]:
+        """Check for updates now."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"error": "Desktop Runtime not loaded"}
+        updater = runtime.get("updater")
+        if updater is None:
+            return {"error": "Updater not loaded"}
+        info = await updater.check()
+        if info is None:
+            return {"available": False, "current_version": updater.current_version}
+        return {
+            "available": True,
+            "version": info.version,
+            "channel": info.channel.value,
+            "release_notes": info.release_notes,
+            "size_bytes": info.size_bytes,
+        }
+
+    @app.get("/api/v1/desktop/credentials", tags=["desktop"])
+    async def desktop_credentials() -> dict[str, Any]:
+        """List credential keys (not the secrets)."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"keys": []}
+        creds = runtime.get("credentials")
+        if creds is None:
+            return {"keys": []}
+        keys = await creds.list_keys()
+        return {"keys": keys, "count": len(keys)}
+
+    @app.get("/api/v1/desktop/system", tags=["desktop"])
+    async def desktop_system() -> dict[str, Any]:
+        """Get system information."""
+        import platform as _platform
+        from core.platform import get_platform
+        plat = get_platform()
+        return {
+            "platform": _platform.platform(),
+            "python": _platform.python_version(),
+            "hostname": _platform.node(),
+            "architecture": _platform.machine(),
+            "processor": _platform.processor(),
+            "platform_adapter": plat.name,
+            "platform_supported": plat.supported(),
+            "boot_id": __import__("core.bootstrap", fromlist=["boot_id"]).boot_id(),
+        }
+
+    @app.get("/api/v1/desktop/services", tags=["desktop"])
+    async def desktop_services() -> dict[str, Any]:
+        """List all desktop runtime services."""
+        runtime = _get_desktop_runtime()
+        if runtime is None:
+            return {"services": []}
+        return {
+            "services": runtime.service_names(),
+            "count": len(runtime.service_names()),
         }
 
     return app
