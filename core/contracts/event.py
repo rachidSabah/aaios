@@ -72,6 +72,41 @@ class EventTopic(StrEnum):
     PLUGIN_UNINSTALLED = "plugin.uninstalled"
     PLUGIN_RELOADED = "plugin.reloaded"
 
+    # --- Execution engine lifecycle ---
+    EXECUTION_ENGINE_DISCOVERED = "execution.engine.discovered"
+    EXECUTION_ENGINE_REGISTERED = "execution.engine.registered"
+    EXECUTION_ENGINE_UNREGISTERED = "execution.engine.unregistered"
+    EXECUTION_ENGINE_HEALTH_CHANGED = "execution.engine.health_changed"
+    EXECUTION_ENGINE_ENABLED = "execution.engine.enabled"
+    EXECUTION_ENGINE_DISABLED = "execution.engine.disabled"
+
+    # --- Execution task lifecycle ---
+    EXECUTION_TASK_CREATED = "execution.task.created"
+    EXECUTION_TASK_QUEUED = "execution.task.queued"
+    EXECUTION_TASK_DISPATCHED = "execution.task.dispatched"
+    EXECUTION_TASK_STARTED = "execution.task.started"
+    EXECUTION_TASK_PROGRESS = "execution.task.progress"
+    EXECUTION_TASK_COMPLETED = "execution.task.completed"
+    EXECUTION_TASK_FAILED = "execution.task.failed"
+    EXECUTION_TASK_CANCELLED = "execution.task.cancelled"
+    EXECUTION_TASK_TIMEOUT = "execution.task.timeout"
+
+    # --- Execution session lifecycle ---
+    EXECUTION_SESSION_CREATED = "execution.session.created"
+    EXECUTION_SESSION_ACTIVE = "execution.session.active"
+    EXECUTION_SESSION_CLOSED = "execution.session.closed"
+    EXECUTION_SESSION_ERROR = "execution.session.error"
+
+    # --- Execution routing ---
+    EXECUTION_ROUTE_SELECTED = "execution.route.selected"
+    EXECUTION_ROUTE_FAILOVER = "execution.route.failover"
+    EXECUTION_ROUTE_FALLBACK = "execution.route.fallback"
+
+    # --- Execution benchmark ---
+    EXECUTION_BENCHMARK_STARTED = "execution.benchmark.started"
+    EXECUTION_BENCHMARK_COMPLETED = "execution.benchmark.completed"
+    EXECUTION_BENCHMARK_FAILED = "execution.benchmark.failed"
+
     # --- Config / system ---
     CONFIG_CHANGED = "config.changed"
     SYSTEM_BOOTING = "system.booting"
