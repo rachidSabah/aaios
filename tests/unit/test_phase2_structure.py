@@ -324,7 +324,7 @@ class TestInvariants:
             offending.extend(self._scan_file_for(py_file, banned_pattern))
         for py_file in (REPO_ROOT / "services").rglob("*.py"):
             # The installer legitimately needs to know agent names to discover them
-            if "installer" in py_file.parts:
+            if "installer" in py_file.parts or "runtime_discovery" in py_file.parts:
                 continue
             # The brain service references agent names for the constellation
             if "brain" in py_file.parts:
@@ -357,7 +357,7 @@ class TestInvariants:
                 if "model_router" in py_file.parts:
                     continue
                 # Allow subprocess in services/installer (system-level tool)
-                if "installer" in py_file.parts:
+                if "installer" in py_file.parts or "runtime_discovery" in py_file.parts:
                     continue
                 # Allow subprocess in services/brain (GPU detection via nvidia-smi)
                 if "brain" in py_file.parts:

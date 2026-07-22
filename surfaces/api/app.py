@@ -2785,4 +2785,141 @@ def create_app() -> FastAPI:
             except Exception:  # noqa: BLE001
                 pass
 
+    # ------------------------------------------------------------------
+    # Runtime Discovery API — real provider discovery, binding, monitoring
+    # ------------------------------------------------------------------
+
+    _provider_registry: Any = None
+
+    def _get_provider_registry() -> Any:
+        nonlocal _provider_registry
+        if _provider_registry is None:
+            from services.runtime_discovery import get_provider_registry
+            _provider_registry = get_provider_registry()
+        return _provider_registry
+
+    @app.get("/api/v1/providers", tags=["providers"])
+    async def list_discovered_providers(
+        category: str | None = None,
+        health: str | None = None,
+        bound: bool | None = None,
+    ) -> dict[str, Any]:
+        """List all discovered and registered providers (real, not mocked)."""
+        registry = _get_provider_registry()
+        providers = registry.list_providers(
+            category=category,
+            health=health,
+            bound_only=bound if bound is not None else False,
+        )
+        return {
+            "providers": [p.to_dict() for p in providers],
+            "count": len(providers),
+            "stats": registry.stats(),
+        }
+
+    @app.get("/api/v1/providers/{provider_id}", tags=["providers"])
+    async def get_discovered_provider(provider_id: str) -> dict[str, Any]:
+        """Get a single provider by ID."""
+        registry = _get_provider_registry()
+        provider = registry.get_provider(provider_id)
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider not found")
+        return cast("dict[str, Any]", provider.to_dict())
+
+    @app.get("/api/v1/providers/{provider_id}/health", tags=["providers"])
+    async def provider_health(provider_id: str) -> dict[str, Any]:
+        """Get provider health."""
+        registry = _get_provider_registry()
+        provider = registry.get_provider(provider_id)
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider not found")
+        return {
+            "provider_id": provider_id,
+            "health": provider.health,
+            "latency_ms": provider.latency_ms,
+            "last_heartbeat": provider.last_heartbeat,
+            "validated": provider.validated,
+        }
+
+    @app.get("/api/v1/providers/{provider_id}/capabilities", tags=["providers"])
+    async def provider_capabilities(provider_id: str) -> dict[str, Any]:
+        """Get provider capabilities."""
+        registry = _get_provider_registry()
+        provider = registry.get_provider(provider_id)
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider not found")
+        return {
+            "provider_id": provider_id,
+            "capabilities": provider.capabilities,
+            "count": len(provider.capabilities),
+        }
+
+    @app.get("/api/v1/providers/{provider_id}/models", tags=["providers"])
+    async def provider_models(provider_id: str) -> dict[str, Any]:
+        """Get provider models."""
+        registry = _get_provider_registry()
+        provider = registry.get_provider(provider_id)
+        if not provider:
+            raise HTTPException(status_code=404, detail="Provider not found")
+        return {
+            "provider_id": provider_id,
+            "models": provider.models,
+            "count": len(provider.models),
+        }
+
+    @app.post("/api/v1/providers/discover", tags=["providers"])
+    async def discover_providers() -> dict[str, Any]:
+        """Trigger a full discovery scan."""
+        registry = _get_provider_registry()
+        result = await registry.discover()
+        return cast("dict[str, Any]", result.to_dict())
+
+    @app.post("/api/v1/providers/{provider_id}/rebind", tags=["providers"])
+    async def rebind_provider(provider_id: str) -> dict[str, Any]:
+        """Re-bind a provider (re-validate)."""
+        registry = _get_provider_registry()
+        success = await registry.rebind(provider_id)
+        return {"provider_id": provider_id, "rebound": success}
+
+    @app.post("/api/v1/providers/{provider_id}/unbind", tags=["providers"])
+    async def unbind_provider(provider_id: str) -> dict[str, Any]:
+        """Unbind a provider."""
+        registry = _get_provider_registry()
+        success = await registry.unbind(provider_id)
+        return {"provider_id": provider_id, "unbound": success}
+
+    @app.post("/api/v1/providers/{provider_id}/self-test", tags=["providers"])
+    async def self_test_provider(provider_id: str) -> dict[str, Any]:
+        """Run a self-test on a provider."""
+        registry = _get_provider_registry()
+        result = await registry.self_test(provider_id)
+        return cast("dict[str, Any]", result)
+
+    @app.post("/api/v1/providers/{provider_id}/restart", tags=["providers"])
+    async def restart_provider(provider_id: str) -> dict[str, Any]:
+        """Restart a provider (re-validate)."""
+        registry = _get_provider_registry()
+        success = await registry.restart(provider_id)
+        return {"provider_id": provider_id, "restarted": success}
+
+    @app.post("/api/v1/providers/{provider_id}/repair", tags=["providers"])
+    async def repair_provider(provider_id: str) -> dict[str, Any]:
+        """Attempt to repair an unhealthy provider."""
+        registry = _get_provider_registry()
+        success = await registry.repair(provider_id)
+        return {"provider_id": provider_id, "repaired": success}
+
+    @app.delete("/api/v1/providers/{provider_id}", tags=["providers"])
+    async def delete_provider(provider_id: str) -> dict[str, Any]:
+        """Remove a provider from the registry."""
+        registry = _get_provider_registry()
+        success = registry.delete(provider_id)
+        return {"provider_id": provider_id, "deleted": success}
+
+    @app.get("/api/v1/providers/stats/summary", tags=["providers"])
+    async def provider_stats() -> dict[str, Any]:
+        """Get provider registry statistics."""
+        registry = _get_provider_registry()
+        return cast("dict[str, Any]", registry.stats())
+
     return app

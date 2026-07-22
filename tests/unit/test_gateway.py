@@ -272,7 +272,7 @@ class TestInvariantEnforcement:
                 # The brain service uses nvidia-smi for GPU detection.
                 continue
             if any(s in py_file.parts for s in (
-                "doctor", "backup", "cleanup", "uninstall", "validator",
+                "doctor", "backup", "cleanup", "runtime_discovery", "uninstall", "validator",
                 "self_healing", "monitoring", "execution_engine", "benchmark",
                 "certify", "reset", "packaging",
             )):

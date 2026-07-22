@@ -194,7 +194,10 @@ class BrainSnapshotService:
         return snap
 
     async def _collect_nodes(self) -> list[BrainNode]:
+        """Collect all brain nodes — one per discovered provider + central mission control."""
         nodes: list[BrainNode] = []
+
+        # Central Mission Control brain
         mc = BrainNode(
             node_id="mission-control",
             name="Mission Control",
@@ -208,31 +211,33 @@ class BrainSnapshotService:
         mc.cpu_pct, mc.ram_pct, mc.gpu_pct, mc.net_pct = self._system_resource_pct()
         nodes.append(mc)
 
+        # Provider brains — from the REAL Runtime Discovery registry
         try:
-            from services.model_router import get_model_router
-            router = get_model_router()
-            healths = router.list_providers()
-            for h in healths:
+            from services.runtime_discovery import get_provider_registry
+            registry = get_provider_registry()
+            providers = registry.list_providers(bound_only=False)
+            for p in providers:
                 node = BrainNode(
-                    node_id=f"provider-{h.provider}",
-                    name=h.provider.replace("_", " ").title(),
-                    provider=h.provider,
+                    node_id=f"provider-{p.provider_id}",
+                    name=p.name,
+                    provider=p.spec_id,
                     kind="provider",
-                    status=self._status_from_health(h),
-                    health=self._health_from_status(h),
-                    latency_ms=h.avg_latency_s * 1000,
-                    success_rate=h.success_rate,
-                    consecutive_failures=h.consecutive_failures,
-                    last_error=h.last_error or "",
+                    status=self._status_from_health(p.health),
+                    health=p.health if p.health in ("healthy", "degraded", "down") else "unknown",
+                    version=p.version,
+                    latency_ms=p.latency_ms,
+                    capabilities=list(p.capabilities),
+                    models=list(p.models),
+                    activity=self._activity_from_status(p.health, p.bound),
                 )
                 nodes.append(node)
-        except (RuntimeError, ImportError) as e:
+        except (ImportError, RuntimeError) as e:
             _log.warning("brain.provider_collection_failed", error=str(e))
 
         try:
             from services.agent_registry import AgentRegistry
-            registry = AgentRegistry()
-            for agent in registry.list_agents():
+            agent_reg = AgentRegistry()
+            for agent in agent_reg.list_agents():
                 if not any(n.provider == agent.agent_type for n in nodes):
                     is_avail = agent.is_available() if hasattr(agent, "is_available") else True
                     node = BrainNode(
@@ -248,42 +253,33 @@ class BrainSnapshotService:
         except (ImportError, RuntimeError) as e:
             _log.warning("brain.agent_collection_failed", error=str(e))
 
-        try:
-            from services.model_router import get_model_router
-            router = get_model_router()
-            for node in nodes:
-                if node.kind == "provider":
-                    try:
-                        models = await router.list_models(node.provider)
-                        node.models = [m.name for m in models[:10]]
-                        if models:
-                            node.current_model = models[0].name
-                    except (RuntimeError, ImportError, AttributeError):
-                        pass
-        except (ImportError, RuntimeError):
-            pass
-
         return nodes
 
-    def _status_from_health(self, health: Any) -> str:
-        if health.consecutive_failures > 3:
-            return "error"
-        if health.success_rate > 0.9:
+    def _status_from_health(self, health: str) -> str:
+        """Map provider health string to brain status."""
+        if health == "healthy":
             return "active"
-        if health.success_rate > 0.5:
+        if health == "unhealthy":
+            return "error"
+        if health == "validating":
             return "busy"
-        if health.status.value == "down":
-            return "offline"
+        if health == "repairing":
+            return "busy"
         return "idle"
 
-    def _health_from_status(self, health: Any) -> str:
-        if health.consecutive_failures > 5:
-            return "down"
-        if health.success_rate > 0.9:
-            return "healthy"
-        if health.success_rate > 0.5:
-            return "degraded"
-        return "down"
+    def _activity_from_status(self, health: str, bound: bool) -> str:
+        """Determine activity from health and bound state."""
+        if not bound:
+            return "offline"
+        if health == "healthy":
+            return "thinking"
+        if health == "validating":
+            return "planning"
+        if health == "repairing":
+            return "debugging"
+        if health == "unhealthy":
+            return "idle"
+        return "idle"
 
     def _build_links(self, nodes: list[BrainNode]) -> list[NeuralLink]:
         links: list[NeuralLink] = []

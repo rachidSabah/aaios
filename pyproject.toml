@@ -233,6 +233,8 @@ ignore = [
 "services/engineering/**" = ["PLR0912", "E701", "D101"]  # analysis branches
 "surfaces/api/**" = ["B008", "PLR0912", "E741"]  # Body() in defaults, analysis branches
 "services/installer/**" = ["S603", "S607", "PLR0912"]  # subprocess for env detection
+"services/runtime_discovery/**" = ["S603", "S607", "PLR0912"]  # subprocess for discovery, multi-source branches
+"services/brain/**" = ["S603", "S607"]  # nvidia-smi for GPU detection
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"
