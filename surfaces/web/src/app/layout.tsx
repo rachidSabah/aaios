@@ -13,6 +13,7 @@ export const metadata: Metadata = {
 
 const navItems = [
   { href: '/', label: 'Overview' },
+  { href: '/ai-brain', label: 'AI Brain' },
   { href: '/intelligence', label: 'Intelligence' },
   { href: '/missions', label: 'Missions' },
   { href: '/execution', label: 'Execution' },

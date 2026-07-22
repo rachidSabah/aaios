@@ -2673,6 +2673,7 @@ def create_app() -> FastAPI:
     async def desktop_system() -> dict[str, Any]:
         """Get system information."""
         import platform as _platform
+
         from core.platform import get_platform
         plat = get_platform()
         return {
@@ -2696,5 +2697,92 @@ def create_app() -> FastAPI:
             "services": runtime.service_names(),
             "count": len(runtime.service_names()),
         }
+
+    # ------------------------------------------------------------------
+    # v5.x — AI Brain Constellation API
+    # ------------------------------------------------------------------
+
+    _brain_service: Any = None
+
+    def _get_brain_service() -> Any:
+        nonlocal _brain_service
+        if _brain_service is None:
+            from services.brain import BrainSnapshotService
+            _brain_service = BrainSnapshotService()
+        return _brain_service
+
+    @app.get("/api/v1/brain/snapshot", tags=["brain"])
+    async def brain_snapshot() -> dict[str, Any]:
+        """Get a complete brain constellation snapshot."""
+        svc = _get_brain_service()
+        snap = await svc.snapshot()
+        return cast("dict[str, Any]", snap.to_dict())
+
+    @app.get("/api/v1/brain/nodes", tags=["brain"])
+    async def brain_nodes() -> dict[str, Any]:
+        """List all brain nodes (providers + mission control)."""
+        svc = _get_brain_service()
+        snap = await svc.snapshot()
+        return {
+            "nodes": [n.to_dict() for n in snap.nodes],
+            "count": len(snap.nodes),
+        }
+
+    @app.get("/api/v1/brain/links", tags=["brain"])
+    async def brain_links() -> dict[str, Any]:
+        """List all neural links between brains."""
+        svc = _get_brain_service()
+        snap = await svc.snapshot()
+        return {
+            "links": [link.to_dict() for link in snap.links],
+            "count": len(snap.links),
+        }
+
+    @app.get("/api/v1/brain/telemetry", tags=["brain"])
+    async def brain_telemetry() -> dict[str, Any]:
+        """Get system telemetry for the brain HUD."""
+        svc = _get_brain_service()
+        snap = await svc.snapshot()
+        return cast("dict[str, Any]", snap.telemetry)
+
+    @app.get("/api/v1/brain/missions", tags=["brain"])
+    async def brain_missions() -> dict[str, Any]:
+        """Get mission dashboard data."""
+        svc = _get_brain_service()
+        snap = await svc.snapshot()
+        return cast("dict[str, Any]", snap.missions)
+
+    @app.get("/api/v1/brain/events", tags=["brain"])
+    async def brain_events() -> dict[str, Any]:
+        """Get live event feed."""
+        svc = _get_brain_service()
+        snap = await svc.snapshot()
+        return {
+            "events": snap.live_events,
+            "count": len(snap.live_events),
+        }
+
+    @app.websocket("/ws/brain")
+    async def brain_websocket(websocket: WebSocket) -> None:
+        """WebSocket endpoint for real-time brain updates.
+
+        Sends a complete snapshot every 2 seconds. The frontend
+        uses this to drive the 3D visualization.
+        """
+        await websocket.accept()
+        svc = _get_brain_service()
+        try:
+            while True:
+                snap = await svc.snapshot()
+                await websocket.send_json(snap.to_dict())
+                await asyncio.sleep(2.0)
+        except WebSocketDisconnect:
+            pass
+        except Exception as e:  # noqa: BLE001
+            _log.warning("brain.websocket_error", error=str(e))
+            try:
+                await websocket.close()
+            except Exception:  # noqa: BLE001
+                pass
 
     return app
