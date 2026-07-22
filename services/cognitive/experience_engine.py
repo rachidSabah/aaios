@@ -196,11 +196,34 @@ class CognitiveExperienceEngine:
         """Export as CSV."""
         import csv
         import io
+
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow(["experience_id", "timestamp", "mission_id", "success", "cost_usd", "latency_s", "retries", "risk_score"])
+        writer.writerow(
+            [
+                "experience_id",
+                "timestamp",
+                "mission_id",
+                "success",
+                "cost_usd",
+                "latency_s",
+                "retries",
+                "risk_score",
+            ]
+        )
         for e in self._experiences:
-            writer.writerow([e.experience_id, e.timestamp.isoformat(), e.mission_id or "", e.success, e.cost_usd, e.latency_s, e.retries, e.risk_score])
+            writer.writerow(
+                [
+                    e.experience_id,
+                    e.timestamp.isoformat(),
+                    e.mission_id or "",
+                    e.success,
+                    e.cost_usd,
+                    e.latency_s,
+                    e.retries,
+                    e.risk_score,
+                ]
+            )
         return output.getvalue()
 
     async def replay(self, experience_id: str) -> dict[str, Any]:

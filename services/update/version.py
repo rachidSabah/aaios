@@ -101,9 +101,7 @@ class VersionManager:
             return 1
         return 0
 
-    def bump(
-        self, part: str, *, prerelease: str | None = None
-    ) -> str:
+    def bump(self, part: str, *, prerelease: str | None = None) -> str:
         """Return the next version by bumping ``major|minor|patch`` of current.
 
         Useful for the manifest generator and release tooling.

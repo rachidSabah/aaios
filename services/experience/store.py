@@ -192,7 +192,9 @@ class ExperienceStore:
             self._persist(record)
             _log.info(
                 "Stored experience %s (agent=%s, outcome=%s)",
-                record.experience_id, record.agent_id, record.outcome,
+                record.experience_id,
+                record.agent_id,
+                record.outcome,
             )
             return record
 
@@ -314,9 +316,7 @@ class ExperienceStore:
     async def delete_older_than(self, cutoff: datetime) -> int:
         """Delete all records older than the cutoff. Returns count deleted."""
         async with self._lock:
-            to_delete = [
-                eid for eid, r in self._records.items() if r.timestamp < cutoff
-            ]
+            to_delete = [eid for eid, r in self._records.items() if r.timestamp < cutoff]
         for eid in to_delete:
             await self.delete(eid)
         return len(to_delete)

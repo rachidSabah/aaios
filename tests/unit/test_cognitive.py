@@ -92,10 +92,13 @@ class TestLearningEngine:
     async def test_learn_all(self) -> None:
         mgr = CognitiveManager()
         for i in range(10):
-            await mgr.record_experience(_make_experience(
-                agents=[f"agent-{i%2}"], providers=[f"provider-{i%2}"],
-                success=i % 3 != 0,
-            ))
+            await mgr.record_experience(
+                _make_experience(
+                    agents=[f"agent-{i % 2}"],
+                    providers=[f"provider-{i % 2}"],
+                    success=i % 3 != 0,
+                )
+            )
         insights = await mgr.learn()
         assert len(insights) > 0
         for insight in insights:
@@ -121,7 +124,10 @@ class TestLearningEngine:
         provider_insights = [i for i in insights if i["category"] == "best_provider"]
         assert len(provider_insights) >= 2
         # OpenAI should rank higher
-        assert provider_insights[0]["evidence"]["success_rate"] > provider_insights[1]["evidence"]["success_rate"]
+        assert (
+            provider_insights[0]["evidence"]["success_rate"]
+            > provider_insights[1]["evidence"]["success_rate"]
+        )
 
 
 @pytest.mark.offline
@@ -291,12 +297,14 @@ class TestCognitiveStress:
     async def test_100_experiences(self) -> None:
         mgr = CognitiveManager()
         for i in range(100):
-            await mgr.record_experience(_make_experience(
-                agents=[f"agent-{i%5}"],
-                providers=[f"provider-{i%3}"],
-                success=i % 4 != 0,
-                cost=0.01 * i,
-            ))
+            await mgr.record_experience(
+                _make_experience(
+                    agents=[f"agent-{i % 5}"],
+                    providers=[f"provider-{i % 3}"],
+                    success=i % 4 != 0,
+                    cost=0.01 * i,
+                )
+            )
         stats = await mgr.experience_stats()
         assert stats["total"] == 100
         insights = await mgr.learn()

@@ -185,9 +185,7 @@ class EngineeringReviewEngine:
 
     # --- individual review types ---------------------------------------
 
-    async def _review_architecture(
-        self, path: Path, ctx: dict[str, Any]
-    ) -> ReviewReport:
+    async def _review_architecture(self, path: Path, ctx: dict[str, Any]) -> ReviewReport:
         """Architecture review — layers, boundaries, coupling, god-classes."""
         report = ReviewReport(
             review_type=ReviewType.ARCHITECTURE.value,
@@ -222,34 +220,40 @@ class EngineeringReviewEngine:
                     layer_violations.append(f"{fp.name}: {m.group(0).strip()}")
 
         if not god_classes and not layer_violations:
-            report.strengths.append(ReviewFinding(
-                kind="strength",
-                title="No god classes detected",
-                description=f"Reviewed {len(py_files)} Python files; no class exceeds 300 lines.",
-                severity="info",
-                confidence=0.85,
-                evidence=[f"files_reviewed={len(py_files)}"],
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="No god classes detected",
+                    description=f"Reviewed {len(py_files)} Python files; no class exceeds 300 lines.",
+                    severity="info",
+                    confidence=0.85,
+                    evidence=[f"files_reviewed={len(py_files)}"],
+                )
+            )
         if god_classes:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="God classes detected",
-                description=f"{len(god_classes)} classes exceed 300 lines — consider decomposition.",
-                severity="high",
-                confidence=0.8,
-                evidence=god_classes[:10],
-                recommendation="Split god classes along cohesive responsibilities.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="God classes detected",
+                    description=f"{len(god_classes)} classes exceed 300 lines — consider decomposition.",
+                    severity="high",
+                    confidence=0.8,
+                    evidence=god_classes[:10],
+                    recommendation="Split god classes along cohesive responsibilities.",
+                )
+            )
         if layer_violations:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Layer boundary violations",
-                description=f"{len(layer_violations)} cross-layer imports detected.",
-                severity="medium",
-                confidence=0.75,
-                evidence=layer_violations[:10],
-                recommendation="Enforce dependency direction: core ← services ← surfaces.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Layer boundary violations",
+                    description=f"{len(layer_violations)} cross-layer imports detected.",
+                    severity="medium",
+                    confidence=0.75,
+                    evidence=layer_violations[:10],
+                    recommendation="Enforce dependency direction: core ← services ← surfaces.",
+                )
+            )
 
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.78 if py_files else 0.2
@@ -287,43 +291,51 @@ class EngineeringReviewEngine:
                     if node.type is None:
                         bare_excepts.append(f"{fp.name}:{node.lineno}")
         if long_funcs:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Long functions",
-                description=f"{len(long_funcs)} functions exceed 50 lines.",
-                severity="medium",
-                confidence=0.8,
-                evidence=long_funcs[:10],
-                recommendation="Refactor long functions into smaller cohesive units.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Long functions",
+                    description=f"{len(long_funcs)} functions exceed 50 lines.",
+                    severity="medium",
+                    confidence=0.8,
+                    evidence=long_funcs[:10],
+                    recommendation="Refactor long functions into smaller cohesive units.",
+                )
+            )
         if complex_funcs:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="High cyclomatic complexity",
-                description=f"{len(complex_funcs)} functions have CC > 10.",
-                severity="medium",
-                confidence=0.78,
-                evidence=complex_funcs[:10],
-                recommendation="Reduce branching via early returns, polymorphism, or strategy pattern.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="High cyclomatic complexity",
+                    description=f"{len(complex_funcs)} functions have CC > 10.",
+                    severity="medium",
+                    confidence=0.78,
+                    evidence=complex_funcs[:10],
+                    recommendation="Reduce branching via early returns, polymorphism, or strategy pattern.",
+                )
+            )
         if bare_excepts:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Bare except clauses",
-                description=f"{len(bare_excepts)} bare except clauses found.",
-                severity="high",
-                confidence=0.9,
-                evidence=bare_excepts[:10],
-                recommendation="Catch specific exceptions; never use bare 'except:'.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Bare except clauses",
+                    description=f"{len(bare_excepts)} bare except clauses found.",
+                    severity="high",
+                    confidence=0.9,
+                    evidence=bare_excepts[:10],
+                    recommendation="Catch specific exceptions; never use bare 'except:'.",
+                )
+            )
         if not (long_funcs or complex_funcs or bare_excepts):
-            report.strengths.append(ReviewFinding(
-                kind="strength",
-                title="No major code smells detected",
-                description=f"All {len(py_files)} files passed static complexity/style checks.",
-                severity="info",
-                confidence=0.7,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="No major code smells detected",
+                    description=f"All {len(py_files)} files passed static complexity/style checks.",
+                    severity="info",
+                    confidence=0.7,
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.75 if py_files else 0.2
         report.recommendations = [
@@ -348,37 +360,43 @@ class EngineeringReviewEngine:
         for fp in py_files:
             src = fp.read_text(encoding="utf-8", errors="ignore")
             for m in re.finditer(r"\b(eval|exec)\s*\(", src):
-                dangerous.append(f"{fp.name}:{src[:m.start()].count(chr(10)) + 1}")
+                dangerous.append(f"{fp.name}:{src[: m.start()].count(chr(10)) + 1}")
             for m in secret_re.finditer(src):
-                secrets.append(f"{fp.name}:{src[:m.start()].count(chr(10)) + 1}")
+                secrets.append(f"{fp.name}:{src[: m.start()].count(chr(10)) + 1}")
         if dangerous:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Use of eval/exec",
-                description=f"{len(dangerous)} occurrences of eval/exec.",
-                severity="critical",
-                confidence=0.92,
-                evidence=dangerous[:10],
-                recommendation="Replace eval/exec with safer alternatives (ast.literal_eval, etc.).",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Use of eval/exec",
+                    description=f"{len(dangerous)} occurrences of eval/exec.",
+                    severity="critical",
+                    confidence=0.92,
+                    evidence=dangerous[:10],
+                    recommendation="Replace eval/exec with safer alternatives (ast.literal_eval, etc.).",
+                )
+            )
         if secrets:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Possible hardcoded secrets",
-                description=f"{len(secrets)} lines look like hardcoded credentials.",
-                severity="critical",
-                confidence=0.7,
-                evidence=secrets[:10],
-                recommendation="Move secrets to environment variables or a secret store.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Possible hardcoded secrets",
+                    description=f"{len(secrets)} lines look like hardcoded credentials.",
+                    severity="critical",
+                    confidence=0.7,
+                    evidence=secrets[:10],
+                    recommendation="Move secrets to environment variables or a secret store.",
+                )
+            )
         if not dangerous and not secrets:
-            report.strengths.append(ReviewFinding(
-                kind="strength",
-                title="No obvious security pitfalls",
-                description="No eval/exec or hardcoded secrets detected.",
-                severity="info",
-                confidence=0.7,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="No obvious security pitfalls",
+                    description="No eval/exec or hardcoded secrets detected.",
+                    severity="info",
+                    confidence=0.7,
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.7 if py_files else 0.2
         report.recommendations = [
@@ -387,9 +405,7 @@ class EngineeringReviewEngine:
         ]
         return report
 
-    async def _review_performance(
-        self, path: Path, ctx: dict[str, Any]
-    ) -> ReviewReport:
+    async def _review_performance(self, path: Path, ctx: dict[str, Any]) -> ReviewReport:
         """Performance review — N+1 patterns, list comprehensions in hot loops."""
         report = ReviewReport(
             review_type=ReviewType.PERFORMANCE.value,
@@ -402,37 +418,45 @@ class EngineeringReviewEngine:
         for fp in py_files:
             src = fp.read_text(encoding="utf-8", errors="ignore")
             for m in re.finditer(r"for\s+\w+\s+in\s+.+:\s*\n\s*for\s+\w+\s+in", src):
-                nested_loops.append(f"{fp.name}:{src[:m.start()].count(chr(10)) + 1}")
-            for m in re.finditer(r"async\s+def\s+\w+.*:\s*\n(?:.*\n)*?\s*(?:time\.sleep|requests\.get)\s*\(", src):
-                sync_in_async.append(f"{fp.name}:{src[:m.start()].count(chr(10)) + 1}")
+                nested_loops.append(f"{fp.name}:{src[: m.start()].count(chr(10)) + 1}")
+            for m in re.finditer(
+                r"async\s+def\s+\w+.*:\s*\n(?:.*\n)*?\s*(?:time\.sleep|requests\.get)\s*\(", src
+            ):
+                sync_in_async.append(f"{fp.name}:{src[: m.start()].count(chr(10)) + 1}")
         if nested_loops:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Nested loops detected",
-                description=f"{len(nested_loops)} nested loops may indicate O(n^2) hot paths.",
-                severity="medium",
-                confidence=0.65,
-                evidence=nested_loops[:10],
-                recommendation="Profile hot paths; consider vectorization or algorithmic improvement.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Nested loops detected",
+                    description=f"{len(nested_loops)} nested loops may indicate O(n^2) hot paths.",
+                    severity="medium",
+                    confidence=0.65,
+                    evidence=nested_loops[:10],
+                    recommendation="Profile hot paths; consider vectorization or algorithmic improvement.",
+                )
+            )
         if sync_in_async:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Blocking call inside async function",
-                description=f"{len(sync_in_async)} sync calls inside async functions.",
-                severity="high",
-                confidence=0.75,
-                evidence=sync_in_async[:10],
-                recommendation="Use asyncio.to_thread() or async-native alternatives.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Blocking call inside async function",
+                    description=f"{len(sync_in_async)} sync calls inside async functions.",
+                    severity="high",
+                    confidence=0.75,
+                    evidence=sync_in_async[:10],
+                    recommendation="Use asyncio.to_thread() or async-native alternatives.",
+                )
+            )
         if not nested_loops and not sync_in_async:
-            report.strengths.append(ReviewFinding(
-                kind="strength",
-                title="No obvious performance anti-patterns",
-                description="No nested loops or blocking calls in async code detected.",
-                severity="info",
-                confidence=0.6,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="No obvious performance anti-patterns",
+                    description="No nested loops or blocking calls in async code detected.",
+                    severity="info",
+                    confidence=0.6,
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.65 if py_files else 0.2
         report.recommendations = [
@@ -441,9 +465,7 @@ class EngineeringReviewEngine:
         ]
         return report
 
-    async def _review_dependency(
-        self, path: Path, ctx: dict[str, Any]
-    ) -> ReviewReport:
+    async def _review_dependency(self, path: Path, ctx: dict[str, Any]) -> ReviewReport:
         """Dependency review — count, pinning, license concerns."""
         report = ReviewReport(
             review_type=ReviewType.DEPENDENCY.value,
@@ -475,12 +497,15 @@ class EngineeringReviewEngine:
         if pkg_json.exists():
             try:
                 import json
+
                 data = json.loads(pkg_json.read_text())
                 deps = list(data.get("dependencies", {}).keys())
                 deps_count += len(deps)
                 dep_files.extend(deps)
                 pinned_count += sum(
-                    1 for v in data.get("dependencies", {}).values() if v.startswith("^") or v.startswith("~")
+                    1
+                    for v in data.get("dependencies", {}).values()
+                    if v.startswith("^") or v.startswith("~")
                 )
             except (json.JSONDecodeError, OSError, ValueError):
                 _log.warning("review_engine.package_json_unparseable", path=str(pkg_json))
@@ -488,40 +513,48 @@ class EngineeringReviewEngine:
             report.summary = "No dependency manifests found — dependency review skipped."
             report.confidence = 0.1
             return report
-        report.observations.append(ReviewFinding(
-            kind="observation",
-            title="Dependency inventory",
-            description=f"{deps_count} dependencies; {pinned_count} version-constrained.",
-            severity="info",
-            confidence=0.9,
-            evidence=dep_files[:20],
-        ))
-        if deps_count > 80:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="High dependency count",
-                description=f"{deps_count} dependencies — large attack surface.",
-                severity="medium",
-                confidence=0.7,
-                recommendation="Audit and remove unused dependencies.",
-            ))
-        if pinned_count < deps_count // 2:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Insufficient version pinning",
-                description=f"Only {pinned_count}/{deps_count} dependencies have version constraints.",
-                severity="medium",
-                confidence=0.75,
-                recommendation="Pin all dependency versions in production manifests.",
-            ))
-        if deps_count <= 80 and pinned_count >= deps_count // 2:
-            report.strengths.append(ReviewFinding(
-                kind="strength",
-                title="Healthy dependency posture",
-                description="Dependency count is reasonable and versions are pinned.",
+        report.observations.append(
+            ReviewFinding(
+                kind="observation",
+                title="Dependency inventory",
+                description=f"{deps_count} dependencies; {pinned_count} version-constrained.",
                 severity="info",
-                confidence=0.75,
-            ))
+                confidence=0.9,
+                evidence=dep_files[:20],
+            )
+        )
+        if deps_count > 80:
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="High dependency count",
+                    description=f"{deps_count} dependencies — large attack surface.",
+                    severity="medium",
+                    confidence=0.7,
+                    recommendation="Audit and remove unused dependencies.",
+                )
+            )
+        if pinned_count < deps_count // 2:
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Insufficient version pinning",
+                    description=f"Only {pinned_count}/{deps_count} dependencies have version constraints.",
+                    severity="medium",
+                    confidence=0.75,
+                    recommendation="Pin all dependency versions in production manifests.",
+                )
+            )
+        if deps_count <= 80 and pinned_count >= deps_count // 2:
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="Healthy dependency posture",
+                    description="Dependency count is reasonable and versions are pinned.",
+                    severity="info",
+                    confidence=0.75,
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.8
         report.recommendations = [
@@ -530,9 +563,7 @@ class EngineeringReviewEngine:
         ]
         return report
 
-    async def _review_documentation(
-        self, path: Path, ctx: dict[str, Any]
-    ) -> ReviewReport:
+    async def _review_documentation(self, path: Path, ctx: dict[str, Any]) -> ReviewReport:
         """Documentation review — README presence, docstring coverage."""
         report = ReviewReport(
             review_type=ReviewType.DOCUMENTATION.value,
@@ -541,33 +572,39 @@ class EngineeringReviewEngine:
         )
         readme = path / "README.md"
         if not readme.exists():
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Missing README",
-                description="No README.md at repository root.",
-                severity="high",
-                confidence=0.95,
-                recommendation="Add a comprehensive README with project overview and usage.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Missing README",
+                    description="No README.md at repository root.",
+                    severity="high",
+                    confidence=0.95,
+                    recommendation="Add a comprehensive README with project overview and usage.",
+                )
+            )
         else:
             readme_len = len(readme.read_text(encoding="utf-8", errors="ignore").splitlines())
             if readme_len < 50:
-                report.weaknesses.append(ReviewFinding(
-                    kind="weakness",
-                    title="Thin README",
-                    description=f"README has only {readme_len} lines.",
-                    severity="low",
-                    confidence=0.85,
-                    recommendation="Expand README with examples, architecture, and contributing sections.",
-                ))
+                report.weaknesses.append(
+                    ReviewFinding(
+                        kind="weakness",
+                        title="Thin README",
+                        description=f"README has only {readme_len} lines.",
+                        severity="low",
+                        confidence=0.85,
+                        recommendation="Expand README with examples, architecture, and contributing sections.",
+                    )
+                )
             else:
-                report.strengths.append(ReviewFinding(
-                    kind="strength",
-                    title="Comprehensive README",
-                    description=f"README has {readme_len} lines.",
-                    severity="info",
-                    confidence=0.85,
-                ))
+                report.strengths.append(
+                    ReviewFinding(
+                        kind="strength",
+                        title="Comprehensive README",
+                        description=f"README has {readme_len} lines.",
+                        severity="info",
+                        confidence=0.85,
+                    )
+                )
         # docstring coverage
         py_files = self._collect_python_files(path)
         total_funcs = 0
@@ -584,22 +621,26 @@ class EngineeringReviewEngine:
         if total_funcs:
             coverage = documented_funcs / total_funcs
             if coverage < 0.5:
-                report.weaknesses.append(ReviewFinding(
-                    kind="weakness",
-                    title="Low docstring coverage",
-                    description=f"{documented_funcs}/{total_funcs} functions documented ({coverage:.0%}).",
-                    severity="medium",
-                    confidence=0.9,
-                    recommendation="Add docstrings to all public functions.",
-                ))
+                report.weaknesses.append(
+                    ReviewFinding(
+                        kind="weakness",
+                        title="Low docstring coverage",
+                        description=f"{documented_funcs}/{total_funcs} functions documented ({coverage:.0%}).",
+                        severity="medium",
+                        confidence=0.9,
+                        recommendation="Add docstrings to all public functions.",
+                    )
+                )
             else:
-                report.strengths.append(ReviewFinding(
-                    kind="strength",
-                    title="Good docstring coverage",
-                    description=f"{documented_funcs}/{total_funcs} functions documented ({coverage:.0%}).",
-                    severity="info",
-                    confidence=0.9,
-                ))
+                report.strengths.append(
+                    ReviewFinding(
+                        kind="strength",
+                        title="Good docstring coverage",
+                        description=f"{documented_funcs}/{total_funcs} functions documented ({coverage:.0%}).",
+                        severity="info",
+                        confidence=0.9,
+                    )
+                )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.8 if py_files or readme.exists() else 0.2
         report.recommendations = [
@@ -617,14 +658,16 @@ class EngineeringReviewEngine:
         )
         tests_dir = path / "tests"
         if not tests_dir.exists():
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="No tests directory",
-                description="Repository has no tests/ directory.",
-                severity="critical",
-                confidence=0.95,
-                recommendation="Establish a tests/ directory mirroring the source layout.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="No tests directory",
+                    description="Repository has no tests/ directory.",
+                    severity="critical",
+                    confidence=0.95,
+                    recommendation="Establish a tests/ directory mirroring the source layout.",
+                )
+            )
             report.risk_score = 0.9
             report.confidence = 0.85
             return report
@@ -633,36 +676,42 @@ class EngineeringReviewEngine:
         py_files = [f for f in py_files if "tests" not in str(f)]
         ratio = len(test_files) / max(1, len(py_files))
         if ratio < 0.3:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Low test-to-source ratio",
-                description=f"{len(test_files)} test files vs {len(py_files)} source files ({ratio:.0%}).",
-                severity="high",
-                confidence=0.85,
-                recommendation="Add tests until ratio is at least 0.5.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Low test-to-source ratio",
+                    description=f"{len(test_files)} test files vs {len(py_files)} source files ({ratio:.0%}).",
+                    severity="high",
+                    confidence=0.85,
+                    recommendation="Add tests until ratio is at least 0.5.",
+                )
+            )
         else:
-            report.strengths.append(ReviewFinding(
-                kind="strength",
-                title="Healthy test-to-source ratio",
-                description=f"{len(test_files)} test files vs {len(py_files)} source files ({ratio:.0%}).",
-                severity="info",
-                confidence=0.85,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="Healthy test-to-source ratio",
+                    description=f"{len(test_files)} test files vs {len(py_files)} source files ({ratio:.0%}).",
+                    severity="info",
+                    confidence=0.85,
+                )
+            )
         # marker usage
         marker_count = 0
         for tf in test_files:
             src = tf.read_text(encoding="utf-8", errors="ignore")
             marker_count += len(re.findall(r"@pytest\.mark\.\w+", src))
         if marker_count < len(test_files) // 4:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Few pytest markers used",
-                description=f"{marker_count} markers across {len(test_files)} test files.",
-                severity="low",
-                confidence=0.7,
-                recommendation="Use markers (slow, offline, integration) for selective runs.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Few pytest markers used",
+                    description=f"{marker_count} markers across {len(test_files)} test files.",
+                    severity="low",
+                    confidence=0.7,
+                    recommendation="Use markers (slow, offline, integration) for selective runs.",
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.82
         report.recommendations = [
@@ -700,32 +749,38 @@ class EngineeringReviewEngine:
             report.summary = "No HTTP endpoints detected — API review skipped."
             report.confidence = 0.15
             return report
-        report.observations.append(ReviewFinding(
-            kind="observation",
-            title="Endpoint inventory",
-            description=f"{len(endpoints)} HTTP endpoints detected.",
-            severity="info",
-            confidence=0.85,
-            evidence=endpoints[:20],
-        ))
+        report.observations.append(
+            ReviewFinding(
+                kind="observation",
+                title="Endpoint inventory",
+                description=f"{len(endpoints)} HTTP endpoints detected.",
+                severity="info",
+                confidence=0.85,
+                evidence=endpoints[:20],
+            )
+        )
         versioned = sum(1 for e in endpoints if "/v1/" in e or "/v2/" in e)
         if versioned < len(endpoints) // 2 and len(endpoints) > 5:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="API versioning inconsistent",
-                description=f"Only {versioned}/{len(endpoints)} endpoints are versioned.",
-                severity="medium",
-                confidence=0.7,
-                recommendation="Adopt a consistent versioning scheme (e.g. /v1/).",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="API versioning inconsistent",
+                    description=f"Only {versioned}/{len(endpoints)} endpoints are versioned.",
+                    severity="medium",
+                    confidence=0.7,
+                    recommendation="Adopt a consistent versioning scheme (e.g. /v1/).",
+                )
+            )
         else:
-            report.strengths.append(ReviewFinding(
-                kind="strength",
-                title="Consistent API versioning",
-                description=f"{versioned}/{len(endpoints)} endpoints are versioned.",
-                severity="info",
-                confidence=0.7,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="Consistent API versioning",
+                    description=f"{versioned}/{len(endpoints)} endpoints are versioned.",
+                    severity="info",
+                    confidence=0.7,
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.78
         report.recommendations = [
@@ -743,40 +798,46 @@ class EngineeringReviewEngine:
         )
         migrations_dir = path / "migrations" / "versions"
         if not migrations_dir.exists():
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="No migrations directory",
-                description="Expected migrations/versions/ — not found.",
-                severity="medium",
-                confidence=0.8,
-                recommendation="Adopt Alembic or equivalent migration tooling.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="No migrations directory",
+                    description="Expected migrations/versions/ — not found.",
+                    severity="medium",
+                    confidence=0.8,
+                    recommendation="Adopt Alembic or equivalent migration tooling.",
+                )
+            )
         else:
             migration_count = len(list(migrations_dir.glob("*.py")))
-            report.strengths.append(ReviewFinding(
-                kind="strength",
-                title="Migration history present",
-                description=f"{migration_count} migrations found.",
-                severity="info",
-                confidence=0.85,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="Migration history present",
+                    description=f"{migration_count} migrations found.",
+                    severity="info",
+                    confidence=0.85,
+                )
+            )
         # raw SQL detection
         py_files = self._collect_python_files(path)
         raw_sql: list[str] = []
         for fp in py_files:
             src = fp.read_text(encoding="utf-8", errors="ignore")
             for m in re.finditer(r'\.execute\s*\(\s*f?["\']', src):
-                raw_sql.append(f"{fp.name}:{src[:m.start()].count(chr(10)) + 1}")
+                raw_sql.append(f"{fp.name}:{src[: m.start()].count(chr(10)) + 1}")
         if raw_sql:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="Raw SQL execution",
-                description=f"{len(raw_sql)} possible raw SQL execute() calls.",
-                severity="high",
-                confidence=0.65,
-                evidence=raw_sql[:10],
-                recommendation="Use parameterized queries or an ORM to prevent SQL injection.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Raw SQL execution",
+                    description=f"{len(raw_sql)} possible raw SQL execute() calls.",
+                    severity="high",
+                    confidence=0.65,
+                    evidence=raw_sql[:10],
+                    recommendation="Use parameterized queries or an ORM to prevent SQL injection.",
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.7
         report.recommendations = [
@@ -794,14 +855,16 @@ class EngineeringReviewEngine:
         )
         workflows_dir = path / ".github" / "workflows"
         if not workflows_dir.exists():
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness",
-                title="No CI workflows",
-                description="Missing .github/workflows directory.",
-                severity="high",
-                confidence=0.9,
-                recommendation="Add CI workflows for lint, test, build, security scan.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="No CI workflows",
+                    description="Missing .github/workflows directory.",
+                    severity="high",
+                    confidence=0.9,
+                    recommendation="Add CI workflows for lint, test, build, security scan.",
+                )
+            )
             report.risk_score = 0.7
             report.confidence = 0.85
             return report
@@ -818,32 +881,48 @@ class EngineeringReviewEngine:
             if "bandit" in src or "codeql" in src or "snyk" in src:
                 has_security = True
         if has_test:
-            report.strengths.append(ReviewFinding(
-                kind="strength", title="CI runs tests",
-                description="At least one workflow runs the test suite.",
-                severity="info", confidence=0.85,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="CI runs tests",
+                    description="At least one workflow runs the test suite.",
+                    severity="info",
+                    confidence=0.85,
+                )
+            )
         else:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness", title="No test workflow",
-                description="No workflow runs the test suite.",
-                severity="high", confidence=0.85,
-                recommendation="Add a workflow that runs pytest on every PR.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="No test workflow",
+                    description="No workflow runs the test suite.",
+                    severity="high",
+                    confidence=0.85,
+                    recommendation="Add a workflow that runs pytest on every PR.",
+                )
+            )
         if not has_lint:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness", title="No lint workflow",
-                description="No workflow runs a linter.",
-                severity="medium", confidence=0.8,
-                recommendation="Add ruff + mypy + eslint steps to CI.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="No lint workflow",
+                    description="No workflow runs a linter.",
+                    severity="medium",
+                    confidence=0.8,
+                    recommendation="Add ruff + mypy + eslint steps to CI.",
+                )
+            )
         if not has_security:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness", title="No security scan",
-                description="No workflow runs a security scanner.",
-                severity="medium", confidence=0.8,
-                recommendation="Add bandit / pip-audit / CodeQL to CI.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="No security scan",
+                    description="No workflow runs a security scanner.",
+                    severity="medium",
+                    confidence=0.8,
+                    recommendation="Add bandit / pip-audit / CodeQL to CI.",
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.85
         report.recommendations = [
@@ -868,18 +947,26 @@ class EngineeringReviewEngine:
             plugins_dir.rglob("plugin.yaml")
         )
         if not plugin_manifests:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness", title="Plugins without manifests",
-                description="plugins/ exists but no plugin.toml/yaml manifests found.",
-                severity="low", confidence=0.7,
-                recommendation="Require every plugin to ship a manifest with name, version, entrypoint.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Plugins without manifests",
+                    description="plugins/ exists but no plugin.toml/yaml manifests found.",
+                    severity="low",
+                    confidence=0.7,
+                    recommendation="Require every plugin to ship a manifest with name, version, entrypoint.",
+                )
+            )
         else:
-            report.strengths.append(ReviewFinding(
-                kind="strength", title="Plugin manifests present",
-                description=f"{len(plugin_manifests)} plugin manifests found.",
-                severity="info", confidence=0.8,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="Plugin manifests present",
+                    description=f"{len(plugin_manifests)} plugin manifests found.",
+                    severity="info",
+                    confidence=0.8,
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.7
         report.recommendations = [
@@ -888,9 +975,7 @@ class EngineeringReviewEngine:
         ]
         return report
 
-    async def _review_mission(
-        self, target: str, ctx: dict[str, Any]
-    ) -> ReviewReport:
+    async def _review_mission(self, target: str, ctx: dict[str, Any]) -> ReviewReport:
         """Mission review — checks a mission object/dict for completeness."""
         report = ReviewReport(
             review_type=ReviewType.MISSION.value,
@@ -902,37 +987,62 @@ class EngineeringReviewEngine:
             report.summary = "No mission context supplied — mission review skipped."
             report.confidence = 0.1
             return report
-        required_keys = {"id", "title", "owner", "wbs", "budget", "risks", "milestones", "approvals"}
+        required_keys = {
+            "id",
+            "title",
+            "owner",
+            "wbs",
+            "budget",
+            "risks",
+            "milestones",
+            "approvals",
+        }
         missing = required_keys - set(mission.keys())
         if missing:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness", title="Mission missing required fields",
-                description=f"Missing: {sorted(missing)}",
-                severity="medium", confidence=0.85,
-                recommendation="Populate all required mission fields before approval.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Mission missing required fields",
+                    description=f"Missing: {sorted(missing)}",
+                    severity="medium",
+                    confidence=0.85,
+                    recommendation="Populate all required mission fields before approval.",
+                )
+            )
         else:
-            report.strengths.append(ReviewFinding(
-                kind="strength", title="Mission well-formed",
-                description="All required mission fields are present.",
-                severity="info", confidence=0.85,
-            ))
+            report.strengths.append(
+                ReviewFinding(
+                    kind="strength",
+                    title="Mission well-formed",
+                    description="All required mission fields are present.",
+                    severity="info",
+                    confidence=0.85,
+                )
+            )
         risks = mission.get("risks") or []
         if isinstance(risks, list) and len(risks) > 10:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness", title="Excessive risks",
-                description=f"Mission has {len(risks)} risks — consider scope reduction.",
-                severity="medium", confidence=0.7,
-                recommendation="Triage risks; close or mitigate low-priority items.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="Excessive risks",
+                    description=f"Mission has {len(risks)} risks — consider scope reduction.",
+                    severity="medium",
+                    confidence=0.7,
+                    recommendation="Triage risks; close or mitigate low-priority items.",
+                )
+            )
         approvals = mission.get("approvals") or []
         if isinstance(approvals, list) and not approvals:
-            report.weaknesses.append(ReviewFinding(
-                kind="weakness", title="No approvals recorded",
-                description="Mission has zero approvals.",
-                severity="high", confidence=0.8,
-                recommendation="Require at least one stakeholder approval before execution.",
-            ))
+            report.weaknesses.append(
+                ReviewFinding(
+                    kind="weakness",
+                    title="No approvals recorded",
+                    description="Mission has zero approvals.",
+                    severity="high",
+                    confidence=0.8,
+                    recommendation="Require at least one stakeholder approval before execution.",
+                )
+            )
         report.risk_score = self._compute_risk(report.weaknesses)
         report.confidence = 0.78
         report.recommendations = [
@@ -950,7 +1060,10 @@ class EngineeringReviewEngine:
             return [path] if path.suffix == ".py" else []
         out: list[Path] = []
         for p in path.rglob("*.py"):
-            if any(seg in p.parts for seg in (".venv", "node_modules", ".git", "__pycache__", "build", "dist")):
+            if any(
+                seg in p.parts
+                for seg in (".venv", "node_modules", ".git", "__pycache__", "build", "dist")
+            ):
                 continue
             out.append(p)
         return out

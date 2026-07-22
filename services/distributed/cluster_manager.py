@@ -266,7 +266,9 @@ class ClusterManager:
             handle.error = str(e)
             handle.completed_at = time.time()
             _log.warning(
-                "Dispatch %s failed: %s", handle.dispatch_id, e,
+                "Dispatch %s failed: %s",
+                handle.dispatch_id,
+                e,
             )
 
     async def await_result(
@@ -293,9 +295,7 @@ class ClusterManager:
                 DispatchStatus.NODE_UNAVAILABLE,
                 DispatchStatus.CANCELLED,
             ):
-                duration = (
-                    (handle.completed_at or 0) - (handle.started_at or handle.created_at)
-                )
+                duration = (handle.completed_at or 0) - (handle.started_at or handle.created_at)
                 return DispatchResult(
                     dispatch_id=dispatch_id,
                     status=handle.status,
@@ -318,8 +318,10 @@ class ClusterManager:
                 return False
             handle = self._dispatches[dispatch_id]
             if handle.status in (
-                DispatchStatus.COMPLETED, DispatchStatus.FAILED,
-                DispatchStatus.CANCELLED, DispatchStatus.TIMED_OUT,
+                DispatchStatus.COMPLETED,
+                DispatchStatus.FAILED,
+                DispatchStatus.CANCELLED,
+                DispatchStatus.TIMED_OUT,
             ):
                 return False
             handle.status = DispatchStatus.CANCELLED

@@ -193,9 +193,7 @@ class ProviderValidator:
             )
 
         # Choose the probe model
-        probe_model = (
-            config.models[0] if config.models else _PROBE_MODELS.get(config.type, "")
-        )
+        probe_model = config.models[0] if config.models else _PROBE_MODELS.get(config.type, "")
         if not probe_model:
             return ValidationResult(
                 provider=config.name,
@@ -274,16 +272,12 @@ class ProviderValidator:
         msg_lower = msg.lower()
         # Check for common auth errors
         if any(
-            s in msg_lower
-            for s in ("401", "unauthorized", "invalid api key", "invalid_api_key")
+            s in msg_lower for s in ("401", "unauthorized", "invalid api key", "invalid_api_key")
         ):
             return ValidationStatus.UNAUTHORIZED, msg
         if any(s in msg_lower for s in ("403", "forbidden", "permission")):
             return ValidationStatus.UNAUTHORIZED, msg
-        if any(
-            s in msg_lower
-            for s in ("429", "rate limit", "rate_limit", "too many requests")
-        ):
+        if any(s in msg_lower for s in ("429", "rate limit", "rate_limit", "too many requests")):
             return ValidationStatus.RATE_LIMITED, msg
         if any(
             s in msg_lower
@@ -309,9 +303,7 @@ class ProviderValidator:
         results = await asyncio.gather(*tasks, return_exceptions=False)
         finished = datetime.now(UTC)
         ok = sum(1 for r in results if r.status == ValidationStatus.OK)
-        not_configured = sum(
-            1 for r in results if r.status == ValidationStatus.NOT_CONFIGURED
-        )
+        not_configured = sum(1 for r in results if r.status == ValidationStatus.NOT_CONFIGURED)
         failed = len(results) - ok - not_configured
         return ValidationReport(
             results=list(results),
@@ -343,4 +335,3 @@ class ProviderValidator:
         except Exception as e:
             _log.warning("Failed to fetch configs from router: %s", e)
             return []
-

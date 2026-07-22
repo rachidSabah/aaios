@@ -14,13 +14,13 @@ platforms it uses an in-process loop. Either way, the decision logic is shared.
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Callable
 from datetime import UTC, datetime
-from typing import Callable
 
 from core.logging import get_logger
 from services.update.channels import ChannelPolicy
 from services.update.manager import UpdateManager
-from services.update.models import ReleaseChannel, UpdateInfo
+from services.update.models import UpdateInfo
 
 _log = get_logger(__name__)
 

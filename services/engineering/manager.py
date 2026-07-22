@@ -110,7 +110,9 @@ class EngineeringManager:
         history: list[Any] | None = None,
         context: dict[str, Any] | None = None,
     ) -> dict[str, Any]:
-        report = await self.review_engine.review(review_type, target, history=history, context=context)
+        report = await self.review_engine.review(
+            review_type, target, history=history, context=context
+        )
         return report.to_dict()
 
     async def review_all(
@@ -132,8 +134,12 @@ class EngineeringManager:
         report = await self.test_intelligence.coverage_report(self._root)
         return report.to_dict()
 
-    async def test_risk(self, *, recent_failures: list[dict[str, Any]] | None = None) -> dict[str, Any]:
-        report = await self.test_intelligence.risk_report(self._root, recent_failures=recent_failures)
+    async def test_risk(
+        self, *, recent_failures: list[dict[str, Any]] | None = None
+    ) -> dict[str, Any]:
+        report = await self.test_intelligence.risk_report(
+            self._root, recent_failures=recent_failures
+        )
         return report.to_dict()
 
     # --- Documentation Intelligence (Phase 19) ---
@@ -216,7 +222,9 @@ class EngineeringManager:
         agent_type: str | None = None,
     ) -> dict[str, Any] | None:
         agent = self.agents.select_for_task(
-            language=language, framework=framework, agent_type=agent_type,
+            language=language,
+            framework=framework,
+            agent_type=agent_type,
         )
         return agent.to_dict() if agent else None
 
@@ -251,7 +259,10 @@ class EngineeringManager:
         mission_id: str | None = None,
     ) -> dict[str, Any] | None:
         session = await self.workspaces.create_session(
-            workspace_id, repo_path, branch, mission_id,
+            workspace_id,
+            repo_path,
+            branch,
+            mission_id,
         )
         return session.to_dict() if session else None
 

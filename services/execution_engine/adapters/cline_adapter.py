@@ -3,7 +3,6 @@ from __future__ import annotations
 import asyncio
 import json
 import os
-from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
 
@@ -36,7 +35,10 @@ class ClineAdapter(BaseExecutionEngineAdapter):
     def _detect_version() -> str:
         try:
             import subprocess
-            result = subprocess.run(["cline", "--version"], capture_output=True, text=True, timeout=10)
+
+            result = subprocess.run(
+                ["cline", "--version"], capture_output=True, text=True, timeout=10
+            )
             return result.stdout.strip() or result.stderr.strip() or "unknown"
         except Exception:
             return "unknown"
@@ -86,13 +88,17 @@ class ClineAdapter(BaseExecutionEngineAdapter):
         self._process.stdin.write(request.encode())
         await self._process.stdin.drain()
         assert self._process.stdout is not None
-        response = await asyncio.wait_for(self._process.stdout.readline(), timeout=self._config.extra.get("timeout_s", 300))
+        response = await asyncio.wait_for(
+            self._process.stdout.readline(), timeout=self._config.extra.get("timeout_s", 300)
+        )
         return json.loads(response.decode()) if response else {"result": "empty"}
 
     async def _on_cancel(self, task_id: str) -> bool:
         if not self._process:
             return False
-        cancel_request = json.dumps({"method": "cancel_task", "params": {"task_id": task_id}}) + "\n"
+        cancel_request = (
+            json.dumps({"method": "cancel_task", "params": {"task_id": task_id}}) + "\n"
+        )
         assert self._process.stdin is not None
         self._process.stdin.write(cancel_request.encode())
         await self._process.stdin.drain()
@@ -107,8 +113,14 @@ class ClineAdapter(BaseExecutionEngineAdapter):
             supports_vision=True,
             max_concurrent_tasks=1,
             task_timeout_s=600.0,
-            features=["code.read", "code.write", "code.refactor", "code.review",
-                       "test.run", "shell.execute"],
+            features=[
+                "code.read",
+                "code.write",
+                "code.refactor",
+                "code.review",
+                "test.run",
+                "shell.execute",
+            ],
         )
 
     async def _on_estimate_cost(self, task: Any) -> EngineCostEstimate:

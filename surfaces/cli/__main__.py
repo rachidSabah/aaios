@@ -19,7 +19,6 @@ Commands:
 from __future__ import annotations
 
 import os
-import platform
 import time
 from importlib import metadata
 from pathlib import Path
@@ -30,28 +29,26 @@ from rich.console import Console
 from rich.panel import Panel
 from rich.table import Table
 
-from services.doctor.manager import DoctorManager
-from services.doctor.models import ScanType
-from services.self_healing.engine import SelfHealingEngine
-from services.self_healing.models import HealingStatus
 from services.backup.manager import BackupManager
 from services.backup.models import BackupType, ExportFormat
 from services.backup.recovery import RecoveryManager
+from services.benchmark.manager import BenchmarkManager
+from services.certify.manager import CertifyManager
+from services.cleanup.manager import CleanupManager
+from services.cleanup.models import CleanupConfig
+from services.doctor.manager import DoctorManager
+from services.doctor.models import ScanType
+from services.monitoring.models import AlertChannel
+from services.monitoring.monitor import ContinuousHealthMonitor
+from services.packaging.manager import PackagingManager
+from services.reset.manager import ResetManager
+from services.reset.models import ResetConfig
+from services.self_healing.engine import SelfHealingEngine
+from services.uninstall.manager import UninstallManager
+from services.uninstall.models import UninstallConfig
 from services.update.manager import UpdateManager
 from services.update.models import ReleaseChannel, UpdateInfo, UpdateStatus
 from services.validator.manager import ReleaseValidator
-from services.monitoring.monitor import ContinuousHealthMonitor
-from services.monitoring.models import AlertChannel
-from services.uninstall.manager import UninstallManager
-from services.uninstall.models import UninstallConfig
-from services.reset.manager import ResetManager
-from services.reset.models import ResetConfig
-from services.cleanup.manager import CleanupManager
-from services.cleanup.models import CleanupConfig
-from services.packaging.manager import PackagingManager
-from services.packaging.models import PackageType
-from services.certify.manager import CertifyManager
-from services.benchmark.manager import BenchmarkManager
 
 console = Console()
 app = typer.Typer(
@@ -111,15 +108,24 @@ def version() -> None:
 
 @app.command()
 def doctor(
-    scan: str = typer.Option("quick", "--scan", "-s", help="quick|full|offline|online|security|dependency|performance|memory|storage|provider|agent|plugin|mcp|database|dashboard|api|cli|mission|workflow|graph|vector|config|audit|network|windows"),
-    heal: bool = typer.Option(False, "--heal", "-h", help="Attempt auto-repair of detected failures"),
+    scan: str = typer.Option(
+        "quick",
+        "--scan",
+        "-s",
+        help="quick|full|offline|online|security|dependency|performance|memory|storage|provider|agent|plugin|mcp|database|dashboard|api|cli|mission|workflow|graph|vector|config|audit|network|windows",
+    ),
+    heal: bool = typer.Option(
+        False, "--heal", "-h", help="Attempt auto-repair of detected failures"
+    ),
     yes: bool = typer.Option(False, "--yes", "-y", help="Auto-approve repairs"),
 ) -> None:
     """Run health checks and optional self-healing."""
     try:
         scan_type = ScanType(scan.lower())
     except ValueError:
-        console.print(f"[red]Error:[/red] Invalid scan type: {scan}. Choose from: {[s.value for s in ScanType]}")
+        console.print(
+            f"[red]Error:[/red] Invalid scan type: {scan}. Choose from: {[s.value for s in ScanType]}"
+        )
         raise typer.Exit(1)  # noqa: B904
 
     manager = DoctorManager()
@@ -155,7 +161,7 @@ def doctor(
                 issue.severity.value,
                 issue.description,
                 issue.recommended_fix,
-                "Yes" if issue.repair_available else "No"
+                "Yes" if issue.repair_available else "No",
             )
         console.print(issues_table)
     else:
@@ -165,6 +171,7 @@ def doctor(
         console.print("\n[yellow]Starting self-healing engine...[/yellow]")
         healing_engine = SelfHealingEngine(doctor_mgr=manager)
         import asyncio
+
         records = asyncio.run(healing_engine.run_healing(auto_approve=yes))
         if records:
             rep_table = Table(title="Self-Healing Executions", show_header=True)
@@ -522,10 +529,14 @@ def start(
 
 @app.command()
 def update(
-    channel: str = typer.Option("stable", "--channel", help="Release channel: stable|lts|beta|nightly|enterprise"),
+    channel: str = typer.Option(
+        "stable", "--channel", help="Release channel: stable|lts|beta|nightly|enterprise"
+    ),
     check_only: bool = typer.Option(False, "--check", "-c", help="Only check for updates"),
     pin: str | None = typer.Option(None, "--pin", help="Pin system version"),
-    offline: str | None = typer.Option(None, "--offline", help="Path to offline update zip package"),
+    offline: str | None = typer.Option(
+        None, "--offline", help="Path to offline update zip package"
+    ),
 ) -> None:
     """Manage AAiOS system updates and migrations."""
     manager = UpdateManager()
@@ -538,7 +549,9 @@ def update(
     try:
         chan_enum = ReleaseChannel(channel.lower())
     except ValueError:
-        console.print(f"[red]Error:[/red] Invalid channel: {channel}. Choose from: {[c.value for c in ReleaseChannel]}")
+        console.print(
+            f"[red]Error:[/red] Invalid channel: {channel}. Choose from: {[c.value for c in ReleaseChannel]}"
+        )
         raise typer.Exit(1)  # noqa: B904
 
     if offline:
@@ -556,6 +569,7 @@ def update(
         )
         console.print("[yellow]Installing offline update package...[/yellow]")
         import asyncio
+
         report = asyncio.run(manager.install_update(info, offline_path))
         if report.status == UpdateStatus.SUCCESS:
             console.print("[green]Offline update installed successfully![/green]")
@@ -568,7 +582,9 @@ def update(
         console.print("[green]Already up to date.[/green]")
         return
 
-    console.print(f"[yellow]New update available: v{info.version} on channel '{info.channel.value}'[/yellow]")
+    console.print(
+        f"[yellow]New update available: v{info.version} on channel '{info.channel.value}'[/yellow]"
+    )
     console.print(f"Notes: {info.release_notes}")
 
     if check_only:
@@ -579,6 +595,7 @@ def update(
 
     console.print("[yellow]Installing update and running migrations...[/yellow]")
     import asyncio
+
     report = asyncio.run(manager.install_update(info, package_path))
     if report.status == UpdateStatus.SUCCESS:
         console.print(f"[green]Successfully upgraded to v{info.version}![/green]")
@@ -605,7 +622,10 @@ def validate() -> None:
     val_table.add_row("Runtime Validation", "Passed" if val_report.runtime_ok else "Failed")
     val_table.add_row("Dependency Validation", "Passed" if val_report.dependencies_ok else "Failed")
     val_table.add_row("Provider Validation", "Passed" if val_report.providers_ok else "Failed")
-    val_table.add_row("Plugin & MCP Validation", "Passed" if (val_report.plugins_ok and val_report.mcp_ok) else "Failed")
+    val_table.add_row(
+        "Plugin & MCP Validation",
+        "Passed" if (val_report.plugins_ok and val_report.mcp_ok) else "Failed",
+    )
     val_table.add_row("Database Validation", "Passed" if val_report.database_ok else "Failed")
     val_table.add_row("Performance Validation", "Passed" if val_report.performance_ok else "Failed")
     val_table.add_row("Security Validation", "Passed" if val_report.security_ok else "Failed")
@@ -658,7 +678,9 @@ def monitor(
             if alerts:
                 monitor_svc.dispatch_alerts(alerts)
             else:
-                console.print(f"[dim]{datetime.now(UTC).isoformat()[:19]} - System healthy. CPU: {metrics.cpu_percent:.1f}% | RAM: {metrics.ram_used_gb:.1f}GB[/dim]")
+                console.print(
+                    f"[dim]{datetime.now(UTC).isoformat()[:19]} - System healthy. CPU: {metrics.cpu_percent:.1f}% | RAM: {metrics.ram_used_gb:.1f}GB[/dim]"
+                )
             time.sleep(interval)
     except KeyboardInterrupt:
         console.print("\n[yellow]Monitoring loop stopped.[/yellow]")
@@ -707,7 +729,14 @@ def backup_list() -> None:
     table.add_column("Encrypted", style="blue")
 
     for b in backups:
-        table.add_row(b.id, b.timestamp.isoformat()[:19], b.backup_type.value, b.format.value, str(b.size_bytes), "Yes" if b.encrypted else "No")
+        table.add_row(
+            b.id,
+            b.timestamp.isoformat()[:19],
+            b.backup_type.value,
+            b.format.value,
+            str(b.size_bytes),
+            "Yes" if b.encrypted else "No",
+        )
     console.print(table)
 
 
@@ -724,7 +753,9 @@ def backup_delete(backup_id: str = typer.Argument(..., help="Backup ID to delete
 @backup_app.command("restore")
 def backup_restore(
     backup_id: str = typer.Argument(..., help="Backup ID to restore"),
-    components: str | None = typer.Option(None, "--components", help="Comma-separated list of components to selectively restore"),
+    components: str | None = typer.Option(
+        None, "--components", help="Comma-separated list of components to selectively restore"
+    ),
 ) -> None:
     """Restore a backup with automatic rollback validation."""
     manager = BackupManager()
@@ -733,6 +764,7 @@ def backup_restore(
 
     console.print(f"[yellow]Restoring backup {backup_id}...[/yellow]")
     import asyncio
+
     report = asyncio.run(recovery.restore_backup(backup_id, selective_components=comp_list))
     if report.success:
         console.print("[green]Backup restored successfully![/green]")
@@ -749,7 +781,9 @@ def snapshot_create(
     """Create an immutable snapshot."""
     manager = BackupManager()
     with console.status("[bold green]Creating snapshot...[/bold green]"):
-        meta = manager.create_backup(BackupType.FULL, ExportFormat.ZIP, encrypt=False, tags=tag, is_snapshot=True)
+        meta = manager.create_backup(
+            BackupType.FULL, ExportFormat.ZIP, encrypt=False, tags=tag, is_snapshot=True
+        )
     console.print(f"[green]Snapshot created successfully: {meta.id}[/green]")
     console.print(f"Git Commit: {meta.git_commit or 'N/A'}")
 
@@ -770,7 +804,13 @@ def snapshot_list() -> None:
     table.add_column("Size (Bytes)", style="green")
 
     for s in snapshots:
-        table.add_row(s.id, s.timestamp.isoformat()[:19], s.git_commit or "N/A", ", ".join(s.tags), str(s.size_bytes))
+        table.add_row(
+            s.id,
+            s.timestamp.isoformat()[:19],
+            s.git_commit or "N/A",
+            ", ".join(s.tags),
+            str(s.size_bytes),
+        )
     console.print(table)
 
 
@@ -784,30 +824,46 @@ def snapshot_compare(
     diff = manager.compare_snapshots(snap_a, snap_b)
     console.print(f"[cyan]Comparing Snapshot A ({snap_a}) vs Snapshot B ({snap_b})[/cyan]\n")
     console.print(f"[green]Added files:[/green] {len(diff['added'])}")
-    for f in diff['added'][:10]:
+    for f in diff["added"][:10]:
         console.print(f"  + {f}")
     console.print(f"\n[red]Deleted files:[/red] {len(diff['deleted'])}")
-    for f in diff['deleted'][:10]:
+    for f in diff["deleted"][:10]:
         console.print(f"  - {f}")
     console.print(f"\n[yellow]Modified files:[/yellow] {len(diff['modified'])}")
-    for f in diff['modified'][:10]:
+    for f in diff["modified"][:10]:
         console.print(f"  * {f}")
 
 
 @app.command()
 def uninstall(
     silent: bool = typer.Option(False, "--silent", help="Run without interactive prompts"),
-    force: bool = typer.Option(False, "--force", help="Force uninstall even if processes are active"),
-    keep_data: bool = typer.Option(True, "--keep-data", help="Preserve configuration, databases, and logs"),
-    remove_data: bool = typer.Option(False, "--remove-data", help="Remove configurations and databases"),
-    remove_models: bool = typer.Option(False, "--remove-models", help="Delete downloaded model files"),
-    remove_providers: bool = typer.Option(False, "--remove-providers", help="Delete model provider credentials"),
+    force: bool = typer.Option(
+        False, "--force", help="Force uninstall even if processes are active"
+    ),
+    keep_data: bool = typer.Option(
+        True, "--keep-data", help="Preserve configuration, databases, and logs"
+    ),
+    remove_data: bool = typer.Option(
+        False, "--remove-data", help="Remove configurations and databases"
+    ),
+    remove_models: bool = typer.Option(
+        False, "--remove-models", help="Delete downloaded model files"
+    ),
+    remove_providers: bool = typer.Option(
+        False, "--remove-providers", help="Delete model provider credentials"
+    ),
     remove_plugins: bool = typer.Option(False, "--remove-plugins", help="Delete installed plugins"),
-    remove_agents: bool = typer.Option(False, "--remove-agents", help="Delete agent project directories"),
-    remove_backups: bool = typer.Option(False, "--remove-backups", help="Delete all backup zip files"),
+    remove_agents: bool = typer.Option(
+        False, "--remove-agents", help="Delete agent project directories"
+    ),
+    remove_backups: bool = typer.Option(
+        False, "--remove-backups", help="Delete all backup zip files"
+    ),
     remove_cache: bool = typer.Option(False, "--remove-cache", help="Clear workspace caches"),
     remove_logs: bool = typer.Option(False, "--remove-logs", help="Delete all log files"),
-    everything: bool = typer.Option(False, "--everything", help="Complete purge of all files and environments"),
+    everything: bool = typer.Option(
+        False, "--everything", help="Complete purge of all files and environments"
+    ),
 ) -> None:
     """Uninstall AAiOS completely or selectively according to options."""
     if not silent and not force:
@@ -848,9 +904,15 @@ def reset(
     memory: bool = typer.Option(False, "--memory", help="Clear all vector stores and memory db"),
     providers: bool = typer.Option(False, "--providers", help="Reset provider configurations"),
     plugins: bool = typer.Option(False, "--plugins", help="Remove all custom plugins"),
-    missions: bool = typer.Option(False, "--missions", help="Purge mission and workflow tracking tables"),
-    database: bool = typer.Option(False, "--database", help="Wipe and rebuild all sqlite databases"),
-    everything: bool = typer.Option(False, "--everything", help="Complete factory wipe of all states"),
+    missions: bool = typer.Option(
+        False, "--missions", help="Purge mission and workflow tracking tables"
+    ),
+    database: bool = typer.Option(
+        False, "--database", help="Wipe and rebuild all sqlite databases"
+    ),
+    everything: bool = typer.Option(
+        False, "--everything", help="Complete factory wipe of all states"
+    ),
 ) -> None:
     """Safely reset system configurations, memory, and database states."""
     console.print("[yellow]WARNING: This will wipe configuration or data files.[/yellow]")
@@ -908,7 +970,9 @@ def cleanup(
 
     if report.success:
         if dry_run:
-            console.print(f"[yellow]Dry-run: would reclaim {report.reclaimed_bytes} bytes.[/yellow]")
+            console.print(
+                f"[yellow]Dry-run: would reclaim {report.reclaimed_bytes} bytes.[/yellow]"
+            )
         else:
             console.print(f"[green]Reclaimed {report.reclaimed_bytes} bytes of disk space.[/green]")
 
@@ -925,7 +989,9 @@ def cleanup(
 
 @app.command("package")
 def package(
-    version: str = typer.Option("5.3.2", "--version", "-v", help="Release version number to package"),
+    version: str = typer.Option(
+        "5.3.2", "--version", "-v", help="Release version number to package"
+    ),
 ) -> None:
     """Build portable zip packages and generate manifests/SBOMs for release."""
     manager = PackagingManager()
@@ -940,10 +1006,7 @@ def package(
 
     for pkg in manifest.packages:
         table.add_row(
-            pkg.package_type.value,
-            pkg.filename,
-            str(pkg.size_bytes),
-            pkg.sha256[:16] + "..."
+            pkg.package_type.value, pkg.filename, str(pkg.size_bytes), pkg.sha256[:16] + "..."
         )
     console.print(table)
     console.print()
@@ -1079,36 +1142,47 @@ def experience_show(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[cyan]Experience:[/cyan] {exp.get('experience_id')}\n"
-        f"[cyan]Task:[/cyan]        {exp.get('task_id')}\n"
-        f"[cyan]Agent:[/cyan]       {exp.get('agent_id')} ({exp.get('agent_type')})\n"
-        f"[cyan]Provider:[/cyan]    {exp.get('provider', '—')} / {exp.get('model', '—')}\n"
-        f"[cyan]Goal:[/cyan]        {exp.get('goal', '')}\n"
-        f"[cyan]Input:[/cyan]       {exp.get('input_summary', '')[:100]}\n"
-        f"[cyan]Output:[/cyan]      {exp.get('output_summary', '')[:100]}\n"
-        f"[cyan]Outcome:[/cyan]     {exp.get('outcome')} (success={exp.get('success')})\n"
-        f"[cyan]Time:[/cyan]        {exp.get('execution_time_s', 0):.3f}s\n"
-        f"[cyan]Cost:[/cyan]        ${exp.get('cost_usd', 0):.4f}\n"
-        f"[cyan]Quality:[/cyan]     reflection={exp.get('reflection_score', 0):.2f} qa={exp.get('qa_score', 0):.2f}\n"
-        f"[cyan]Retries:[/cyan]     {exp.get('retries', 0)}\n"
-        f"[cyan]Failure:[/cyan]     {exp.get('failure_reason', '—')}\n"
-        f"[cyan]Recovery:[/cyan]    {exp.get('recovery_action', '—')}",
-        title="Experience Detail",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Experience:[/cyan] {exp.get('experience_id')}\n"
+            f"[cyan]Task:[/cyan]        {exp.get('task_id')}\n"
+            f"[cyan]Agent:[/cyan]       {exp.get('agent_id')} ({exp.get('agent_type')})\n"
+            f"[cyan]Provider:[/cyan]    {exp.get('provider', '—')} / {exp.get('model', '—')}\n"
+            f"[cyan]Goal:[/cyan]        {exp.get('goal', '')}\n"
+            f"[cyan]Input:[/cyan]       {exp.get('input_summary', '')[:100]}\n"
+            f"[cyan]Output:[/cyan]      {exp.get('output_summary', '')[:100]}\n"
+            f"[cyan]Outcome:[/cyan]     {exp.get('outcome')} (success={exp.get('success')})\n"
+            f"[cyan]Time:[/cyan]        {exp.get('execution_time_s', 0):.3f}s\n"
+            f"[cyan]Cost:[/cyan]        ${exp.get('cost_usd', 0):.4f}\n"
+            f"[cyan]Quality:[/cyan]     reflection={exp.get('reflection_score', 0):.2f} qa={exp.get('qa_score', 0):.2f}\n"
+            f"[cyan]Retries:[/cyan]     {exp.get('retries', 0)}\n"
+            f"[cyan]Failure:[/cyan]     {exp.get('failure_reason', '—')}\n"
+            f"[cyan]Recovery:[/cyan]    {exp.get('recovery_action', '—')}",
+            title="Experience Detail",
+        )
+    )
 
 
 @experience_app.command("search")
 def experience_search(
     query: str = typer.Argument(..., help="Search query"),
-    search_type: str = typer.Option(None, "--type", help="Search type (similar_successes, similar_failures, best_agent_for_capability, fastest_provider, cheapest_provider, highest_quality)"),
+    search_type: str = typer.Option(
+        None,
+        "--type",
+        help="Search type (similar_successes, similar_failures, best_agent_for_capability, fastest_provider, cheapest_provider, highest_quality)",
+    ),
     limit: int = typer.Option(10, "--limit"),
 ) -> None:
     """Search experiences semantically."""
     try:
-        data = _api_post("/api/v1/experience/search", body={
-            "query": query, "search_type": search_type, "limit": limit,
-        })
+        data = _api_post(
+            "/api/v1/experience/search",
+            body={
+                "query": query,
+                "search_type": search_type,
+                "limit": limit,
+            },
+        )
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
@@ -1148,16 +1222,18 @@ def experience_replay(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[cyan]Original:[/cyan] {data.get('original_experience_id')}\n"
-        f"[cyan]Mode:[/cyan]      {data.get('mode')}\n"
-        f"[cyan]New ID:[/cyan]    {data.get('new_experience_id', '—')}\n"
-        f"[cyan]Outcome:[/cyan]   {data.get('new_outcome', '—')}\n"
-        f"[cyan]Time:[/cyan]      {data.get('new_execution_time_s', 0):.3f}s\n"
-        f"[cyan]Cost:[/cyan]      ${data.get('new_cost_usd', 0):.4f}\n"
-        f"[cyan]Error:[/cyan]     {data.get('error', '—')}",
-        title="Replay Result",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Original:[/cyan] {data.get('original_experience_id')}\n"
+            f"[cyan]Mode:[/cyan]      {data.get('mode')}\n"
+            f"[cyan]New ID:[/cyan]    {data.get('new_experience_id', '—')}\n"
+            f"[cyan]Outcome:[/cyan]   {data.get('new_outcome', '—')}\n"
+            f"[cyan]Time:[/cyan]      {data.get('new_execution_time_s', 0):.3f}s\n"
+            f"[cyan]Cost:[/cyan]      ${data.get('new_cost_usd', 0):.4f}\n"
+            f"[cyan]Error:[/cyan]     {data.get('error', '—')}",
+            title="Replay Result",
+        )
+    )
     if data.get("comparison"):
         console.print("\n[cyan]Comparison:[/cyan]")
         for k, v in data["comparison"].items():
@@ -1195,24 +1271,26 @@ def learning_stats() -> None:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[cyan]Total experiences:[/cyan]  {stats.get('total_experiences', 0)}\n"
-        f"[cyan]Successes:[/cyan]          {stats.get('total_successes', 0)}\n"
-        f"[cyan]Failures:[/cyan]           {stats.get('total_failures', 0)}\n"
-        f"[cyan]Success rate:[/cyan]       {stats.get('overall_success_rate', 0):.1%}\n"
-        f"[cyan]Avg quality:[/cyan]        {stats.get('overall_avg_quality', 0):.3f}\n"
-        f"[cyan]Avg latency:[/cyan]        {stats.get('overall_avg_latency_s', 0):.3f}s\n"
-        f"[cyan]Avg cost:[/cyan]           ${stats.get('overall_avg_cost_usd', 0):.4f}\n"
-        f"[cyan]Total cost:[/cyan]         ${stats.get('total_cost_usd', 0):.2f}\n"
-        f"[cyan]Total tokens:[/cyan]       {stats.get('total_tokens', 0)}\n"
-        f"[cyan]Agents tracked:[/cyan]     {stats.get('agent_count', 0)}\n"
-        f"[cyan]Providers tracked:[/cyan]  {stats.get('provider_count', 0)}\n"
-        f"[cyan]Capabilities:[/cyan]       {stats.get('capability_count', 0)}\n"
-        f"[cyan]Workflows:[/cyan]          {stats.get('workflow_count', 0)}\n"
-        f"[cyan]Last 24h:[/cyan]           {stats.get('last_24h_count', 0)} experiences\n"
-        f"[cyan]Last 7d:[/cyan]            {stats.get('last_7d_count', 0)} experiences",
-        title="Learning Statistics",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Total experiences:[/cyan]  {stats.get('total_experiences', 0)}\n"
+            f"[cyan]Successes:[/cyan]          {stats.get('total_successes', 0)}\n"
+            f"[cyan]Failures:[/cyan]           {stats.get('total_failures', 0)}\n"
+            f"[cyan]Success rate:[/cyan]       {stats.get('overall_success_rate', 0):.1%}\n"
+            f"[cyan]Avg quality:[/cyan]        {stats.get('overall_avg_quality', 0):.3f}\n"
+            f"[cyan]Avg latency:[/cyan]        {stats.get('overall_avg_latency_s', 0):.3f}s\n"
+            f"[cyan]Avg cost:[/cyan]           ${stats.get('overall_avg_cost_usd', 0):.4f}\n"
+            f"[cyan]Total cost:[/cyan]         ${stats.get('total_cost_usd', 0):.2f}\n"
+            f"[cyan]Total tokens:[/cyan]       {stats.get('total_tokens', 0)}\n"
+            f"[cyan]Agents tracked:[/cyan]     {stats.get('agent_count', 0)}\n"
+            f"[cyan]Providers tracked:[/cyan]  {stats.get('provider_count', 0)}\n"
+            f"[cyan]Capabilities:[/cyan]       {stats.get('capability_count', 0)}\n"
+            f"[cyan]Workflows:[/cyan]          {stats.get('workflow_count', 0)}\n"
+            f"[cyan]Last 24h:[/cyan]           {stats.get('last_24h_count', 0)} experiences\n"
+            f"[cyan]Last 7d:[/cyan]            {stats.get('last_7d_count', 0)} experiences",
+            title="Learning Statistics",
+        )
+    )
 
 
 @learning_app.command("analyze")
@@ -1228,12 +1306,16 @@ def learning_analyze() -> None:
     fixes = report.get("repeated_fixes", [])
     console.print(f"[green]Success patterns:[/green] {len(successes)}")
     for p in successes[:5]:
-        console.print(f"  • {p.get('description')} ({p.get('occurrence_count')}x, quality={p.get('avg_quality', 0):.2f})")
+        console.print(
+            f"  • {p.get('description')} ({p.get('occurrence_count')}x, quality={p.get('avg_quality', 0):.2f})"
+        )
     console.print(f"\n[red]Failure patterns:[/red] {len(failures)}")
     for p in failures[:5]:
         console.print(f"  • {p.get('description')} ({p.get('occurrence_count')}x)")
         if p.get("recovery_action"):
-            console.print(f"    recovery: {p['recovery_action']} (success rate: {p.get('recovery_success_rate', 0):.0%})")
+            console.print(
+                f"    recovery: {p['recovery_action']} (success rate: {p.get('recovery_success_rate', 0):.0%})"
+            )
     console.print(f"\n[cyan]Repeated fixes:[/cyan] {len(fixes)}")
     for p in fixes[:5]:
         console.print(f"  • {p.get('description')} ({p.get('occurrence_count')}x)")
@@ -1315,17 +1397,19 @@ def learning_recommend(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[cyan]Capability:[/cyan]          {rec.get('capability')}\n"
-        f"[green]Recommended agent:[/green] {rec.get('recommended_agent_id')}\n"
-        f"[cyan]Score:[/cyan]              {rec.get('score', 0):.3f}\n"
-        f"[cyan]Experiences:[/cyan]        {rec.get('experience_count', 0)}\n"
-        f"[cyan]Success rate:[/cyan]       {rec.get('success_rate', 0):.1%}\n"
-        f"[cyan]Avg quality:[/cyan]        {rec.get('avg_quality', 0):.3f}\n"
-        f"[cyan]Avg cost:[/cyan]           ${rec.get('avg_cost_usd', 0):.4f}\n"
-        f"[cyan]Reason:[/cyan]             {rec.get('reason', '')}",
-        title="Agent Recommendation",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Capability:[/cyan]          {rec.get('capability')}\n"
+            f"[green]Recommended agent:[/green] {rec.get('recommended_agent_id')}\n"
+            f"[cyan]Score:[/cyan]              {rec.get('score', 0):.3f}\n"
+            f"[cyan]Experiences:[/cyan]        {rec.get('experience_count', 0)}\n"
+            f"[cyan]Success rate:[/cyan]       {rec.get('success_rate', 0):.1%}\n"
+            f"[cyan]Avg quality:[/cyan]        {rec.get('avg_quality', 0):.3f}\n"
+            f"[cyan]Avg cost:[/cyan]           ${rec.get('avg_cost_usd', 0):.4f}\n"
+            f"[cyan]Reason:[/cyan]             {rec.get('reason', '')}",
+            title="Agent Recommendation",
+        )
+    )
 
 
 # --- Mission & Organization commands (v3.0) ---
@@ -1339,7 +1423,9 @@ def mission_create(
     title: str = typer.Option(..., "--title", help="Mission title"),
     description: str = typer.Option("", "--description", help="Mission description"),
     objective: list[str] = typer.Option([], "--objective", help="Mission objective (repeatable)"),
-    priority: str = typer.Option("normal", "--priority", help="critical/high/normal/low/background"),
+    priority: str = typer.Option(
+        "normal", "--priority", help="critical/high/normal/low/background"
+    ),
     budget: float = typer.Option(0.0, "--budget", help="Total budget in USD"),
     owner: str = typer.Option(None, "--owner", help="Mission owner"),
     tag: list[str] = typer.Option([], "--tag", help="Mission tag (repeatable)"),
@@ -1360,15 +1446,17 @@ def mission_create(
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[green]Mission created:[/green] {data.get('mission_id')}\n"
-        f"[cyan]Title:[/cyan]       {data.get('title')}\n"
-        f"[cyan]Status:[/cyan]      {data.get('status')}\n"
-        f"[cyan]Priority:[/cyan]    {data.get('priority')}\n"
-        f"[cyan]WBS nodes:[/cyan]   {len(data.get('wbs_nodes', []))}\n"
-        f"[cyan]Budget:[/cyan]      ${data.get('budget', {}).get('total_usd', 0):.2f}",
-        title="Mission Created",
-    ))
+    console.print(
+        Panel.fit(
+            f"[green]Mission created:[/green] {data.get('mission_id')}\n"
+            f"[cyan]Title:[/cyan]       {data.get('title')}\n"
+            f"[cyan]Status:[/cyan]      {data.get('status')}\n"
+            f"[cyan]Priority:[/cyan]    {data.get('priority')}\n"
+            f"[cyan]WBS nodes:[/cyan]   {len(data.get('wbs_nodes', []))}\n"
+            f"[cyan]Budget:[/cyan]      ${data.get('budget', {}).get('total_usd', 0):.2f}",
+            title="Mission Created",
+        )
+    )
 
 
 @mission_app.command("start")
@@ -1449,7 +1537,9 @@ def mission_replay(mission_id: str = typer.Argument(..., help="Mission ID")) -> 
     if timeline:
         console.print(f"\n[cyan]Timeline ({len(timeline)} entries):[/cyan]")
         for entry in timeline[:20]:
-            console.print(f"  {entry.get('timestamp', '')[:19]}  {entry.get('event_type', '')}  {entry.get('description', '')}")
+            console.print(
+                f"  {entry.get('timestamp', '')[:19]}  {entry.get('event_type', '')}  {entry.get('description', '')}"
+            )
 
 
 @mission_app.command("graph")
@@ -1460,7 +1550,9 @@ def mission_graph(mission_id: str = typer.Argument(..., help="Mission ID")) -> N
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(f"[cyan]Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges")
+    console.print(
+        f"[cyan]Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges"
+    )
     nodes = data.get("nodes", [])
     if nodes:
         table = Table(title="WBS Nodes")
@@ -1491,7 +1583,9 @@ def mission_timeline(mission_id: str = typer.Argument(..., help="Mission ID")) -
     timeline = data.get("timeline", [])
     console.print(f"[cyan]Timeline:[/cyan] {len(timeline)} entries")
     for entry in timeline[:30]:
-        console.print(f"  {entry.get('timestamp', '')[:19]}  [{entry.get('event_type', '')}]  {entry.get('description', '')}")
+        console.print(
+            f"  {entry.get('timestamp', '')[:19]}  [{entry.get('event_type', '')}]  {entry.get('description', '')}"
+        )
 
 
 @mission_app.command("analytics")
@@ -1502,16 +1596,18 @@ def mission_analytics(mission_id: str = typer.Argument(..., help="Mission ID")) 
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[cyan]Status:[/cyan]         {data.get('status', '')}\n"
-        f"[cyan]Decisions:[/cyan]      {data.get('decisions', 0)}\n"
-        f"[cyan]Artifacts:[/cyan]      {data.get('artifacts', 0)}\n"
-        f"[cyan]Risks:[/cyan]          {data.get('risks', 0)}\n"
-        f"[cyan]Milestones:[/cyan]     {data.get('milestones', 0)}\n"
-        f"[cyan]Elapsed:[/cyan]        {data.get('elapsed_s', 0):.1f}s\n"
-        f"[cyan]Budget spent:[/cyan]   ${data.get('budget', {}).get('spent_usd', 0):.4f}",
-        title="Mission Analytics",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Status:[/cyan]         {data.get('status', '')}\n"
+            f"[cyan]Decisions:[/cyan]      {data.get('decisions', 0)}\n"
+            f"[cyan]Artifacts:[/cyan]      {data.get('artifacts', 0)}\n"
+            f"[cyan]Risks:[/cyan]          {data.get('risks', 0)}\n"
+            f"[cyan]Milestones:[/cyan]     {data.get('milestones', 0)}\n"
+            f"[cyan]Elapsed:[/cyan]        {data.get('elapsed_s', 0):.1f}s\n"
+            f"[cyan]Budget spent:[/cyan]   ${data.get('budget', {}).get('spent_usd', 0):.4f}",
+            title="Mission Analytics",
+        )
+    )
 
 
 @mission_app.command("export")
@@ -1527,6 +1623,7 @@ def mission_export(
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
     import json as _json
+
     content = _json.dumps(data, indent=2) if format == "json" else ""
     if output:
         Path(output).write_text(content, encoding="utf-8")
@@ -1561,7 +1658,13 @@ def mission_list(
     table.add_column("WBS", style="yellow")
     table.add_column("Budget", style="white")
     for m in missions:
-        status_color = "green" if m.get("status") == "completed" else "yellow" if m.get("status") == "executing" else "red"
+        status_color = (
+            "green"
+            if m.get("status") == "completed"
+            else "yellow"
+            if m.get("status") == "executing"
+            else "red"
+        )
         table.add_row(
             str(m.get("mission_id", ""))[:8],
             str(m.get("title", ""))[:40],
@@ -1575,7 +1678,9 @@ def mission_list(
 
 # --- Intelligence commands (v3.1) ---
 
-intelligence_app = typer.Typer(help="Enterprise Intelligence — health, forecasts, optimization, risks.")
+intelligence_app = typer.Typer(
+    help="Enterprise Intelligence — health, forecasts, optimization, risks."
+)
 app.add_typer(intelligence_app, name="intelligence")
 
 
@@ -1591,21 +1696,23 @@ def intelligence_health() -> None:
     score = data.get("overall_score", 0)
     status = data.get("status", "?")
     color = "green" if score >= 0.8 else "yellow" if score >= 0.6 else "red"
-    console.print(Panel.fit(
-        f"[{color}]Enterprise Health: {grade} ({score:.2f}) — {status}[/{color}]\n\n"
-        f"[cyan]Operational:[/cyan]         {data.get('operational', 0):.2f}\n"
-        f"[cyan]Mission:[/cyan]             {data.get('mission', 0):.2f}\n"
-        f"[cyan]Agent Efficiency:[/cyan]   {data.get('agent_efficiency', 0):.2f}\n"
-        f"[cyan]Provider Efficiency:[/cyan]{data.get('provider_efficiency', 0):.2f}\n"
-        f"[cyan]Workflow Quality:[/cyan]   {data.get('workflow_quality', 0):.2f}\n"
-        f"[cyan]Execution Success:[/cyan]  {data.get('execution_success', 0):.2f}\n"
-        f"[cyan]Risk Level:[/cyan]         {data.get('risk_level', 0):.2f}\n"
-        f"[cyan]Reliability:[/cyan]        {data.get('reliability', 0):.2f}\n"
-        f"[cyan]Cost Efficiency:[/cyan]    {data.get('cost_efficiency', 0):.2f}\n"
-        f"[cyan]Learning Velocity:[/cyan]  {data.get('learning_velocity', 0):.2f}\n"
-        f"[cyan]Innovation:[/cyan]         {data.get('innovation', 0):.2f}",
-        title="Enterprise Health Score",
-    ))
+    console.print(
+        Panel.fit(
+            f"[{color}]Enterprise Health: {grade} ({score:.2f}) — {status}[/{color}]\n\n"
+            f"[cyan]Operational:[/cyan]         {data.get('operational', 0):.2f}\n"
+            f"[cyan]Mission:[/cyan]             {data.get('mission', 0):.2f}\n"
+            f"[cyan]Agent Efficiency:[/cyan]   {data.get('agent_efficiency', 0):.2f}\n"
+            f"[cyan]Provider Efficiency:[/cyan]{data.get('provider_efficiency', 0):.2f}\n"
+            f"[cyan]Workflow Quality:[/cyan]   {data.get('workflow_quality', 0):.2f}\n"
+            f"[cyan]Execution Success:[/cyan]  {data.get('execution_success', 0):.2f}\n"
+            f"[cyan]Risk Level:[/cyan]         {data.get('risk_level', 0):.2f}\n"
+            f"[cyan]Reliability:[/cyan]        {data.get('reliability', 0):.2f}\n"
+            f"[cyan]Cost Efficiency:[/cyan]    {data.get('cost_efficiency', 0):.2f}\n"
+            f"[cyan]Learning Velocity:[/cyan]  {data.get('learning_velocity', 0):.2f}\n"
+            f"[cyan]Innovation:[/cyan]         {data.get('innovation', 0):.2f}",
+            title="Enterprise Health Score",
+        )
+    )
 
 
 @intelligence_app.command("analyze")
@@ -1617,10 +1724,14 @@ def intelligence_analyze() -> None:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
     health = data.get("health", {})
-    console.print(f"[cyan]Health:[/cyan] {health.get('grade', '?')} ({health.get('overall_score', 0):.2f})")
+    console.print(
+        f"[cyan]Health:[/cyan] {health.get('grade', '?')} ({health.get('overall_score', 0):.2f})"
+    )
     console.print(f"[cyan]Forecasts:[/cyan] {len(data.get('forecasts', []))}")
     for f in data.get("forecasts", [])[:5]:
-        console.print(f"  {f.get('forecast_type', '')}: {f.get('probability', 0):.0%} — {f.get('prediction', '')[:60]}")
+        console.print(
+            f"  {f.get('forecast_type', '')}: {f.get('probability', 0):.0%} — {f.get('prediction', '')[:60]}"
+        )
     console.print(f"\n[cyan]Recommendations:[/cyan] {len(data.get('recommendations', []))}")
     for r in data.get("recommendations", [])[:5]:
         console.print(f"  [{r.get('priority', '')}] {r.get('title', '')[:60]}")
@@ -1704,7 +1815,13 @@ def intelligence_risks() -> None:
     for level in ["critical", "high", "medium", "low", "negligible"]:
         count = by_level.get(level, 0)
         if count:
-            color = "red" if level in ("critical", "high") else "yellow" if level == "medium" else "green"
+            color = (
+                "red"
+                if level in ("critical", "high")
+                else "yellow"
+                if level == "medium"
+                else "green"
+            )
             console.print(f"  [{color}]{level}[/{color}]: {count}")
     if risks:
         table = Table(title=f"Risk Details ({len(risks)})")
@@ -1761,7 +1878,10 @@ def intelligence_capacity() -> None:
 
 @intelligence_app.command("report")
 def intelligence_report(
-    report_type: str = typer.Argument("daily_executive", help="Report type: daily_executive, weekly_operations, monthly_performance, reliability, optimization, risk, mission"),
+    report_type: str = typer.Argument(
+        "daily_executive",
+        help="Report type: daily_executive, weekly_operations, monthly_performance, reliability, optimization, risk, mission",
+    ),
 ) -> None:
     """Generate an intelligence report."""
     try:
@@ -1770,15 +1890,17 @@ def intelligence_report(
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
     health = data.get("health_score", {})
-    console.print(Panel.fit(
-        f"[cyan]Report Type:[/cyan] {data.get('report_type', '')}\n"
-        f"[cyan]Generated:[/cyan]  {data.get('generated_at', '')[:19]}\n"
-        f"[cyan]Period:[/cyan]     {data.get('period_start', '')[:19]} → {data.get('period_end', '')[:19]}\n"
-        f"[cyan]Health:[/cyan]     {health.get('grade', '?')} ({health.get('overall_score', 0):.2f})\n"
-        f"\n[cyan]Summary:[/cyan]\n{data.get('summary', '')}\n"
-        f"\n[cyan]Key Findings:[/cyan]",
-        title="Intelligence Report",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Report Type:[/cyan] {data.get('report_type', '')}\n"
+            f"[cyan]Generated:[/cyan]  {data.get('generated_at', '')[:19]}\n"
+            f"[cyan]Period:[/cyan]     {data.get('period_start', '')[:19]} → {data.get('period_end', '')[:19]}\n"
+            f"[cyan]Health:[/cyan]     {health.get('grade', '?')} ({health.get('overall_score', 0):.2f})\n"
+            f"\n[cyan]Summary:[/cyan]\n{data.get('summary', '')}\n"
+            f"\n[cyan]Key Findings:[/cyan]",
+            title="Intelligence Report",
+        )
+    )
     for finding in data.get("key_findings", []):
         console.print(f"  • {finding}")
     console.print("\n[cyan]Action Items:[/cyan]")
@@ -1794,7 +1916,9 @@ app.add_typer(exec_app, name="exec")
 
 @exec_app.command("run")
 def exec_run(
-    domain: str = typer.Option("terminal", "--domain", help="Execution domain (terminal, filesystem, git, etc.)"),
+    domain: str = typer.Option(
+        "terminal", "--domain", help="Execution domain (terminal, filesystem, git, etc.)"
+    ),
     action: str = typer.Option(..., "--action", help="Action to execute"),
     param: list[str] = typer.Option([], "--param", help="key=value parameter (repeatable)"),
     description: str = typer.Option("", "--description"),
@@ -1807,8 +1931,11 @@ def exec_run(
             k, v = p.split("=", 1)
             params[k] = v
     body: dict[str, Any] = {
-        "domain": domain, "action": action, "parameters": params,
-        "description": description, "timeout_s": timeout,
+        "domain": domain,
+        "action": action,
+        "parameters": params,
+        "description": description,
+        "timeout_s": timeout,
     }
     try:
         data = _api_post("/api/v1/execution", body=body)
@@ -1816,13 +1943,15 @@ def exec_run(
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
     status_color = "green" if data.get("succeeded") else "red"
-    console.print(Panel.fit(
-        f"[{status_color}]Status:[/{status_color}] {data.get('status', '')}\n"
-        f"[cyan]Exit code:[/cyan]  {data.get('exit_code', '—')}\n"
-        f"[cyan]Duration:[/cyan]   {data.get('duration_s', 0):.3f}s\n"
-        f"[cyan]Error:[/cyan]      {data.get('error', '—')}",
-        title=f"Execution {data.get('execution_id', '')[:8]}",
-    ))
+    console.print(
+        Panel.fit(
+            f"[{status_color}]Status:[/{status_color}] {data.get('status', '')}\n"
+            f"[cyan]Exit code:[/cyan]  {data.get('exit_code', '—')}\n"
+            f"[cyan]Duration:[/cyan]   {data.get('duration_s', 0):.3f}s\n"
+            f"[cyan]Error:[/cyan]      {data.get('error', '—')}",
+            title=f"Execution {data.get('execution_id', '')[:8]}",
+        )
+    )
     if data.get("stdout"):
         console.print(f"\n[cyan]stdout:[/cyan]\n{data['stdout'][:2000]}")
     if data.get("stderr"):
@@ -1873,7 +2002,9 @@ def exec_list(
     table.add_column("Error", style="red")
     for ex in execs:
         st = ex.get("status", "")
-        color = "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
+        color = (
+            "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
+        )
         table.add_row(
             str(ex.get("execution_id", ""))[:8],
             ex.get("domain", ""),
@@ -1896,8 +2027,12 @@ def exec_logs(execution_id: str = typer.Argument(...)) -> None:
     logs = data.get("logs", [])
     for log in logs:
         level = log.get("level", "info")
-        color = {"error": "red", "warning": "yellow", "info": "white", "debug": "cyan"}.get(level, "white")
-        console.print(f"[{color}]{log.get('timestamp', '')[:19]}[/{color}] [{level}] {log.get('message', '')[:200]}")
+        color = {"error": "red", "warning": "yellow", "info": "white", "debug": "cyan"}.get(
+            level, "white"
+        )
+        console.print(
+            f"[{color}]{log.get('timestamp', '')[:19]}[/{color}] [{level}] {log.get('message', '')[:200]}"
+        )
 
 
 @exec_app.command("replay")
@@ -1908,7 +2043,9 @@ def exec_replay(execution_id: str = typer.Argument(...)) -> None:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(f"[green]Replayed:[/green] status={data.get('status', '')} id={data.get('execution_id', '')[:8]}")
+    console.print(
+        f"[green]Replayed:[/green] status={data.get('status', '')} id={data.get('execution_id', '')[:8]}"
+    )
 
 
 @exec_app.command("approve")
@@ -1919,7 +2056,10 @@ def exec_approve(
 ) -> None:
     """Approve a pending execution."""
     try:
-        data = _api_post(f"/api/v1/execution/{execution_id}/approve?decided_by={decided_by}&reason={reason}", body={})
+        data = _api_post(
+            f"/api/v1/execution/{execution_id}/approve?decided_by={decided_by}&reason={reason}",
+            body={},
+        )
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
@@ -1952,7 +2092,9 @@ def exec_history(
     table.add_column("Duration", style="yellow")
     for h in history:
         st = h.get("status", "")
-        color = "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
+        color = (
+            "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
+        )
         table.add_row(
             str(h.get("execution_id", ""))[:8],
             h.get("domain", ""),
@@ -1975,17 +2117,25 @@ def exec_monitor() -> None:
     pending = approvals.get("approvals", [])
     console.print(f"[cyan]Pending Approvals:[/cyan] {len(pending)}")
     for a in pending:
-        console.print(f"  [{a.get('risk_level', '')}] {a.get('domain', '')}/{a.get('action', '')} — {a.get('description', '')[:60]}")
+        console.print(
+            f"  [{a.get('risk_level', '')}] {a.get('domain', '')}/{a.get('action', '')} — {a.get('description', '')[:60]}"
+        )
     console.print(f"\n[cyan]Recent Executions:[/cyan] {history.get('count', 0)}")
     for h in history.get("history", [])[:10]:
         st = h.get("status", "")
-        color = "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
-        console.print(f"  [{color}]{st}[/{color}] {h.get('domain', '')}/{h.get('action', '')} ({h.get('duration_s', 0):.2f}s)")
+        color = (
+            "green" if st == "succeeded" else "red" if st in ("failed", "cancelled") else "yellow"
+        )
+        console.print(
+            f"  [{color}]{st}[/{color}] {h.get('domain', '')}/{h.get('action', '')} ({h.get('duration_s', 0):.2f}s)"
+        )
 
 
 # --- Cognitive Intelligence commands (v5.0) ---
 
-cognitive_app = typer.Typer(help="Cognitive Intelligence — learning, prediction, optimization, knowledge graph.")
+cognitive_app = typer.Typer(
+    help="Cognitive Intelligence — learning, prediction, optimization, knowledge graph."
+)
 app.add_typer(cognitive_app, name="cognitive")
 
 
@@ -2025,8 +2175,10 @@ def cognitive_predict(
     predictions = data.get("predictions", [])
     console.print(f"[cyan]Predictions:[/cyan] {len(predictions)}")
     for p in predictions:
-        console.print(f"  {p.get('prediction_type', '')}: {p.get('predicted_value', 0):.4f} "
-                      f"(confidence: {p.get('confidence', 0):.2f})")
+        console.print(
+            f"  {p.get('prediction_type', '')}: {p.get('predicted_value', 0):.4f} "
+            f"(confidence: {p.get('confidence', 0):.2f})"
+        )
         console.print(f"    {p.get('explanation', '')[:100]}")
 
 
@@ -2045,7 +2197,9 @@ def cognitive_optimize() -> None:
     for r in recs:
         console.print(f"\n  [{r.get('priority', '')}] {r.get('title', '')}")
         console.print(f"  {r.get('description', '')[:80]}")
-        console.print(f"  Impact: {r.get('estimated_impact', 0):.0%} | Confidence: {r.get('confidence', 0):.0%}")
+        console.print(
+            f"  Impact: {r.get('estimated_impact', 0):.0%} | Confidence: {r.get('confidence', 0):.0%}"
+        )
 
 
 @cognitive_app.command("experience")
@@ -2056,19 +2210,21 @@ def cognitive_experience() -> None:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[cyan]Total:[/cyan]          {data.get('total', 0)}\n"
-        f"[cyan]Successes:[/cyan]      {data.get('successes', 0)}\n"
-        f"[cyan]Failures:[/cyan]       {data.get('failures', 0)}\n"
-        f"[cyan]Success rate:[/cyan]   {data.get('success_rate', 0):.1%}\n"
-        f"[cyan]Avg cost:[/cyan]       ${data.get('avg_cost_usd', 0):.4f}\n"
-        f"[cyan]Avg latency:[/cyan]    {data.get('avg_latency_s', 0):.2f}s\n"
-        f"[cyan]Avg risk:[/cyan]       {data.get('avg_risk_score', 0):.2f}\n"
-        f"[cyan]Avg confidence:[/cyan]{data.get('avg_confidence', 0):.2f}\n"
-        f"[cyan]Agents:[/cyan]         {data.get('unique_agents', 0)}\n"
-        f"[cyan]Providers:[/cyan]      {data.get('unique_providers', 0)}",
-        title="Cognitive Experience Statistics",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Total:[/cyan]          {data.get('total', 0)}\n"
+            f"[cyan]Successes:[/cyan]      {data.get('successes', 0)}\n"
+            f"[cyan]Failures:[/cyan]       {data.get('failures', 0)}\n"
+            f"[cyan]Success rate:[/cyan]   {data.get('success_rate', 0):.1%}\n"
+            f"[cyan]Avg cost:[/cyan]       ${data.get('avg_cost_usd', 0):.4f}\n"
+            f"[cyan]Avg latency:[/cyan]    {data.get('avg_latency_s', 0):.2f}s\n"
+            f"[cyan]Avg risk:[/cyan]       {data.get('avg_risk_score', 0):.2f}\n"
+            f"[cyan]Avg confidence:[/cyan]{data.get('avg_confidence', 0):.2f}\n"
+            f"[cyan]Agents:[/cyan]         {data.get('unique_agents', 0)}\n"
+            f"[cyan]Providers:[/cyan]      {data.get('unique_providers', 0)}",
+            title="Cognitive Experience Statistics",
+        )
+    )
 
 
 @cognitive_app.command("knowledge")
@@ -2079,7 +2235,9 @@ def cognitive_knowledge() -> None:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(f"[cyan]Knowledge Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges")
+    console.print(
+        f"[cyan]Knowledge Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges"
+    )
 
 
 @cognitive_app.command("architecture")
@@ -2093,8 +2251,10 @@ def cognitive_architecture() -> None:
     issues = data.get("issues", [])
     console.print(f"[cyan]Architecture Issues:[/cyan] {len(issues)}")
     for issue in issues[:10]:
-        console.print(f"  [{issue.get('severity', '')}] {issue.get('issue_type', '')}: "
-                      f"{issue.get('description', '')[:60]}")
+        console.print(
+            f"  [{issue.get('severity', '')}] {issue.get('issue_type', '')}: "
+            f"{issue.get('description', '')[:60]}"
+        )
 
 
 @cognitive_app.command("report")
@@ -2106,11 +2266,13 @@ def cognitive_report(
     try:
         if format == "json":
             data = _api_get(f"/api/v1/cognitive/reports/{report_type}")
-            console.print(Panel.fit(
-                f"[cyan]Type:[/cyan]    {data.get('title', '')}\n"
-                f"[cyan]Summary:[/cyan] {data.get('summary', '')}",
-                title="Cognitive Report",
-            ))
+            console.print(
+                Panel.fit(
+                    f"[cyan]Type:[/cyan]    {data.get('title', '')}\n"
+                    f"[cyan]Summary:[/cyan] {data.get('summary', '')}",
+                    title="Cognitive Report",
+                )
+            )
             for finding in data.get("key_findings", []):
                 console.print(f"  • {finding}")
         else:
@@ -2129,19 +2291,21 @@ def cognitive_health() -> None:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[cyan]Health Score:[/cyan]     {data.get('health_score', 0)}/100\n"
-        f"[cyan]Source files:[/cyan]     {data.get('source_files', 0)}\n"
-        f"[cyan]Test files:[/cyan]       {data.get('test_files', 0)}\n"
-        f"[cyan]Source lines:[/cyan]     {data.get('source_lines', 0)}\n"
-        f"[cyan]Test lines:[/cyan]       {data.get('test_lines', 0)}\n"
-        f"[cyan]Test/Source ratio:[/cyan] {data.get('test_to_source_ratio', 0)}\n"
-        f"[cyan]Doc files:[/cyan]        {data.get('documentation_files', 0)}\n"
-        f"[cyan]Has README:[/cyan]       {data.get('has_readme', False)}\n"
-        f"[cyan]Has CHANGELOG:[/cyan]    {data.get('has_changelog', False)}\n"
-        f"[cyan]Has LICENSE:[/cyan]      {data.get('has_license', False)}",
-        title="Repository Health",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Health Score:[/cyan]     {data.get('health_score', 0)}/100\n"
+            f"[cyan]Source files:[/cyan]     {data.get('source_files', 0)}\n"
+            f"[cyan]Test files:[/cyan]       {data.get('test_files', 0)}\n"
+            f"[cyan]Source lines:[/cyan]     {data.get('source_lines', 0)}\n"
+            f"[cyan]Test lines:[/cyan]       {data.get('test_lines', 0)}\n"
+            f"[cyan]Test/Source ratio:[/cyan] {data.get('test_to_source_ratio', 0)}\n"
+            f"[cyan]Doc files:[/cyan]        {data.get('documentation_files', 0)}\n"
+            f"[cyan]Has README:[/cyan]       {data.get('has_readme', False)}\n"
+            f"[cyan]Has CHANGELOG:[/cyan]    {data.get('has_changelog', False)}\n"
+            f"[cyan]Has LICENSE:[/cyan]      {data.get('has_license', False)}",
+            title="Repository Health",
+        )
+    )
 
 
 # --- Knowledge Platform commands (v5.1) ---
@@ -2166,7 +2330,9 @@ def knowledge_search(
         console.print("[yellow]No results found.[/yellow]")
         return
     for r in results:
-        console.print(f"  [{r.get('match_type', '')}] {r.get('title', '')} (score: {r.get('score', 0):.3f})")
+        console.print(
+            f"  [{r.get('match_type', '')}] {r.get('title', '')} (score: {r.get('score', 0):.3f})"
+        )
         console.print(f"    {r.get('content_snippet', '')[:100]}")
 
 
@@ -2188,7 +2354,9 @@ def knowledge_rag(
     if data.get("citations"):
         console.print("\n[cyan]Citations:[/cyan]")
         for c in data["citations"]:
-            console.print(f"  {c.get('source', '')}: {c.get('title', '')} (score: {c.get('score', 0):.3f})")
+            console.print(
+                f"  {c.get('source', '')}: {c.get('title', '')} (score: {c.get('score', 0):.3f})"
+            )
 
 
 @knowledge_app.command("memory")
@@ -2214,7 +2382,9 @@ def knowledge_graph() -> None:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(f"[cyan]Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges")
+    console.print(
+        f"[cyan]Graph:[/cyan] {data.get('node_count', 0)} nodes, {data.get('edge_count', 0)} edges"
+    )
 
 
 @knowledge_app.command("stats")
@@ -2225,23 +2395,27 @@ def knowledge_stats() -> None:
     except Exception as e:
         console.print(f"[red]Error:[/red] {e}")
         raise typer.Exit(1) from e
-    console.print(Panel.fit(
-        f"[cyan]Entries:[/cyan]      {data.get('entries', 0)}\n"
-        f"[cyan]Versions:[/cyan]     {data.get('versions', 0)}\n"
-        f"[cyan]Collections:[/cyan]  {data.get('collections', 0)}\n"
-        f"[cyan]Workspaces:[/cyan]   {data.get('workspaces', 0)}\n"
-        f"[cyan]Graph nodes:[/cyan]  {data.get('graph_nodes', 0)}\n"
-        f"[cyan]Graph edges:[/cyan]  {data.get('graph_edges', 0)}\n"
-        f"[cyan]Memory total:[/cyan] {data.get('memory', {}).get('total', 0)}",
-        title="Knowledge Platform Statistics",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Entries:[/cyan]      {data.get('entries', 0)}\n"
+            f"[cyan]Versions:[/cyan]     {data.get('versions', 0)}\n"
+            f"[cyan]Collections:[/cyan]  {data.get('collections', 0)}\n"
+            f"[cyan]Workspaces:[/cyan]   {data.get('workspaces', 0)}\n"
+            f"[cyan]Graph nodes:[/cyan]  {data.get('graph_nodes', 0)}\n"
+            f"[cyan]Graph edges:[/cyan]  {data.get('graph_edges', 0)}\n"
+            f"[cyan]Memory total:[/cyan] {data.get('memory', {}).get('total', 0)}",
+            title="Knowledge Platform Statistics",
+        )
+    )
 
 
 # ---------------------------------------------------------------------------
 # Engineering Intelligence — Phase 25 CLI Integration
 # ---------------------------------------------------------------------------
 
-engineering_app = typer.Typer(help="Engineering Intelligence — review, metrics, architecture, repository, release, health, documentation, dependencies, planning.")
+engineering_app = typer.Typer(
+    help="Engineering Intelligence — review, metrics, architecture, repository, release, health, documentation, dependencies, planning."
+)
 app.add_typer(engineering_app, name="engineering")
 
 architecture_app = typer.Typer(help="Architecture analysis and recommendations.")
@@ -2275,12 +2449,14 @@ app.add_typer(planning_app, name="planning")
 def _emit(data: Any, fmt: str) -> None:
     """Render ``data`` in the requested format (json/yaml/markdown/table)."""
     import json as _json
+
     if fmt == "json":
         console.print_json(_json.dumps(data, default=str))
         return
     if fmt == "yaml":
         try:
             import yaml
+
             console.print(yaml.safe_dump(data, default_flow_style=False, sort_keys=False))
         except ImportError:
             console.print_json(_json.dumps(data, default=str))
@@ -2308,7 +2484,9 @@ def _emit(data: Any, fmt: str) -> None:
 
 @engineering_app.command("overview")
 def engineering_overview(
-    fmt: str = typer.Option("table", "--format", "-f", help="Output format: table|json|yaml|markdown"),
+    fmt: str = typer.Option(
+        "table", "--format", "-f", help="Output format: table|json|yaml|markdown"
+    ),
 ) -> None:
     """Show engineering overview."""
     try:
@@ -2347,7 +2525,10 @@ def architecture_recommendations(
 
 @review_app.command("run")
 def review_run(
-    review_type: str = typer.Argument(..., help="Review type: architecture|code|security|performance|dependency|documentation|testing|api|database|workflow|plugin|mission"),
+    review_type: str = typer.Argument(
+        ...,
+        help="Review type: architecture|code|security|performance|dependency|documentation|testing|api|database|workflow|plugin|mission",
+    ),
     target: str = typer.Argument(".", help="Target path or mission id"),
     fmt: str = typer.Option("table", "--format", "-f"),
 ) -> None:
@@ -2575,7 +2756,9 @@ def engineering_productivity(
 # Research Platform — v5.3 CLI Integration
 # ---------------------------------------------------------------------------
 
-research_app = typer.Typer(help="Enterprise Research & Reasoning Platform — projects, sessions, agents, reasoning, evidence, verification, synthesis.")
+research_app = typer.Typer(
+    help="Enterprise Research & Reasoning Platform — projects, sessions, agents, reasoning, evidence, verification, synthesis."
+)
 app.add_typer(research_app, name="research")
 
 
@@ -2648,7 +2831,10 @@ def research_agents(
 
 @research_app.command("research")
 def research_run(
-    agent_type: str = typer.Argument(..., help="Agent type: literature|scientific|legal|business|technology|market|news|financial|policy|open_data"),
+    agent_type: str = typer.Argument(
+        ...,
+        help="Agent type: literature|scientific|legal|business|technology|market|news|financial|policy|open_data",
+    ),
     query: str = typer.Argument(..., help="Research query"),
     fmt: str = typer.Option("table", "--format", "-f"),
 ) -> None:
@@ -2772,32 +2958,37 @@ def _run_install(mode: str, workspace: str, profile: str, force: bool) -> None:
     import asyncio
 
     from services.installer import InstallationMode, InstallerOrchestrator
+
     orchestrator = InstallerOrchestrator(workspace_root=workspace)
     try:
-        report = asyncio.run(orchestrator.install(
-            mode=InstallationMode(mode),
-            workspace_root=workspace,
-            profile=profile if profile else None,
-            force=force,
-        ))
+        report = asyncio.run(
+            orchestrator.install(
+                mode=InstallationMode(mode),
+                workspace_root=workspace,
+                profile=profile if profile else None,
+                force=force,
+            )
+        )
     except Exception as e:
         console.print(f"[red]Installation failed:[/red] {e}")
         raise typer.Exit(1) from e
     # Print summary
-    console.print(Panel.fit(
-        f"[cyan]Mode:[/cyan]           {report.mode}\n"
-        f"[cyan]Status:[/cyan]         {report.overall_status}\n"
-        f"[cyan]Workspace:[/cyan]      {report.plan.workspace_root if report.plan else '-'}\n"
-        f"[cyan]Restore point:[/cyan]  {report.restore_point_path or '-'}\n"
-        f"[cyan]Errors:[/cyan]         {len(report.errors)}\n"
-        f"[cyan]Warnings:[/cyan]       {len(report.warnings)}\n"
-        f"[cyan]Dependencies:[/cyan]   {len(report.dependencies)} checked\n"
-        f"[cyan]Databases:[/cyan]      {len(report.databases)} bootstrapped\n"
-        f"[cyan]Providers:[/cyan]      {len(report.providers)} checked\n"
-        f"[cyan]Agents registered:[/cyan] {len(report.agents_registered)}\n"
-        f"[cyan]Log:[/cyan]            {report.log_path or '-'}",
-        title="AAiOS Installation Report",
-    ))
+    console.print(
+        Panel.fit(
+            f"[cyan]Mode:[/cyan]           {report.mode}\n"
+            f"[cyan]Status:[/cyan]         {report.overall_status}\n"
+            f"[cyan]Workspace:[/cyan]      {report.plan.workspace_root if report.plan else '-'}\n"
+            f"[cyan]Restore point:[/cyan]  {report.restore_point_path or '-'}\n"
+            f"[cyan]Errors:[/cyan]         {len(report.errors)}\n"
+            f"[cyan]Warnings:[/cyan]       {len(report.warnings)}\n"
+            f"[cyan]Dependencies:[/cyan]   {len(report.dependencies)} checked\n"
+            f"[cyan]Databases:[/cyan]      {len(report.databases)} bootstrapped\n"
+            f"[cyan]Providers:[/cyan]      {len(report.providers)} checked\n"
+            f"[cyan]Agents registered:[/cyan] {len(report.agents_registered)}\n"
+            f"[cyan]Log:[/cyan]            {report.log_path or '-'}",
+            title="AAiOS Installation Report",
+        )
+    )
     if report.errors:
         console.print("\n[red]Errors:[/red]")
         for err in report.errors:
@@ -2816,13 +3007,19 @@ def _run_install(mode: str, workspace: str, profile: str, force: bool) -> None:
 def install(
     ctx: typer.Context,
     mode: str = typer.Option(
-        "interactive", "--mode", "-m",
+        "interactive",
+        "--mode",
+        "-m",
         help="Installation mode: interactive|silent|minimal|developer|enterprise|portable|offline|repair|force|upgrade|validate",
     ),
     workspace: str = typer.Option("", "--workspace", "-w", help="Workspace root path"),
     profile: str = typer.Option("", "--profile", help="Configuration profile"),
-    force: bool = typer.Option(False, "--force", help="Force installation past compatibility blockers"),
-    interactive: bool = typer.Option(False, "--interactive", help="Shortcut for --mode=interactive"),
+    force: bool = typer.Option(
+        False, "--force", help="Force installation past compatibility blockers"
+    ),
+    interactive: bool = typer.Option(
+        False, "--interactive", help="Shortcut for --mode=interactive"
+    ),
     silent: bool = typer.Option(False, "--silent", help="Shortcut for --mode=silent"),
     minimal: bool = typer.Option(False, "--minimal", help="Shortcut for --mode=minimal"),
     developer: bool = typer.Option(False, "--developer", help="Shortcut for --mode=developer"),
@@ -2839,9 +3036,15 @@ def install(
     # Resolve mode from shortcut flags
     selected_mode = mode
     for flag, m in (
-        (interactive, "interactive"), (silent, "silent"), (minimal, "minimal"),
-        (developer, "developer"), (enterprise, "enterprise"), (portable, "portable"),
-        (offline, "offline"), (repair, "repair"), (upgrade, "upgrade"),
+        (interactive, "interactive"),
+        (silent, "silent"),
+        (minimal, "minimal"),
+        (developer, "developer"),
+        (enterprise, "enterprise"),
+        (portable, "portable"),
+        (offline, "offline"),
+        (repair, "repair"),
+        (upgrade, "upgrade"),
         (validate, "validate"),
     ):
         if flag:

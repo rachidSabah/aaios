@@ -210,7 +210,12 @@ BUILTIN_SPECS: list[ProviderSpec] = [
         category=AgentCategory.DESKTOP,
         binary_names=["hermes", "hermes-daemon"],
         npm_packages=["@agentos/hermes"],
-        expected_capabilities=["desktop_automation", "browser_automation", "screenshot", "terminal"],
+        expected_capabilities=[
+            "desktop_automation",
+            "browser_automation",
+            "screenshot",
+            "terminal",
+        ],
         supports_mcp=True,
         icon="🪽",
         license="MIT",

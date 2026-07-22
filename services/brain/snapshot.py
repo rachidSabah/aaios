@@ -214,6 +214,7 @@ class BrainSnapshotService:
         # Provider brains — from the REAL Runtime Discovery registry
         try:
             from services.runtime_discovery import get_provider_registry
+
             registry = get_provider_registry()
             providers = registry.list_providers(bound_only=False)
             for p in providers:
@@ -236,6 +237,7 @@ class BrainSnapshotService:
 
         try:
             from services.agent_registry import AgentRegistry
+
             agent_reg = AgentRegistry()
             for agent in agent_reg.list_agents():
                 if not any(n.provider == agent.agent_type for n in nodes):
@@ -286,26 +288,32 @@ class BrainSnapshotService:
         mc_id = "mission-control"
         provider_nodes = [n for n in nodes if n.kind == "provider" and n.status != "offline"]
         for node in provider_nodes:
-            links.append(NeuralLink(
-                link_id=f"link-{node.node_id}-{mc_id}",
-                source=node.node_id,
-                target=mc_id,
-                kind="event",
-                messages_per_min=self._estimate_msg_rate(node),
-                bandwidth=min(1.0, node.success_rate if node.success_rate else 0.3),
-                active=node.status in ("active", "busy"),
-            ))
+            links.append(
+                NeuralLink(
+                    link_id=f"link-{node.node_id}-{mc_id}",
+                    source=node.node_id,
+                    target=mc_id,
+                    kind="event",
+                    messages_per_min=self._estimate_msg_rate(node),
+                    bandwidth=min(1.0, node.success_rate if node.success_rate else 0.3),
+                    active=node.status in ("active", "busy"),
+                )
+            )
         for i, a in enumerate(provider_nodes):
-            for b in provider_nodes[i + 1:]:
-                links.append(NeuralLink(
-                    link_id=f"link-{a.node_id}-{b.node_id}",
-                    source=a.node_id,
-                    target=b.node_id,
-                    kind="task",
-                    messages_per_min=self._estimate_msg_rate(a) * 0.3,
-                    bandwidth=min(1.0, (a.success_rate + b.success_rate) / 2 * 0.5) if (a.success_rate or b.success_rate) else 0.3,
-                    active=a.status in ("active", "busy") and b.status in ("active", "busy"),
-                ))
+            for b in provider_nodes[i + 1 :]:
+                links.append(
+                    NeuralLink(
+                        link_id=f"link-{a.node_id}-{b.node_id}",
+                        source=a.node_id,
+                        target=b.node_id,
+                        kind="task",
+                        messages_per_min=self._estimate_msg_rate(a) * 0.3,
+                        bandwidth=min(1.0, (a.success_rate + b.success_rate) / 2 * 0.5)
+                        if (a.success_rate or b.success_rate)
+                        else 0.3,
+                        active=a.status in ("active", "busy") and b.status in ("active", "busy"),
+                    )
+                )
         return links
 
     def _estimate_msg_rate(self, node: BrainNode) -> float:
@@ -324,34 +332,40 @@ class BrainSnapshotService:
         tasks: list[TaskPacket] = []
         try:
             from services.organization import MissionManager
+
             mgr = MissionManager()
             missions = await mgr.list_missions()
             for mission in missions[:20]:
                 if mission.status in ("active", "running", "in_progress"):
-                    tasks.append(TaskPacket(
-                        packet_id=mission.mission_id[:8],
-                        task_id=mission.mission_id,
-                        mission_id=mission.mission_id,
-                        title=mission.title,
-                        status="running" if mission.status == "active" else mission.status,
-                        progress=getattr(mission, "progress", 0.0),
-                        started_at=mission.started_at.isoformat() if mission.started_at else "",
-                    ))
+                    tasks.append(
+                        TaskPacket(
+                            packet_id=mission.mission_id[:8],
+                            task_id=mission.mission_id,
+                            mission_id=mission.mission_id,
+                            title=mission.title,
+                            status="running" if mission.status == "active" else mission.status,
+                            progress=getattr(mission, "progress", 0.0),
+                            started_at=mission.started_at.isoformat() if mission.started_at else "",
+                        )
+                    )
         except (ImportError, RuntimeError) as e:
             _log.warning("brain.task_collection_failed", error=str(e))
         try:
             from services.execution import ExecutionManager as _ExecMgr
+
             exec_mgr = _ExecMgr()
             if hasattr(exec_mgr, "list_executions"):
                 execs = exec_mgr.list_executions()
                 for ex in execs[:20]:
-                    tasks.append(TaskPacket(
-                        packet_id=str(getattr(ex, "execution_id", uuid4().hex[:8])),
-                        task_id=str(getattr(ex, "execution_id", "")),
-                        mission_id="",
-                        title=getattr(ex, "action", "execution"),
-                        status=getattr(ex, "status", "running"),
-                    ))
+                    tasks.append(
+                        TaskPacket(
+                            packet_id=str(getattr(ex, "execution_id", uuid4().hex[:8])),
+                            task_id=str(getattr(ex, "execution_id", "")),
+                            mission_id="",
+                            title=getattr(ex, "action", "execution"),
+                            status=getattr(ex, "status", "running"),
+                        )
+                    )
         except (ImportError, RuntimeError) as e:
             _log.warning("brain.execution_collection_failed", error=str(e))
         return tasks[:50]
@@ -369,17 +383,26 @@ class BrainSnapshotService:
     def _system_resource_pct(self) -> tuple[float, float, float, float]:
         try:
             import psutil
+
             cpu = psutil.cpu_percent(interval=0.1)
             ram = psutil.virtual_memory().percent
             gpu = 0.0
             try:
                 import shutil as _shutil
                 import subprocess
+
                 nvidia_smi = _shutil.which("nvidia-smi")
                 if nvidia_smi:
                     result = subprocess.run(  # noqa: S603
-                        [nvidia_smi, "--query-gpu=utilization.gpu", "--format=csv,noheader,nounits"],  # noqa: S607
-                        capture_output=True, text=True, timeout=2, check=False,
+                        [
+                            nvidia_smi,
+                            "--query-gpu=utilization.gpu",
+                            "--format=csv,noheader,nounits",
+                        ],  # noqa: S607
+                        capture_output=True,
+                        text=True,
+                        timeout=2,
+                        check=False,
                     )
                     if result.returncode == 0 and result.stdout.strip():
                         gpu = float(result.stdout.strip().splitlines()[0])
@@ -399,6 +422,7 @@ class BrainSnapshotService:
     def _collect_event_bus(self) -> dict[str, Any]:
         try:
             from core.event_bus import get_bus
+
             bus = get_bus()
             sub_count = getattr(bus, "subscriber_count", lambda: 0)()
             topic_list: list[str] = getattr(bus, "topics", lambda: [])()
@@ -421,18 +445,23 @@ class BrainSnapshotService:
         }
         try:
             from core.event_bus import get_bus
+
             bus = get_bus()
             result["event_bus"] = getattr(bus, "subscriber_count", lambda: 0)() > 0
         except (ImportError, RuntimeError):
             pass
         try:
             from services.plugin import PluginManager
+
             pm = PluginManager()
-            result["plugins_active"] = len(pm.list_active_plugins()) if hasattr(pm, "list_active_plugins") else 0
+            result["plugins_active"] = (
+                len(pm.list_active_plugins()) if hasattr(pm, "list_active_plugins") else 0
+            )
         except (ImportError, RuntimeError):
             pass
         try:
             from services.mcp import MCPManager
+
             mcp = MCPManager()
             result["mcp_servers"] = len(mcp.list_servers()) if hasattr(mcp, "list_servers") else 0
         except (ImportError, RuntimeError):
@@ -442,6 +471,7 @@ class BrainSnapshotService:
     async def _collect_missions(self) -> dict[str, Any]:
         try:
             from services.organization import MissionManager
+
             mgr = MissionManager()
             missions = await mgr.list_missions()
             active = [m for m in missions if m.status in ("active", "running", "in_progress")]
@@ -475,15 +505,18 @@ class BrainSnapshotService:
         events: list[dict[str, Any]] = []
         try:
             from core.event_bus import get_bus
+
             bus = get_bus()
             topics: list[str] = getattr(bus, "topics", lambda: [])()
             for topic in topics[:10]:
-                events.append({
-                    "timestamp": datetime.now(UTC).isoformat(),
-                    "topic": topic,
-                    "message": f"Event bus active on topic: {topic}",
-                    "level": "info",
-                })
+                events.append(
+                    {
+                        "timestamp": datetime.now(UTC).isoformat(),
+                        "topic": topic,
+                        "message": f"Event bus active on topic: {topic}",
+                        "level": "info",
+                    }
+                )
         except (ImportError, RuntimeError):
             pass
         return events[:20]

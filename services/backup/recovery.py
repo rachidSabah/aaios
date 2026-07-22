@@ -81,7 +81,9 @@ class RecoveryManager:
 
         try:
             # 2. Extract backup to temporary location
-            archive_dir = self.backup_mgr.snapshot_dir if is_snapshot else self.backup_mgr.backup_dir
+            archive_dir = (
+                self.backup_mgr.snapshot_dir if is_snapshot else self.backup_mgr.backup_dir
+            )
             archive_path = archive_dir / f"backup-{backup_id}.{metadata.format.value}"
 
             if not archive_path.exists():
@@ -111,6 +113,7 @@ class RecoveryManager:
                     backup_dict = json.loads(unpack_src.read_text(encoding="utf-8"))
                 elif metadata.format.value == "yaml":
                     import yaml
+
                     backup_dict = yaml.safe_load(unpack_src.read_text(encoding="utf-8"))
                 for rel_path, content in backup_dict.items():
                     dest_file = temp_unpack / rel_path
@@ -127,7 +130,9 @@ class RecoveryManager:
                     break
                 actual_checksum = self.backup_mgr._compute_sha256(file_path)  # noqa: SLF001
                 if actual_checksum != expected_checksum:
-                    report.errors.append(f"Integrity check failed: checksum mismatch for {rel_path}")
+                    report.errors.append(
+                        f"Integrity check failed: checksum mismatch for {rel_path}"
+                    )
                     integrity_ok = False
                     break
 
@@ -140,7 +145,9 @@ class RecoveryManager:
             current_version = "5.3.2"
             if metadata.version != current_version:
                 # Soft mismatch allowed if schemas are compatible, but flag it
-                _log.warning("restore.version_mismatch", backup=metadata.version, current=current_version)
+                _log.warning(
+                    "restore.version_mismatch", backup=metadata.version, current=current_version
+                )
 
             report.compatibility_passed = compatibility_ok
 
@@ -184,7 +191,9 @@ class RecoveryManager:
                         cursor.execute("PRAGMA integrity_check;")
                         res = cursor.fetchone()
                         if not res or res[0] != "ok":
-                            raise sqlite3.DatabaseError(f"Integrity check failed for database {db_file.name}")
+                            raise sqlite3.DatabaseError(
+                                f"Integrity check failed for database {db_file.name}"
+                            )
                     finally:
                         conn.close()
 
@@ -207,7 +216,11 @@ class RecoveryManager:
                     _log.info("restore.rollback_completed", checkpoint_id=checkpoint_meta.id)
                 except Exception as rollback_err:  # noqa: BLE001
                     report.errors.append(f"Rollback failed: {rollback_err}")
-                    _log.critical("restore.rollback_failed", checkpoint_id=checkpoint_meta.id, error=str(rollback_err))
+                    _log.critical(
+                        "restore.rollback_failed",
+                        checkpoint_id=checkpoint_meta.id,
+                        error=str(rollback_err),
+                    )
 
         finally:
             # Clean up temporary directories
@@ -221,7 +234,9 @@ class RecoveryManager:
 
     async def _rollback_to_checkpoint(self, checkpoint: BackupMetadata) -> None:
         """Internal helper to roll back the workspace to a checkpoint."""
-        archive_path = self.backup_mgr.backup_dir / f"backup-{checkpoint.id}.{checkpoint.format.value}"
+        archive_path = (
+            self.backup_mgr.backup_dir / f"backup-{checkpoint.id}.{checkpoint.format.value}"
+        )
         temp_unpack = self.temp_dir / f"rollback-{checkpoint.id}"
         temp_unpack.mkdir(parents=True, exist_ok=True)
 
@@ -247,6 +262,7 @@ class RecoveryManager:
         """Log the restore operation to the audit log."""
         try:
             from services.security.manager import get_security_manager
+
             sec_mgr = get_security_manager()
             entry = AuditEntry(
                 actor=ActorRef.system(),
@@ -255,7 +271,10 @@ class RecoveryManager:
                 success=report.success,
                 reason=f"Restore operation finished. Success: {report.success}. Errors: {len(report.errors)}. Rolled back: {report.rolled_back}",
                 correlation_id=report.id,
-                metadata={"rolled_back": str(report.rolled_back), "errors": "|".join(report.errors)},
+                metadata={
+                    "rolled_back": str(report.rolled_back),
+                    "errors": "|".join(report.errors),
+                },
             )
             await sec_mgr.log(entry)
         except Exception:  # noqa: BLE001

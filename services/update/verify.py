@@ -13,7 +13,6 @@ violate the no-mock rule, so an unsigned package simply fails verification.
 from __future__ import annotations
 
 import abc
-from dataclasses import dataclass
 
 from core.logging import get_logger
 from services.update.download import sha256_of
@@ -103,9 +102,7 @@ class PackageVerifier:
                 _log.error("update.verify.no_verifier", error=err)
             else:
                 try:
-                    signature_ok = self._sig.verify(
-                        str(path), asset.signature, public_key=""
-                    )
+                    signature_ok = self._sig.verify(str(path), asset.signature, public_key="")
                     if not signature_ok:
                         err = "signature verification failed"
                 except Exception as exc:  # noqa: BLE001

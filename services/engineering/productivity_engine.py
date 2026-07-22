@@ -190,8 +190,7 @@ class DeveloperProductivityEngine:
         m = ProductivityMetrics()
         # Cycle time: avg (issue_start → pr_merged) if both recorded
         cycle_times: list[float] = []
-        pr_opens = {e["pr_id"]: e for e in events
-                    if e["type"] == "pr_opened" and "pr_id" in e}
+        pr_opens = {e["pr_id"]: e for e in events if e["type"] == "pr_opened" and "pr_id" in e}
         for e in events:
             if e["type"] == "pr_merged" and "pr_id" in e:
                 open_ev = pr_opens.get(e["pr_id"])
@@ -271,21 +270,27 @@ class DeveloperProductivityEngine:
             recovery_time_hours=m.recovery_time_hours,
         )
         # DORA level classification
-        if (d.deployment_frequency >= 1.0  # multiple deploys per day
-                and d.lead_time_hours <= 24
-                and d.change_failure_rate <= 0.15
-                and d.recovery_time_hours <= 1):
+        if (
+            d.deployment_frequency >= 1.0  # multiple deploys per day
+            and d.lead_time_hours <= 24
+            and d.change_failure_rate <= 0.15
+            and d.recovery_time_hours <= 1
+        ):
             d.level = "elite"
             d.elite = True
-        elif (d.deployment_frequency >= 1 / 7  # weekly
-              and d.lead_time_hours <= 24 * 7
-              and d.change_failure_rate <= 0.3
-              and d.recovery_time_hours <= 24):
+        elif (
+            d.deployment_frequency >= 1 / 7  # weekly
+            and d.lead_time_hours <= 24 * 7
+            and d.change_failure_rate <= 0.3
+            and d.recovery_time_hours <= 24
+        ):
             d.level = "high"
-        elif (d.deployment_frequency >= 1 / 30  # monthly
-              and d.lead_time_hours <= 24 * 30
-              and d.change_failure_rate <= 0.5
-              and d.recovery_time_hours <= 24 * 7):
+        elif (
+            d.deployment_frequency >= 1 / 30  # monthly
+            and d.lead_time_hours <= 24 * 30
+            and d.change_failure_rate <= 0.5
+            and d.recovery_time_hours <= 24 * 7
+        ):
             d.level = "medium"
         else:
             d.level = "low"
@@ -300,11 +305,13 @@ class DeveloperProductivityEngine:
             start = end - timedelta(weeks=1)
             m = await self.metrics(start, end)
             d = await self.dora(start, end)
-            out.append(ProductivityTrend(
-                period=start.strftime("%Y-W%U"),
-                metrics=m,
-                dora=d,
-            ))
+            out.append(
+                ProductivityTrend(
+                    period=start.strftime("%Y-W%U"),
+                    metrics=m,
+                    dora=d,
+                )
+            )
         return out
 
     async def dashboard(self) -> ProductivityDashboard:
@@ -329,7 +336,9 @@ class DeveloperProductivityEngine:
             trends=await self.trends(),
             recommendations=[
                 {"text": r, "confidence": 0.7, "requires_approval": True}
-                for r in self._recommendations(await self.metrics(start, now), await self.dora(start, now))
+                for r in self._recommendations(
+                    await self.metrics(start, now), await self.dora(start, now)
+                )
             ],
             confidence=0.7,
         )
@@ -344,69 +353,77 @@ class DeveloperProductivityEngine:
         except ValueError:
             return datetime.now(UTC)
 
-    def _opportunities(
-        self, m: ProductivityMetrics, d: DORAMetrics
-    ) -> list[dict[str, Any]]:
+    def _opportunities(self, m: ProductivityMetrics, d: DORAMetrics) -> list[dict[str, Any]]:
         opps: list[dict[str, Any]] = []
         if d.deployment_frequency < 1 / 7:
-            opps.append({
-                "metric": "deployment_frequency",
-                "current": d.deployment_frequency,
-                "target": 1.0,
-                "impact": "high",
-                "effort": "medium",
-                "description": "Move from weekly to daily deploys via CI/CD automation.",
-            })
+            opps.append(
+                {
+                    "metric": "deployment_frequency",
+                    "current": d.deployment_frequency,
+                    "target": 1.0,
+                    "impact": "high",
+                    "effort": "medium",
+                    "description": "Move from weekly to daily deploys via CI/CD automation.",
+                }
+            )
         if d.lead_time_hours > 168:
-            opps.append({
-                "metric": "lead_time",
-                "current": d.lead_time_hours,
-                "target": 24.0,
-                "impact": "high",
-                "effort": "medium",
-                "description": "Reduce lead time by batching smaller PRs and automating tests.",
-            })
+            opps.append(
+                {
+                    "metric": "lead_time",
+                    "current": d.lead_time_hours,
+                    "target": 24.0,
+                    "impact": "high",
+                    "effort": "medium",
+                    "description": "Reduce lead time by batching smaller PRs and automating tests.",
+                }
+            )
         if d.change_failure_rate > 0.2:
-            opps.append({
-                "metric": "change_failure_rate",
-                "current": d.change_failure_rate,
-                "target": 0.1,
-                "impact": "high",
-                "effort": "high",
-                "description": "Reduce failures via stronger pre-prod testing and canary deploys.",
-            })
+            opps.append(
+                {
+                    "metric": "change_failure_rate",
+                    "current": d.change_failure_rate,
+                    "target": 0.1,
+                    "impact": "high",
+                    "effort": "high",
+                    "description": "Reduce failures via stronger pre-prod testing and canary deploys.",
+                }
+            )
         if d.recovery_time_hours > 24:
-            opps.append({
-                "metric": "recovery_time",
-                "current": d.recovery_time_hours,
-                "target": 1.0,
-                "impact": "medium",
-                "effort": "medium",
-                "description": "Improve MTTR via better observability and runbooks.",
-            })
+            opps.append(
+                {
+                    "metric": "recovery_time",
+                    "current": d.recovery_time_hours,
+                    "target": 1.0,
+                    "impact": "medium",
+                    "effort": "medium",
+                    "description": "Improve MTTR via better observability and runbooks.",
+                }
+            )
         if m.review_time_hours > 48:
-            opps.append({
-                "metric": "review_time",
-                "current": m.review_time_hours,
-                "target": 8.0,
-                "impact": "medium",
-                "effort": "low",
-                "description": "Set review SLAs and rotate reviewers.",
-            })
+            opps.append(
+                {
+                    "metric": "review_time",
+                    "current": m.review_time_hours,
+                    "target": 8.0,
+                    "impact": "medium",
+                    "effort": "low",
+                    "description": "Set review SLAs and rotate reviewers.",
+                }
+            )
         if m.planning_accuracy < 0.7:
-            opps.append({
-                "metric": "planning_accuracy",
-                "current": m.planning_accuracy,
-                "target": 0.85,
-                "impact": "medium",
-                "effort": "low",
-                "description": "Improve estimation by decomposing stories and tracking velocity.",
-            })
+            opps.append(
+                {
+                    "metric": "planning_accuracy",
+                    "current": m.planning_accuracy,
+                    "target": 0.85,
+                    "impact": "medium",
+                    "effort": "low",
+                    "description": "Improve estimation by decomposing stories and tracking velocity.",
+                }
+            )
         return opps
 
-    def _recommendations(
-        self, m: ProductivityMetrics, d: DORAMetrics
-    ) -> list[str]:
+    def _recommendations(self, m: ProductivityMetrics, d: DORAMetrics) -> list[str]:
         recs: list[str] = []
         if d.level == "elite":
             recs.append("Sustain elite DORA performance — share practices with other teams.")

@@ -186,7 +186,9 @@ class WDACManager:
             self._policies[policy.id] = policy
             _log.info(
                 "Created WDAC policy '%s' (id=%s, rules=%d)",
-                name, policy.id, len(policy.rules),
+                name,
+                policy.id,
+                len(policy.rules),
             )
             return policy
 
@@ -232,12 +234,14 @@ class WDACManager:
                 # 2. Sign with signtool.exe /v /fd sha256 /sha1 <thumbprint>
                 _log.info(
                     "Signed WDAC policy '%s' with cert %s",
-                    policy.name, cert_thumbprint,
+                    policy.name,
+                    cert_thumbprint,
                 )
             else:
                 _log.info(
                     "Stub: WDAC signing not supported on %s for policy '%s'",
-                    sys.platform, policy.name,
+                    sys.platform,
+                    policy.name,
                 )
             policy.state = PolicyState.SIGNED
             policy.signed_at = time.time()
@@ -262,7 +266,8 @@ class WDACManager:
                 # Copy .cip to C:\Windows\System32\CodeIntegrity\CiPolicies\Active\
                 _log.info(
                     "Published WDAC policy '%s' (mode=%s)",
-                    policy.name, "audit" if audit_mode else "enforced",
+                    policy.name,
+                    "audit" if audit_mode else "enforced",
                 )
             policy.state = PolicyState.AUDIT if audit_mode else PolicyState.ENFORCED
             policy.enforced_at = time.time()
@@ -311,6 +316,7 @@ class WDACManager:
             elif isinstance(rule, FilePathRule):
                 # Simple wildcard match
                 import fnmatch
+
                 if fnmatch.fnmatch(binary_path, rule.path):
                     matched.append(rule.name)
                     allowed = rule.allowed
@@ -318,8 +324,10 @@ class WDACManager:
             "allowed": allowed,
             "matched_rules": matched,
             "reason": (
-                f"Allowed by {matched[-1]}" if matched and allowed
-                else "Denied (no rule matched)" if not matched
+                f"Allowed by {matched[-1]}"
+                if matched and allowed
+                else "Denied (no rule matched)"
+                if not matched
                 else f"Denied by {matched[-1]}"
             ),
             "policy_state": policy.state,

@@ -192,16 +192,24 @@ class LiteratureAgent(ResearchAgentBase):
             year = ""
             if m.get("published_at"):
                 try:
-                    year = str(m["published_at"].year) if hasattr(m["published_at"], "year") else str(m["published_at"])[:4]
+                    year = (
+                        str(m["published_at"].year)
+                        if hasattr(m["published_at"], "year")
+                        else str(m["published_at"])[:4]
+                    )
                 except (AttributeError, TypeError, ValueError):
                     year = ""
             if title:
                 key_points.append(f"{author} ({year}): {title}")
         if not source_material:
-            key_points.append("No literature source material provided — query requires targeted retrieval.")
+            key_points.append(
+                "No literature source material provided — query requires targeted retrieval."
+            )
         limitations = []
         if not source_material:
-            limitations.append("No source material supplied — findings are based on agent capabilities only.")
+            limitations.append(
+                "No source material supplied — findings are based on agent capabilities only."
+            )
         follow_ups = [
             f"Expand the corpus for '{query[:60]}' with primary texts and peer-reviewed criticism.",
             "Cross-reference authorship attribution across multiple scholarly indexes.",
@@ -234,12 +242,18 @@ class ScientificResearchAgent(ResearchAgentBase):
             elif title:
                 key_points.append(title)
         if not source_material:
-            key_points.append("No scientific source material provided — query requires database retrieval (PubMed, arXiv, etc.).")
+            key_points.append(
+                "No scientific source material provided — query requires database retrieval (PubMed, arXiv, etc.)."
+            )
         limitations: list[str] = []
         if not any(m.get("doi") for m in source_material):
-            limitations.append("No DOI-identified sources — verification against peer-reviewed indexes recommended.")
+            limitations.append(
+                "No DOI-identified sources — verification against peer-reviewed indexes recommended."
+            )
         if not source_material:
-            limitations.append("Empty source corpus — scientific findings require empirical grounding.")
+            limitations.append(
+                "Empty source corpus — scientific findings require empirical grounding."
+            )
         follow_ups = [
             f"Retrieve peer-reviewed papers matching '{query[:60]}' from established indexes.",
             "Check for replication studies and meta-analyses.",
@@ -274,12 +288,18 @@ class LegalResearchAgent(ResearchAgentBase):
             elif title:
                 key_points.append(title)
         if not source_material:
-            key_points.append("No legal source material provided — query requires retrieval from legal databases.")
+            key_points.append(
+                "No legal source material provided — query requires retrieval from legal databases."
+            )
         limitations: list[str] = []
         if not jurisdiction:
-            limitations.append("No jurisdiction specified — legal findings are jurisdiction-dependent.")
+            limitations.append(
+                "No jurisdiction specified — legal findings are jurisdiction-dependent."
+            )
         if not source_material:
-            limitations.append("No primary legal sources supplied — verify against official gazettes and court records.")
+            limitations.append(
+                "No primary legal sources supplied — verify against official gazettes and court records."
+            )
         follow_ups = [
             f"Confirm jurisdiction scope for '{query[:60]}'.",
             "Check for recent amendments and pending litigation.",
@@ -313,7 +333,9 @@ class BusinessResearchAgent(ResearchAgentBase):
             elif company:
                 key_points.append(company)
         if not source_material:
-            key_points.append("No business source material provided — query requires SEC filings, analyst reports, etc.")
+            key_points.append(
+                "No business source material provided — query requires SEC filings, analyst reports, etc."
+            )
         limitations: list[str] = []
         if not source_material:
             limitations.append("No business sources — verify financial filings independently.")
@@ -349,10 +371,14 @@ class TechnologyResearchAgent(ResearchAgentBase):
             elif spec:
                 key_points.append(spec)
         if not source_material:
-            key_points.append("No technical source material provided — query requires retrieval of RFCs, specs, and docs.")
+            key_points.append(
+                "No technical source material provided — query requires retrieval of RFCs, specs, and docs."
+            )
         limitations: list[str] = []
         if not source_material:
-            limitations.append("No primary technical specifications — verify against standards bodies.")
+            limitations.append(
+                "No primary technical specifications — verify against standards bodies."
+            )
         follow_ups = [
             f"Identify authoritative specification for '{query[:60]}'.",
             "Check for deprecation notices and successor specs.",
@@ -385,7 +411,9 @@ class MarketResearchAgent(ResearchAgentBase):
             elif market:
                 key_points.append(market)
         if not source_material:
-            key_points.append("No market source material provided — query requires analyst reports and trade data.")
+            key_points.append(
+                "No market source material provided — query requires analyst reports and trade data."
+            )
         limitations: list[str] = []
         if not source_material:
             limitations.append("No market sizing data — figures require independent verification.")
@@ -415,11 +443,15 @@ class NewsResearchAgent(ResearchAgentBase):
         key_points: list[str] = []
         for m in source_material:
             headline = m.get("title", "")
-            outlet = m.get("outlet") or (m.get("authors", ["unknown"])[0] if m.get("authors") else "unknown")
+            outlet = m.get("outlet") or (
+                m.get("authors", ["unknown"])[0] if m.get("authors") else "unknown"
+            )
             if headline:
                 key_points.append(f"[{outlet}] {headline}")
         if not source_material:
-            key_points.append("No news source material provided — query requires real-time news retrieval.")
+            key_points.append(
+                "No news source material provided — query requires real-time news retrieval."
+            )
         limitations: list[str] = []
         if not source_material:
             limitations.append("No news sources — verify recency and outlet reliability.")
@@ -457,10 +489,14 @@ class FinancialResearchAgent(ResearchAgentBase):
             elif ticker:
                 key_points.append(ticker)
         if not source_material:
-            key_points.append("No financial source material provided — query requires filings and market data feeds.")
+            key_points.append(
+                "No financial source material provided — query requires filings and market data feeds."
+            )
         limitations: list[str] = []
         if not source_material:
-            limitations.append("No financial data — verify against regulatory filings and exchange feeds.")
+            limitations.append(
+                "No financial data — verify against regulatory filings and exchange feeds."
+            )
         limitations.append("Financial data is point-in-time — re-verify before decisions.")
         follow_ups = [
             f"Retrieve latest SEC filings for '{query[:60]}'.",
@@ -494,10 +530,14 @@ class PolicyResearchAgent(ResearchAgentBase):
             elif title:
                 key_points.append(title)
         if not source_material:
-            key_points.append("No policy source material provided — query requires government gazettes and agency publications.")
+            key_points.append(
+                "No policy source material provided — query requires government gazettes and agency publications."
+            )
         limitations: list[str] = []
         if not source_material:
-            limitations.append("No primary policy documents — verify against official government sources.")
+            limitations.append(
+                "No primary policy documents — verify against official government sources."
+            )
         follow_ups = [
             f"Identify responsible agencies for '{query[:60]}'.",
             "Check for public consultation periods and stakeholder submissions.",
@@ -530,10 +570,14 @@ class OpenDataResearchAgent(ResearchAgentBase):
             elif dataset:
                 key_points.append(dataset)
         if not source_material:
-            key_points.append("No open-data source material provided — query requires retrieval from data portals.")
+            key_points.append(
+                "No open-data source material provided — query requires retrieval from data portals."
+            )
         limitations: list[str] = []
         if not source_material:
-            limitations.append("No datasets supplied — verify against official statistical agencies.")
+            limitations.append(
+                "No datasets supplied — verify against official statistical agencies."
+            )
         follow_ups = [
             f"Search data.gov / EU Open Data Portal / UN Data for '{query[:60]}'.",
             "Validate dataset methodology and collection period.",
@@ -582,16 +626,84 @@ class ResearchAgentOrganization:
         q = query.lower()
         scores: dict[str, int] = dict.fromkeys(self._agents, 0)
         keyword_map = {
-            ResearchAgentType.LITERATURE.value: ["book", "novel", "author", "poem", "essay", "literature"],
-            ResearchAgentType.SCIENTIFIC.value: ["study", "research", "experiment", "peer-review", "journal", "hypothesis"],
-            ResearchAgentType.LEGAL.value: ["law", "statute", "court", "case", "regulation", "treaty", "legal"],
-            ResearchAgentType.BUSINESS.value: ["company", "corporation", "industry", "business", "strategy"],
-            ResearchAgentType.TECHNOLOGY.value: ["technology", "spec", "rfc", "standard", "technical", "protocol"],
-            ResearchAgentType.MARKET.value: ["market", "size", "share", "cagr", "forecast", "segment"],
-            ResearchAgentType.NEWS.value: ["news", "headline", "press", "current", "today", "breaking"],
-            ResearchAgentType.FINANCIAL.value: ["stock", "price", "earnings", "financial", "ratio", "sec filing"],
-            ResearchAgentType.POLICY.value: ["policy", "government", "regulation", "agency", "public sector"],
-            ResearchAgentType.OPEN_DATA.value: ["dataset", "statistics", "open data", "census", "official statistics"],
+            ResearchAgentType.LITERATURE.value: [
+                "book",
+                "novel",
+                "author",
+                "poem",
+                "essay",
+                "literature",
+            ],
+            ResearchAgentType.SCIENTIFIC.value: [
+                "study",
+                "research",
+                "experiment",
+                "peer-review",
+                "journal",
+                "hypothesis",
+            ],
+            ResearchAgentType.LEGAL.value: [
+                "law",
+                "statute",
+                "court",
+                "case",
+                "regulation",
+                "treaty",
+                "legal",
+            ],
+            ResearchAgentType.BUSINESS.value: [
+                "company",
+                "corporation",
+                "industry",
+                "business",
+                "strategy",
+            ],
+            ResearchAgentType.TECHNOLOGY.value: [
+                "technology",
+                "spec",
+                "rfc",
+                "standard",
+                "technical",
+                "protocol",
+            ],
+            ResearchAgentType.MARKET.value: [
+                "market",
+                "size",
+                "share",
+                "cagr",
+                "forecast",
+                "segment",
+            ],
+            ResearchAgentType.NEWS.value: [
+                "news",
+                "headline",
+                "press",
+                "current",
+                "today",
+                "breaking",
+            ],
+            ResearchAgentType.FINANCIAL.value: [
+                "stock",
+                "price",
+                "earnings",
+                "financial",
+                "ratio",
+                "sec filing",
+            ],
+            ResearchAgentType.POLICY.value: [
+                "policy",
+                "government",
+                "regulation",
+                "agency",
+                "public sector",
+            ],
+            ResearchAgentType.OPEN_DATA.value: [
+                "dataset",
+                "statistics",
+                "open data",
+                "census",
+                "official statistics",
+            ],
         }
         for at, keywords in keyword_map.items():
             for kw in keywords:

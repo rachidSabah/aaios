@@ -189,22 +189,26 @@ class RepositoryEvolutionEngine:
         entries: list[TimelineEntry] = []
         commits = await self._collect_commits(limit=limit)
         for c in commits:
-            entries.append(TimelineEntry(
-                timestamp=c.author_date,
-                kind="breaking" if c.is_breaking else ("merge" if c.is_merge else "commit"),
-                title=c.message.splitlines()[0] if c.message else c.short_hash,
-                description=c.message,
-                actor=c.author,
-            ))
+            entries.append(
+                TimelineEntry(
+                    timestamp=c.author_date,
+                    kind="breaking" if c.is_breaking else ("merge" if c.is_merge else "commit"),
+                    title=c.message.splitlines()[0] if c.message else c.short_hash,
+                    description=c.message,
+                    actor=c.author,
+                )
+            )
         releases = await self._collect_releases()
         for r in releases:
-            entries.append(TimelineEntry(
-                timestamp=r.date,
-                kind="release",
-                title=f"Release {r.tag}",
-                description=r.name or r.tag,
-                actor="release-pipeline",
-            ))
+            entries.append(
+                TimelineEntry(
+                    timestamp=r.date,
+                    kind="release",
+                    title=f"Release {r.tag}",
+                    description=r.name or r.tag,
+                    actor="release-pipeline",
+                )
+            )
         entries.sort(key=lambda e: e.timestamp, reverse=True)
         return entries[:limit]
 
@@ -310,20 +314,29 @@ class RepositoryEvolutionEngine:
             prev = releases[i - 1]
             curr = releases[i]
             # Count commits between prev and curr dates via the _git helper
-            log_text = self._git_run([
-                "log", "--oneline",
-                f"--since={prev.date.isoformat()}",
-                f"--until={curr.date.isoformat()}",
-            ])
+            log_text = self._git_run(
+                [
+                    "log",
+                    "--oneline",
+                    f"--since={prev.date.isoformat()}",
+                    f"--until={curr.date.isoformat()}",
+                ]
+            )
             count = len([line for line in log_text.splitlines() if line.strip()])
             delta_days = (curr.date - prev.date).days
-            out.append({
-                "from": prev.tag,
-                "to": curr.tag,
-                "commits_between": count,
-                "days_between": delta_days,
-                "comparison": "faster" if delta_days < 30 else "normal" if delta_days < 90 else "slower",
-            })
+            out.append(
+                {
+                    "from": prev.tag,
+                    "to": curr.tag,
+                    "commits_between": count,
+                    "days_between": delta_days,
+                    "comparison": "faster"
+                    if delta_days < 30
+                    else "normal"
+                    if delta_days < 90
+                    else "slower",
+                }
+            )
         return out[-5:]
 
     # --- git helpers ----------------------------------------------------
@@ -335,9 +348,13 @@ class RepositoryEvolutionEngine:
     async def _collect_commits(self, limit: int = 500) -> list[CommitInfo]:
         commits: list[CommitInfo] = []
         # Use simpler log first
-        log_text = self._git_run([
-            "log", f"-n{limit}", "--pretty=format:%H|%h|%an|%aI|%s",
-        ])
+        log_text = self._git_run(
+            [
+                "log",
+                f"-n{limit}",
+                "--pretty=format:%H|%h|%an|%aI|%s",
+            ]
+        )
         if not log_text:
             return commits
         for line in log_text.splitlines():
@@ -366,18 +383,20 @@ class RepositoryEvolutionEngine:
                         insertions += int(ins)
                     if dels != "-":
                         deletions += int(dels)
-            commits.append(CommitInfo(
-                commit_id=commit_id,
-                short_hash=short,
-                author=author,
-                author_date=author_date,
-                message=message,
-                files_changed=files_changed,
-                insertions=insertions,
-                deletions=deletions,
-                is_merge=is_merge,
-                is_breaking=is_breaking,
-            ))
+            commits.append(
+                CommitInfo(
+                    commit_id=commit_id,
+                    short_hash=short,
+                    author=author,
+                    author_date=author_date,
+                    message=message,
+                    files_changed=files_changed,
+                    insertions=insertions,
+                    deletions=deletions,
+                    is_merge=is_merge,
+                    is_breaking=is_breaking,
+                )
+            )
         return commits
 
     async def _collect_branches(self) -> list[str]:
@@ -405,13 +424,15 @@ class RepositoryEvolutionEngine:
             except ValueError:
                 date = datetime.now(UTC)
             is_pre = bool(re.match(r"^v?\d+\.\d+\.\d+(?:-|a|b|rc|alpha|beta)", tag, re.I))
-            releases.append(ReleaseInfo(
-                tag=tag,
-                name=tag,
-                date=date,
-                commit=commit,
-                is_prerelease=is_pre,
-            ))
+            releases.append(
+                ReleaseInfo(
+                    tag=tag,
+                    name=tag,
+                    date=date,
+                    commit=commit,
+                    is_prerelease=is_pre,
+                )
+            )
         return releases
 
     def _safe_now_minus(self, days: int) -> datetime:

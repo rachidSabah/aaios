@@ -72,7 +72,11 @@ class MemoryStore:
         # Rank by importance * confidence * recency
         now = datetime.now(UTC)
         records.sort(
-            key=lambda r: r.importance * r.confidence * max(0.1, 1.0 - (now - r.created_at).total_seconds() / 86400),
+            key=lambda r: (
+                r.importance
+                * r.confidence
+                * max(0.1, 1.0 - (now - r.created_at).total_seconds() / 86400)
+            ),
             reverse=True,
         )
         return records[:limit]
@@ -95,8 +99,7 @@ class MemoryStore:
         deleted = 0
         async with self._lock:
             to_delete = [
-                mid for mid, r in self._records.items()
-                if r.expires_at and r.expires_at < now
+                mid for mid, r in self._records.items() if r.expires_at and r.expires_at < now
             ]
             for mid in to_delete:
                 self._records.pop(mid, None)
@@ -130,27 +133,56 @@ class MemoryOrchestrator:
     """
 
     DEFAULT_POLICIES: dict[str, StoragePolicy] = {
-        MemoryType.SHORT_TERM.value: StoragePolicy(max_age_days=1, max_entries=1000, compress_after_days=0),
-        MemoryType.LONG_TERM.value: StoragePolicy(max_age_days=3650, max_entries=500_000, compress_after_days=90),
-        MemoryType.WORKING.value: StoragePolicy(max_age_days=7, max_entries=5000, compress_after_days=3),
-        MemoryType.SEMANTIC.value: StoragePolicy(max_age_days=3650, max_entries=200_000, compress_after_days=60),
-        MemoryType.PROCEDURAL.value: StoragePolicy(max_age_days=3650, max_entries=100_000, compress_after_days=90),
-        MemoryType.EPISODIC.value: StoragePolicy(max_age_days=365, max_entries=100_000, compress_after_days=30),
-        MemoryType.PROJECT.value: StoragePolicy(max_age_days=3650, max_entries=50_000, compress_after_days=60),
-        MemoryType.MISSION.value: StoragePolicy(max_age_days=365, max_entries=50_000, compress_after_days=30),
-        MemoryType.WORKFLOW.value: StoragePolicy(max_age_days=365, max_entries=50_000, compress_after_days=30),
-        MemoryType.AGENT.value: StoragePolicy(max_age_days=3650, max_entries=20_000, compress_after_days=90),
-        MemoryType.PROVIDER.value: StoragePolicy(max_age_days=3650, max_entries=10_000, compress_after_days=90),
-        MemoryType.USER.value: StoragePolicy(max_age_days=3650, max_entries=20_000, compress_after_days=90),
-        MemoryType.ORGANIZATION.value: StoragePolicy(max_age_days=3650, max_entries=100_000, compress_after_days=90),
-        MemoryType.EXECUTION.value: StoragePolicy(max_age_days=90, max_entries=200_000, compress_after_days=7),
-        MemoryType.CONVERSATION.value: StoragePolicy(max_age_days=30, max_entries=10_000, compress_after_days=3),
+        MemoryType.SHORT_TERM.value: StoragePolicy(
+            max_age_days=1, max_entries=1000, compress_after_days=0
+        ),
+        MemoryType.LONG_TERM.value: StoragePolicy(
+            max_age_days=3650, max_entries=500_000, compress_after_days=90
+        ),
+        MemoryType.WORKING.value: StoragePolicy(
+            max_age_days=7, max_entries=5000, compress_after_days=3
+        ),
+        MemoryType.SEMANTIC.value: StoragePolicy(
+            max_age_days=3650, max_entries=200_000, compress_after_days=60
+        ),
+        MemoryType.PROCEDURAL.value: StoragePolicy(
+            max_age_days=3650, max_entries=100_000, compress_after_days=90
+        ),
+        MemoryType.EPISODIC.value: StoragePolicy(
+            max_age_days=365, max_entries=100_000, compress_after_days=30
+        ),
+        MemoryType.PROJECT.value: StoragePolicy(
+            max_age_days=3650, max_entries=50_000, compress_after_days=60
+        ),
+        MemoryType.MISSION.value: StoragePolicy(
+            max_age_days=365, max_entries=50_000, compress_after_days=30
+        ),
+        MemoryType.WORKFLOW.value: StoragePolicy(
+            max_age_days=365, max_entries=50_000, compress_after_days=30
+        ),
+        MemoryType.AGENT.value: StoragePolicy(
+            max_age_days=3650, max_entries=20_000, compress_after_days=90
+        ),
+        MemoryType.PROVIDER.value: StoragePolicy(
+            max_age_days=3650, max_entries=10_000, compress_after_days=90
+        ),
+        MemoryType.USER.value: StoragePolicy(
+            max_age_days=3650, max_entries=20_000, compress_after_days=90
+        ),
+        MemoryType.ORGANIZATION.value: StoragePolicy(
+            max_age_days=3650, max_entries=100_000, compress_after_days=90
+        ),
+        MemoryType.EXECUTION.value: StoragePolicy(
+            max_age_days=90, max_entries=200_000, compress_after_days=7
+        ),
+        MemoryType.CONVERSATION.value: StoragePolicy(
+            max_age_days=30, max_entries=10_000, compress_after_days=3
+        ),
     }
 
     def __init__(self) -> None:
         self._stores: dict[str, MemoryStore] = {
-            mt: MemoryStore(mt, policy)
-            for mt, policy in self.DEFAULT_POLICIES.items()
+            mt: MemoryStore(mt, policy) for mt, policy in self.DEFAULT_POLICIES.items()
         }
         self._lock = asyncio.Lock()
 
@@ -199,7 +231,11 @@ class MemoryOrchestrator:
         # Re-rank across all
         now = datetime.now(UTC)
         all_results.sort(
-            key=lambda r: r.importance * r.confidence * max(0.1, 1.0 - (now - r.created_at).total_seconds() / 86400),
+            key=lambda r: (
+                r.importance
+                * r.confidence
+                * max(0.1, 1.0 - (now - r.created_at).total_seconds() / 86400)
+            ),
             reverse=True,
         )
         return all_results[:limit]

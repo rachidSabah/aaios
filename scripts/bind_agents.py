@@ -527,7 +527,11 @@ def main() -> int:
     args = parser.parse_args()
 
     if args.detect_only:
-        results = {"claude_code": detect_claude_code(), "hermes": detect_hermes(), "9router": detect_9router()}
+        results = {
+            "claude_code": detect_claude_code(),
+            "hermes": detect_hermes(),
+            "9router": detect_9router(),
+        }
     else:
         results = bind_agents(
             install_missing=args.install_missing,

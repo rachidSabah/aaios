@@ -221,7 +221,7 @@ ignore = [
 ]
 
 [tool.ruff.lint.per-file-ignores]
-"tests/**" = ["S", "D", "PLR2004"]            # tests can use asserts, magic values
+"tests/**" = ["S", "D", "PLR2004", "PLR0912"]            # tests can use asserts, magic values, branches
 "scripts/**" = ["S", "D", "PLR0912", "C901"]  # audit scripts: complex analysis
 "surfaces/web/**" = []
 "surfaces/cli/**" = ["B008", "PLR0912"]                   # typer.Option in defaults is the standard pattern
@@ -235,6 +235,11 @@ ignore = [
 "services/installer/**" = ["S603", "S607", "PLR0912"]  # subprocess for env detection
 "services/runtime_discovery/**" = ["S603", "S607", "PLR0912"]  # subprocess for discovery, multi-source branches
 "services/brain/**" = ["S603", "S607"]  # nvidia-smi for GPU detection
+"services/execution_engine/**" = ["D101", "D103", "S603", "S607", "S602", "E701", "PLR0912", "B027", "ASYNC221"]  # adapters spawn processes
+"services/desktop/**" = ["D101", "D103", "S603", "S607", "S112", "S324", "E701"]  # desktop automation
+"core/contracts/execution_engine.py" = ["D101"]  # enum definitions
+"surfaces/desktop/**" = ["D101", "D103", "F401"]  # desktop surface
+"scripts/start.py" = ["S603", "S607", "ASYNC230"]  # startup script
 
 [tool.ruff.lint.pydocstyle]
 convention = "google"

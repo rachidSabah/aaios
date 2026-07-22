@@ -97,7 +97,9 @@ class EvidenceGraph:
         self._nodes[node.node_id] = node
         return node
 
-    def add_document(self, doc_id: str, title: str, metadata: dict[str, Any] | None = None) -> EvidenceNode:
+    def add_document(
+        self, doc_id: str, title: str, metadata: dict[str, Any] | None = None
+    ) -> EvidenceNode:
         """Register a document node."""
         self._documents[doc_id] = {"title": title, "metadata": metadata or {}}
         node = EvidenceNode(
@@ -110,7 +112,9 @@ class EvidenceGraph:
         self._nodes[node.node_id] = node
         return node
 
-    def add_report(self, report_id: str, title: str, metadata: dict[str, Any] | None = None) -> EvidenceNode:
+    def add_report(
+        self, report_id: str, title: str, metadata: dict[str, Any] | None = None
+    ) -> EvidenceNode:
         """Register a report node."""
         self._reports[report_id] = {"title": title, "metadata": metadata or {}}
         node = EvidenceNode(
@@ -123,7 +127,9 @@ class EvidenceGraph:
         self._nodes[node.node_id] = node
         return node
 
-    def add_session(self, session_id: str, title: str, metadata: dict[str, Any] | None = None) -> EvidenceNode:
+    def add_session(
+        self, session_id: str, title: str, metadata: dict[str, Any] | None = None
+    ) -> EvidenceNode:
         """Register a research session node."""
         self._sessions[session_id] = {"title": title, "metadata": metadata or {}}
         node = EvidenceNode(
@@ -149,7 +155,11 @@ class EvidenceGraph:
         explanation: str = "",
     ) -> EvidenceRelation | None:
         """Add a typed edge between two nodes."""
-        rt = relation_type.value if isinstance(relation_type, EvidenceRelationType) else relation_type
+        rt = (
+            relation_type.value
+            if isinstance(relation_type, EvidenceRelationType)
+            else relation_type
+        )
         if source_node_id not in self._nodes or target_node_id not in self._nodes:
             return None
         edge = EvidenceRelation(
@@ -165,9 +175,7 @@ class EvidenceGraph:
         self._incoming[target_node_id].append(edge.edge_id)
         return edge
 
-    def add_claim_relation(
-        self, relation: ClaimRelation
-    ) -> EvidenceRelation | None:
+    def add_claim_relation(self, relation: ClaimRelation) -> EvidenceRelation | None:
         """Add a claim-to-claim relation. Both claims must be registered first."""
         source_node = self._find_node_for_ref("claim", relation.source_claim_id)
         target_node = self._find_node_for_ref("claim", relation.target_claim_id)

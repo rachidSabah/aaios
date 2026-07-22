@@ -122,36 +122,44 @@ class ValidationPipeline:
         result.stages.append(health_stage)
 
         # Stage 6: Timeout acceptable
-        result.stages.append(ValidationStage(
-            name="timeout_acceptable",
-            passed=health_stage.duration_ms < spec.health_timeout_s * 1000,
-            duration_ms=0,
-            detail=f"Health check took {health_stage.duration_ms:.0f}ms (limit: {spec.health_timeout_s * 1000:.0f}ms)",
-        ))
+        result.stages.append(
+            ValidationStage(
+                name="timeout_acceptable",
+                passed=health_stage.duration_ms < spec.health_timeout_s * 1000,
+                duration_ms=0,
+                detail=f"Health check took {health_stage.duration_ms:.0f}ms (limit: {spec.health_timeout_s * 1000:.0f}ms)",
+            )
+        )
 
         # Stage 7: Exit code verified
-        result.stages.append(ValidationStage(
-            name="exit_code_verified",
-            passed=health_stage.passed,
-            duration_ms=0,
-            detail="Exit code 0 from health command",
-        ))
+        result.stages.append(
+            ValidationStage(
+                name="exit_code_verified",
+                passed=health_stage.passed,
+                duration_ms=0,
+                detail="Exit code 0 from health command",
+            )
+        )
 
         # Stage 8: Stdout valid
-        result.stages.append(ValidationStage(
-            name="stdout_valid",
-            passed=bool(help_stage.detail),
-            duration_ms=0,
-            detail="Non-empty stdout from help command",
-        ))
+        result.stages.append(
+            ValidationStage(
+                name="stdout_valid",
+                passed=bool(help_stage.detail),
+                duration_ms=0,
+                detail="Non-empty stdout from help command",
+            )
+        )
 
         # Stage 9: Stderr inspected
-        result.stages.append(ValidationStage(
-            name="stderr_inspected",
-            passed=True,
-            duration_ms=0,
-            detail="No critical errors in stderr",
-        ))
+        result.stages.append(
+            ValidationStage(
+                name="stderr_inspected",
+                passed=True,
+                duration_ms=0,
+                detail="No critical errors in stderr",
+            )
+        )
 
         # Stage 10: Resource usage measured (best-effort)
         resource_stage = await self._stage_resource_usage(executable)
@@ -162,12 +170,14 @@ class ValidationPipeline:
             prompt_stage = await self._stage_simple_prompt(executable, spec)
             result.stages.append(prompt_stage)
         else:
-            result.stages.append(ValidationStage(
-                name="simple_prompt",
-                passed=True,
-                duration_ms=0,
-                detail="Skipped — not an LLM provider",
-            ))
+            result.stages.append(
+                ValidationStage(
+                    name="simple_prompt",
+                    passed=True,
+                    duration_ms=0,
+                    detail="Skipped — not an LLM provider",
+                )
+            )
 
         # Stage 12: Authentication verified
         auth_stage = self._stage_auth(spec)
@@ -185,9 +195,7 @@ class ValidationPipeline:
 
         # Determine overall
         critical_stages = ["executable_exists", "permissions_valid", "health_check"]
-        result.overall_passed = all(
-            s.passed for s in result.stages if s.name in critical_stages
-        )
+        result.overall_passed = all(s.passed for s in result.stages if s.name in critical_stages)
         result.health = "healthy" if result.overall_passed else "unhealthy"
         result.latency_ms = health_stage.duration_ms
 
@@ -221,6 +229,7 @@ class ValidationPipeline:
                 detail=f"HTTP endpoint: {executable}",
             )
         from pathlib import Path
+
         path = Path(executable)
         exists = path.is_file()
         return ValidationStage(
@@ -242,6 +251,7 @@ class ValidationPipeline:
                 detail="HTTP endpoint — no file permissions",
             )
         from pathlib import Path
+
         path = Path(executable)
         if not path.exists():
             return ValidationStage(
@@ -264,9 +274,7 @@ class ValidationPipeline:
             detail="Windows — permissions OK",
         )
 
-    async def _stage_version(
-        self, executable: str, spec: ProviderSpec
-    ) -> ValidationStage:
+    async def _stage_version(self, executable: str, spec: ProviderSpec) -> ValidationStage:
         """Stage 3: Read the provider's version."""
         start = time.monotonic()
         if not executable or executable.startswith("http"):
@@ -280,7 +288,10 @@ class ValidationPipeline:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [executable, *spec.version_args],
-                capture_output=True, text=True, timeout=spec.health_timeout_s, check=False,
+                capture_output=True,
+                text=True,
+                timeout=spec.health_timeout_s,
+                check=False,
             )
             output = (result.stdout or result.stderr).strip()
             match = re.search(spec.version_regex, output)
@@ -299,9 +310,7 @@ class ValidationPipeline:
                 error=str(e),
             )
 
-    async def _stage_help(
-        self, executable: str, spec: ProviderSpec
-    ) -> ValidationStage:
+    async def _stage_help(self, executable: str, spec: ProviderSpec) -> ValidationStage:
         """Stage 4: Run --help to verify the binary responds."""
         start = time.monotonic()
         if not executable or executable.startswith("http"):
@@ -315,7 +324,10 @@ class ValidationPipeline:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [executable, "--help"],
-                capture_output=True, text=True, timeout=spec.health_timeout_s, check=False,
+                capture_output=True,
+                text=True,
+                timeout=spec.health_timeout_s,
+                check=False,
             )
             # Some tools exit non-zero on --help, that's OK
             output = result.stdout or result.stderr
@@ -333,9 +345,7 @@ class ValidationPipeline:
                 error=str(e),
             )
 
-    async def _stage_health(
-        self, executable: str, spec: ProviderSpec
-    ) -> ValidationStage:
+    async def _stage_health(self, executable: str, spec: ProviderSpec) -> ValidationStage:
         """Stage 5: Run the health check command."""
         start = time.monotonic()
         if not executable or executable.startswith("http"):
@@ -349,7 +359,10 @@ class ValidationPipeline:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [executable, *spec.health_args],
-                capture_output=True, text=True, timeout=spec.health_timeout_s, check=False,
+                capture_output=True,
+                text=True,
+                timeout=spec.health_timeout_s,
+                check=False,
             )
             return ValidationStage(
                 name="health_check",
@@ -365,13 +378,12 @@ class ValidationPipeline:
                 error=str(e),
             )
 
-    async def _stage_resource_usage(
-        self, executable: str
-    ) -> ValidationStage:
+    async def _stage_resource_usage(self, executable: str) -> ValidationStage:
         """Stage 10: Measure resource usage during validation."""
         start = time.monotonic()
         try:
             import psutil
+
             cpu = psutil.cpu_percent(interval=0.1)
             ram = psutil.virtual_memory().percent
             return ValidationStage(
@@ -388,9 +400,7 @@ class ValidationPipeline:
                 detail="psutil not available",
             )
 
-    async def _stage_simple_prompt(
-        self, executable: str, spec: ProviderSpec
-    ) -> ValidationStage:
+    async def _stage_simple_prompt(self, executable: str, spec: ProviderSpec) -> ValidationStage:
         """Stage 11: Send a simple prompt (best-effort, don't fail validation)."""
         start = time.monotonic()
         if not executable or executable.startswith("http"):
@@ -437,6 +447,7 @@ class ValidationPipeline:
         """Stage 13: Parse configuration files."""
         start = time.monotonic()
         from pathlib import Path
+
         home = Path.home()
         for config_path in spec.config_files:
             full = home / config_path
@@ -454,9 +465,7 @@ class ValidationPipeline:
             detail="No config file found (optional)",
         )
 
-    async def _stage_capabilities(
-        self, executable: str, spec: ProviderSpec
-    ) -> ValidationStage:
+    async def _stage_capabilities(self, executable: str, spec: ProviderSpec) -> ValidationStage:
         """Stage 14: Discover capabilities."""
         start = time.monotonic()
         # Use expected capabilities from the spec

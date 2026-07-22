@@ -37,13 +37,54 @@ __all__ = [
 ]
 
 
-_STOP_WORDS = frozenset({
-    "a", "an", "the", "and", "or", "but", "is", "are", "was", "were",
-    "be", "been", "being", "have", "has", "had", "do", "does", "did",
-    "will", "would", "could", "should", "may", "might", "must", "shall",
-    "can", "of", "in", "on", "at", "to", "for", "with", "by", "from",
-    "as", "into", "through", "this", "that", "these", "those",
-})
+_STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "can",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "with",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "this",
+        "that",
+        "these",
+        "those",
+    }
+)
 
 
 def _tokenize(text: str) -> list[str]:
@@ -205,7 +246,9 @@ class MissionAnalytics:
             by_priority=dict(by_priority),
             by_status=dict(by_status),
             top_agents=[{"agent_id": a, "assignments": c} for a, c in agent_counts.most_common(10)],
-            top_providers=[{"provider": p, "assignments": c} for p, c in provider_counts.most_common(10)],
+            top_providers=[
+                {"provider": p, "assignments": c} for p, c in provider_counts.most_common(10)
+            ],
             decision_type_counts=dict(decision_counts),
         )
 
@@ -213,56 +256,70 @@ class MissionAnalytics:
         """Build a timeline of events for a mission."""
         timeline: list[TimelineEntry] = []
         # Creation
-        timeline.append(TimelineEntry(
-            timestamp=mission.created_at.isoformat(),
-            event_type="mission_created",
-            description=f"Mission '{mission.title}' created",
-        ))
+        timeline.append(
+            TimelineEntry(
+                timestamp=mission.created_at.isoformat(),
+                event_type="mission_created",
+                description=f"Mission '{mission.title}' created",
+            )
+        )
         # State transitions (inferred from timestamps)
         if mission.started_at:
-            timeline.append(TimelineEntry(
-                timestamp=mission.started_at.isoformat(),
-                event_type="mission_started",
-                description="Mission execution started",
-            ))
+            timeline.append(
+                TimelineEntry(
+                    timestamp=mission.started_at.isoformat(),
+                    event_type="mission_started",
+                    description="Mission execution started",
+                )
+            )
         if mission.completed_at:
-            timeline.append(TimelineEntry(
-                timestamp=mission.completed_at.isoformat(),
-                event_type="mission_completed",
-                description=f"Mission reached terminal state: {mission.status}",
-            ))
+            timeline.append(
+                TimelineEntry(
+                    timestamp=mission.completed_at.isoformat(),
+                    event_type="mission_completed",
+                    description=f"Mission reached terminal state: {mission.status}",
+                )
+            )
         # Decisions
         for d in mission.decisions:
-            timeline.append(TimelineEntry(
-                timestamp=d.made_at.isoformat(),
-                event_type="decision",
-                description=f"Decision: {d.decision_type} by {d.made_by}",
-                data={"reasoning": d.reasoning, "action": d.action_taken or ""},
-            ))
+            timeline.append(
+                TimelineEntry(
+                    timestamp=d.made_at.isoformat(),
+                    event_type="decision",
+                    description=f"Decision: {d.decision_type} by {d.made_by}",
+                    data={"reasoning": d.reasoning, "action": d.action_taken or ""},
+                )
+            )
         # WBS node completions
         for node in mission.wbs_nodes:
             if node.started_at:
-                timeline.append(TimelineEntry(
-                    timestamp=node.started_at.isoformat(),
-                    event_type="task_started",
-                    description=f"Task '{node.title}' started",
-                    data={"node_id": node.node_id, "agent_id": node.assigned_agent_id or ""},
-                ))
+                timeline.append(
+                    TimelineEntry(
+                        timestamp=node.started_at.isoformat(),
+                        event_type="task_started",
+                        description=f"Task '{node.title}' started",
+                        data={"node_id": node.node_id, "agent_id": node.assigned_agent_id or ""},
+                    )
+                )
             if node.completed_at:
-                timeline.append(TimelineEntry(
-                    timestamp=node.completed_at.isoformat(),
-                    event_type="task_completed",
-                    description=f"Task '{node.title}' {node.status}",
-                    data={"node_id": node.node_id, "status": node.status},
-                ))
+                timeline.append(
+                    TimelineEntry(
+                        timestamp=node.completed_at.isoformat(),
+                        event_type="task_completed",
+                        description=f"Task '{node.title}' {node.status}",
+                        data={"node_id": node.node_id, "status": node.status},
+                    )
+                )
         # Artifacts
         for artifact in mission.artifacts:
-            timeline.append(TimelineEntry(
-                timestamp=artifact.produced_at.isoformat(),
-                event_type="artifact_produced",
-                description=f"Artifact '{artifact.name}' produced",
-                data={"artifact_id": artifact.artifact_id, "type": artifact.artifact_type},
-            ))
+            timeline.append(
+                TimelineEntry(
+                    timestamp=artifact.produced_at.isoformat(),
+                    event_type="artifact_produced",
+                    description=f"Artifact '{artifact.name}' produced",
+                    data={"artifact_id": artifact.artifact_id, "type": artifact.artifact_type},
+                )
+            )
         # Sort by timestamp
         timeline.sort(key=lambda e: e.timestamp)
         return timeline
@@ -272,29 +329,35 @@ class MissionAnalytics:
         nodes: list[dict[str, Any]] = []
         edges: list[dict[str, Any]] = []
         for node in mission.wbs_nodes:
-            nodes.append({
-                "id": node.node_id,
-                "title": node.title,
-                "type": node.node_type,
-                "status": node.status,
-                "parent_id": node.parent_id,
-                "assigned_agent_id": node.assigned_agent_id,
-                "assigned_provider": node.assigned_provider,
-            })
+            nodes.append(
+                {
+                    "id": node.node_id,
+                    "title": node.title,
+                    "type": node.node_type,
+                    "status": node.status,
+                    "parent_id": node.parent_id,
+                    "assigned_agent_id": node.assigned_agent_id,
+                    "assigned_provider": node.assigned_provider,
+                }
+            )
             # Parent → child edges
             if node.parent_id:
-                edges.append({
-                    "source": node.parent_id,
-                    "target": node.node_id,
-                    "type": "parent_child",
-                })
+                edges.append(
+                    {
+                        "source": node.parent_id,
+                        "target": node.node_id,
+                        "type": "parent_child",
+                    }
+                )
             # Dependency edges
             for dep in node.depends_on:
-                edges.append({
-                    "source": dep,
-                    "target": node.node_id,
-                    "type": "dependency",
-                })
+                edges.append(
+                    {
+                        "source": dep,
+                        "target": node.node_id,
+                        "type": "dependency",
+                    }
+                )
         return {
             "mission_id": mission.mission_id,
             "nodes": nodes,
@@ -327,14 +390,16 @@ class MissionAnalytics:
             cancelled = sum(1 for m in day_missions if m.status == MissionStatus.CANCELLED.value)
             terminal = completed + failed + cancelled
             success_rate = completed / terminal if terminal > 0 else 0.0
-            series.append({
-                "date": key,
-                "total": len(day_missions),
-                "completed": completed,
-                "failed": failed,
-                "cancelled": cancelled,
-                "success_rate": round(success_rate, 4),
-            })
+            series.append(
+                {
+                    "date": key,
+                    "total": len(day_missions),
+                    "completed": completed,
+                    "failed": failed,
+                    "cancelled": cancelled,
+                    "success_rate": round(success_rate, 4),
+                }
+            )
         return series
 
 
@@ -360,13 +425,15 @@ class MissionSearcher:
             self._doc_lengths.clear()
             self._total_docs = len(missions)
             for mission in missions:
-                text = " ".join([
-                    mission.title,
-                    mission.description,
-                    " ".join(mission.objectives),
-                    " ".join(mission.deliverables),
-                    " ".join(mission.tags),
-                ])
+                text = " ".join(
+                    [
+                        mission.title,
+                        mission.description,
+                        " ".join(mission.objectives),
+                        " ".join(mission.deliverables),
+                        " ".join(mission.tags),
+                    ]
+                )
                 tokens = _tokenize(text)
                 self._doc_lengths[mission.mission_id] = len(tokens)
                 tf = Counter(tokens)
@@ -406,11 +473,13 @@ class MissionSearcher:
         for mission_id, score in ranked:
             try:
                 mission = await self._store.get(mission_id)
-                results.append(MissionSearchResult(
-                    mission=mission,
-                    score=score,
-                    matched_terms=sorted(matched_terms[mission_id]),
-                ))
+                results.append(
+                    MissionSearchResult(
+                        mission=mission,
+                        score=score,
+                        matched_terms=sorted(matched_terms[mission_id]),
+                    )
+                )
             except Exception:
                 pass
         return results
@@ -448,21 +517,41 @@ class MissionExporter:
             return ""
         output = io.StringIO()
         writer = csv.writer(output)
-        writer.writerow([
-            "mission_id", "title", "status", "priority", "created_at",
-            "started_at", "completed_at", "budget_total", "budget_spent",
-            "wbs_nodes", "decisions", "artifacts", "owner",
-        ])
+        writer.writerow(
+            [
+                "mission_id",
+                "title",
+                "status",
+                "priority",
+                "created_at",
+                "started_at",
+                "completed_at",
+                "budget_total",
+                "budget_spent",
+                "wbs_nodes",
+                "decisions",
+                "artifacts",
+                "owner",
+            ]
+        )
         for m in missions:
-            writer.writerow([
-                m.mission_id, m.title[:100], m.status, m.priority,
-                m.created_at.isoformat(),
-                m.started_at.isoformat() if m.started_at else "",
-                m.completed_at.isoformat() if m.completed_at else "",
-                m.budget.total_usd, m.budget.spent_usd,
-                len(m.wbs_nodes), len(m.decisions), len(m.artifacts),
-                m.owner or "",
-            ])
+            writer.writerow(
+                [
+                    m.mission_id,
+                    m.title[:100],
+                    m.status,
+                    m.priority,
+                    m.created_at.isoformat(),
+                    m.started_at.isoformat() if m.started_at else "",
+                    m.completed_at.isoformat() if m.completed_at else "",
+                    m.budget.total_usd,
+                    m.budget.spent_usd,
+                    len(m.wbs_nodes),
+                    len(m.decisions),
+                    len(m.artifacts),
+                    m.owner or "",
+                ]
+            )
         return output.getvalue()
 
     async def export_mission_json(self, mission_id: str) -> str:

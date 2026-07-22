@@ -13,7 +13,7 @@ from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
-from uuid import UUID, uuid4
+from uuid import uuid4
 
 from core.logging import get_logger
 
@@ -23,6 +23,7 @@ _log = get_logger(__name__)
 @dataclass
 class WindowState:
     """Serialisable state of a single window."""
+
     id: str
     title: str
     url: str = ""
@@ -40,6 +41,7 @@ class WindowState:
 @dataclass
 class Workspace:
     """A named workspace with its own set of windows."""
+
     id: str
     name: str
     windows: list[WindowState] = field(default_factory=list)
@@ -113,25 +115,44 @@ class WindowManager:
         win = self._windows.get(window_id)
         if win is None:
             return None
-        if x is not None: win.x = x
-        if y is not None: win.y = y
-        if width is not None: win.width = width
-        if height is not None: win.height = height
-        if maximized is not None: win.maximized = maximized
-        if minimized is not None: win.minimized = minimized
-        if visible is not None: win.visible = visible
-        if docking_zone is not None: win.docking_zone = docking_zone
+        if x is not None:
+            win.x = x
+        if y is not None:
+            win.y = y
+        if width is not None:
+            win.width = width
+        if height is not None:
+            win.height = height
+        if maximized is not None:
+            win.maximized = maximized
+        if minimized is not None:
+            win.minimized = minimized
+        if visible is not None:
+            win.visible = visible
+        if docking_zone is not None:
+            win.docking_zone = docking_zone
         return win
 
     def as_dict(self) -> dict[str, Any]:
         return {
             "app_name": self.app_name,
-            "windows": [{
-                "id": w.id, "title": w.title, "url": w.url,
-                "x": w.x, "y": w.y, "width": w.width, "height": w.height,
-                "maximized": w.maximized, "minimized": w.minimized,
-                "visible": w.visible, "docking_zone": w.docking_zone, "kind": w.kind,
-            } for w in self._windows.values()],
+            "windows": [
+                {
+                    "id": w.id,
+                    "title": w.title,
+                    "url": w.url,
+                    "x": w.x,
+                    "y": w.y,
+                    "width": w.width,
+                    "height": w.height,
+                    "maximized": w.maximized,
+                    "minimized": w.minimized,
+                    "visible": w.visible,
+                    "docking_zone": w.docking_zone,
+                    "kind": w.kind,
+                }
+                for w in self._windows.values()
+            ],
         }
 
     async def shutdown(self) -> None:
@@ -157,7 +178,9 @@ class WorkspaceManager:
 
         default_id = str(uuid4())
         self._workspaces[default_id] = Workspace(
-            id=default_id, name="Default", active=True,
+            id=default_id,
+            name="Default",
+            active=True,
             created_at=datetime.now(UTC).isoformat(),
         )
         self._current_workspace_id = default_id
@@ -168,7 +191,9 @@ class WorkspaceManager:
     def create_workspace(self, name: str) -> Workspace:
         wid = str(uuid4())
         ws = Workspace(
-            id=wid, name=name, active=False,
+            id=wid,
+            name=name,
+            active=False,
             created_at=datetime.now(UTC).isoformat(),
         )
         self._workspaces[wid] = ws
@@ -207,9 +232,7 @@ class WorkspaceManager:
     def list_workspaces(self) -> list[Workspace]:
         return list(self._workspaces.values())
 
-    def add_window_to_workspace(
-        self, workspace_id: str, window: WindowState
-    ) -> bool:
+    def add_window_to_workspace(self, workspace_id: str, window: WindowState) -> bool:
         ws = self._workspaces.get(workspace_id)
         if ws is None:
             return False
@@ -220,10 +243,16 @@ class WorkspaceManager:
     def as_dict(self) -> dict[str, Any]:
         return {
             "current_workspace_id": self._current_workspace_id,
-            "workspaces": [{
-                "id": w.id, "name": w.name, "active": w.active,
-                "windows": len(w.windows), "created_at": w.created_at,
-            } for w in self._workspaces.values()],
+            "workspaces": [
+                {
+                    "id": w.id,
+                    "name": w.name,
+                    "active": w.active,
+                    "windows": len(w.windows),
+                    "created_at": w.created_at,
+                }
+                for w in self._workspaces.values()
+            ],
         }
 
     def _save_state(self) -> None:
@@ -235,15 +264,27 @@ class WorkspaceManager:
                 "current_workspace_id": self._current_workspace_id,
                 "workspaces": {
                     wid: {
-                        "id": ws.id, "name": ws.name, "active": ws.active,
+                        "id": ws.id,
+                        "name": ws.name,
+                        "active": ws.active,
                         "created_at": ws.created_at,
-                        "windows": [{
-                            "id": w.id, "title": w.title, "url": w.url,
-                            "x": w.x, "y": w.y, "width": w.width, "height": w.height,
-                            "maximized": w.maximized, "minimized": w.minimized,
-                            "visible": w.visible, "docking_zone": w.docking_zone,
-                            "kind": w.kind,
-                        } for w in ws.windows],
+                        "windows": [
+                            {
+                                "id": w.id,
+                                "title": w.title,
+                                "url": w.url,
+                                "x": w.x,
+                                "y": w.y,
+                                "width": w.width,
+                                "height": w.height,
+                                "maximized": w.maximized,
+                                "minimized": w.minimized,
+                                "visible": w.visible,
+                                "docking_zone": w.docking_zone,
+                                "kind": w.kind,
+                            }
+                            for w in ws.windows
+                        ],
                     }
                     for wid, ws in self._workspaces.items()
                 },
@@ -260,11 +301,10 @@ class WorkspaceManager:
             self._current_workspace_id = data.get("current_workspace_id")
             self._workspaces.clear()
             for wid, ws_data in data.get("workspaces", {}).items():
-                windows = [
-                    WindowState(**w) for w in ws_data.get("windows", [])
-                ]
+                windows = [WindowState(**w) for w in ws_data.get("windows", [])]
                 self._workspaces[wid] = Workspace(
-                    id=ws_data["id"], name=ws_data["name"],
+                    id=ws_data["id"],
+                    name=ws_data["name"],
                     active=ws_data.get("active", False),
                     created_at=ws_data.get("created_at", ""),
                     windows=windows,

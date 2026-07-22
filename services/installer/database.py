@@ -252,9 +252,7 @@ class DatabaseBootstrapper:
                 _log.warning("installer.backup_failed", db=name, error=str(e))
         return backups
 
-    def rollback_migration(
-        self, db_name: str, migration_id: str
-    ) -> bool:
+    def rollback_migration(self, db_name: str, migration_id: str) -> bool:
         """Roll back a single migration (placeholder: just record the action).
 
         Real migrations would track applied migrations in a ``schema_migrations``
@@ -297,7 +295,9 @@ class DatabaseBootstrapper:
                     except sqlite3.Error as e:
                         _log.warning(
                             "installer.migration_failed",
-                            db=name, error=str(e), stmt=stmt[:80],
+                            db=name,
+                            error=str(e),
+                            stmt=stmt[:80],
                         )
                 conn.commit()
                 # Integrity check
@@ -324,6 +324,7 @@ class DatabaseBootstrapper:
         )
         # Check if psql is available
         import shutil as _shutil
+
         if not _shutil.which("psql"):
             result.error = "psql not found — PostgreSQL skipped (optional)"
             return result
@@ -343,6 +344,7 @@ class DatabaseBootstrapper:
         )
         # Qdrant runs as a Docker container — check if docker is available
         import shutil as _shutil
+
         if not _shutil.which("docker"):
             result.error = "docker not found — Qdrant skipped (optional)"
             return result
@@ -351,9 +353,7 @@ class DatabaseBootstrapper:
         result.integrity_ok = True
         return result
 
-    def _write_migration_record(
-        self, db_name: str, migration_id: str, status: str
-    ) -> None:
+    def _write_migration_record(self, db_name: str, migration_id: str, status: str) -> None:
         """Record a migration in the schema_migrations table."""
         db_path = self._db_dir / f"{db_name}.db"
         if not db_path.exists():

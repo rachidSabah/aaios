@@ -10,8 +10,6 @@ from __future__ import annotations
 
 import asyncio
 from pathlib import Path
-from uuid import uuid4
-from zipfile import ZipFile
 
 import httpx
 import pytest
@@ -32,7 +30,6 @@ from services.update.github_provider import GitHubReleaseProvider, _channel_for_
 from services.update.manifest import generate_manifest, read_manifest, write_manifest
 from services.update.provider import AssetKind, ManifestAsset
 from services.update.version import VersionManager, parse_version
-
 
 # ---------------------------------------------------------------------------
 # VersionManager
@@ -95,7 +92,10 @@ def test_channel_defaults_and_enable() -> None:
 def test_channel_policy_order() -> None:
     cm = ReleaseChannelManager()
     cm.enable(ReleaseChannel.NIGHTLY)
-    cm.set_policy(ReleaseChannel.NIGHTLY, __import__("services.update.channels", fromlist=["ChannelPolicy"]).ChannelPolicy.AUTO)
+    cm.set_policy(
+        ReleaseChannel.NIGHTLY,
+        __import__("services.update.channels", fromlist=["ChannelPolicy"]).ChannelPolicy.AUTO,
+    )
     assert cm.policy_for(ReleaseChannel.NIGHTLY).value == "auto"
 
 
@@ -144,8 +144,11 @@ def test_no_upgrade_returns_none() -> None:
 def test_pin_version_skips_check() -> None:
     m = UpdateManager(current_version="1.0.0")
     prov = _FakeProvider(
-        UpdateManifest(version="2.0.0", channel=ReleaseChannel.STABLE,
-                      assets=[ManifestAsset(kind=AssetKind.FULL, url="u")])
+        UpdateManifest(
+            version="2.0.0",
+            channel=ReleaseChannel.STABLE,
+            assets=[ManifestAsset(kind=AssetKind.FULL, url="u")],
+        )
     )
     m.register_provider(prov)
     m.pin_version("1.0.0")
@@ -182,16 +185,18 @@ def test_github_provider_parses_releases() -> None:
                     "prerelease": False,
                     "published_at": "2026-01-01T00:00:00Z",
                     "assets": [
-                        {"name": "aaios-1.0.1.zip", "browser_download_url": "http://x/a.zip", "size": 100}
+                        {
+                            "name": "aaios-1.0.1.zip",
+                            "browser_download_url": "http://x/a.zip",
+                            "size": 100,
+                        }
                     ],
                 }
             ],
         )
 
     provider = GitHubReleaseProvider(repo="o/r", client=_client_for(handler))
-    man = asyncio.run(
-        provider.fetch_latest(ReleaseChannel.STABLE, current_version="1.0.0")
-    )
+    man = asyncio.run(provider.fetch_latest(ReleaseChannel.STABLE, current_version="1.0.0"))
     assert man is not None
     assert man.version == "1.0.1"
     assert man.channel == ReleaseChannel.STABLE
@@ -204,9 +209,7 @@ def test_github_provider_offline_returns_none() -> None:
         raise httpx.ConnectError("offline")
 
     provider = GitHubReleaseProvider(repo="o/r", client=_client_for(handler))
-    man = asyncio.run(
-        provider.fetch_latest(ReleaseChannel.STABLE, current_version="1.0.0")
-    )
+    man = asyncio.run(provider.fetch_latest(ReleaseChannel.STABLE, current_version="1.0.0"))
     assert man is None
 
 

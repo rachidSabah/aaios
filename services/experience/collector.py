@@ -142,7 +142,8 @@ class ExperienceCollector:
         async with self._lock:
             if task_id not in self._in_flight:
                 self._in_flight[task_id] = InFlightExecution(
-                    task_id=task_id, goal=goal,
+                    task_id=task_id,
+                    goal=goal,
                 )
                 self._in_flight[task_id].correlation_id = event.correlation_id
                 self._in_flight[task_id].input_summary = str(
@@ -269,6 +270,7 @@ class ExperienceCollector:
         """Record user feedback on a completed experience."""
         # Feedback comes after the record is stored; update it
         from services.experience.models import UserFeedback
+
         experience_id_str = event.payload.get("experience_id")
         if not experience_id_str:
             return
@@ -288,6 +290,7 @@ class ExperienceCollector:
             return
         # Build a new record with the feedback applied (replace)
         from dataclasses import replace as dc_replace
+
         updated = dc_replace(existing, user_feedback=feedback)
         try:
             await self._store.replace(updated)

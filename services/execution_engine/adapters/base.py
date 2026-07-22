@@ -1,13 +1,10 @@
 from __future__ import annotations
 
-import asyncio
-import os
 import statistics
 import time
 from abc import ABC, abstractmethod
 from collections.abc import AsyncIterator
 from datetime import UTC, datetime
-from pathlib import Path
 from typing import Any
 
 from core.contracts.execution_engine import (
@@ -19,7 +16,6 @@ from core.contracts.execution_engine import (
     EngineTelemetry,
     EngineType,
     ExecutionEngineError,
-    ExecutionEnginePort,
 )
 from core.logging import get_logger
 
@@ -163,8 +159,7 @@ class BaseExecutionEngineAdapter(ABC):
         return True
 
     @abstractmethod
-    async def _on_execute(self, task: Any) -> Any:
-        ...
+    async def _on_execute(self, task: Any) -> Any: ...
 
     async def _on_cancel(self, task_id: str) -> bool:
         return False

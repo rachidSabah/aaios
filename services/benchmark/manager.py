@@ -47,7 +47,7 @@ class BenchmarkManager:
 
         # 5. Throughputs (Workflow & Tasks)
         res.workflow_throughput = 85.5  # operations per minute
-        res.task_throughput = 145.0     # events per second
+        res.task_throughput = 145.0  # events per second
 
         # 6. Generate optimization suggestions
         self._generate_suggestions(res)
@@ -67,6 +67,7 @@ class BenchmarkManager:
         # Simulated cold boot: time to import core modules
         t0 = time.perf_counter()
         import importlib
+
         try:
             importlib.reload(importlib.import_module("core.bootstrap"))
         except Exception:  # noqa: BLE001 # nosec B110
@@ -121,6 +122,7 @@ class BenchmarkManager:
         """Measure RAM footprints and active processor usage."""
         try:
             import psutil  # type: ignore[import-untyped]
+
             process = psutil.Process()
             res.memory_usage_mb = process.memory_info().rss / (1024 * 1024)
             res.cpu_usage_pct = psutil.cpu_percent()
@@ -135,9 +137,7 @@ class BenchmarkManager:
                 "SQLite write latencies are high (>5ms). Consider placing databases on an SSD or using WAL journal mode."
             )
         else:
-            res.optimization_suggestions.append(
-                "Database writes are performing optimally (<5ms)."
-            )
+            res.optimization_suggestions.append("Database writes are performing optimally (<5ms).")
 
         if res.memory_usage_mb > 500.0:
             res.optimization_suggestions.append(

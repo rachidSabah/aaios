@@ -174,7 +174,9 @@ class SelfHealingEngine:
         else:
             # Fallback or unhandled triggers escalate
             record.status = HealingStatus.ESCALATED
-            raise NotImplementedError(f"Direct self-healing for {record.trigger} requires administrator escalation")
+            raise NotImplementedError(
+                f"Direct self-healing for {record.trigger} requires administrator escalation"
+            )
 
     def _repair_dependencies(self, record: RepairRecord) -> None:
         """Repair missing dependencies by triggering reinstall."""
@@ -199,7 +201,9 @@ class SelfHealingEngine:
 
         if config_yaml.exists():
             # Backup first, never silently delete user config
-            backup = config_yaml.with_name(f"config.yaml.broken-{int(datetime.now(UTC).timestamp())}")
+            backup = config_yaml.with_name(
+                f"config.yaml.broken-{int(datetime.now(UTC).timestamp())}"
+            )
             shutil.copy2(config_yaml, backup)
             record.backup_path = str(backup)
             record.details += f"\nBacked up broken config to {backup.name}"
@@ -214,12 +218,19 @@ class SelfHealingEngine:
 
     def _repair_database_corruption(self, record: RepairRecord) -> None:
         """Repair corrupted SQLite database file."""
-        db_name = record.target.replace("DB_CORRUPTED_", "").replace("DB_CONN_FAILED_", "").replace("DB_FILE_MISSING_", "").lower()
+        db_name = (
+            record.target.replace("DB_CORRUPTED_", "")
+            .replace("DB_CONN_FAILED_", "")
+            .replace("DB_FILE_MISSING_", "")
+            .lower()
+        )
         db_path = self.workspace_root / "database" / f"{db_name}.db"
 
         # Backup the corrupted file
         if db_path.exists():
-            backup = db_path.with_name(f"{db_name}.db.corrupted-{int(datetime.now(UTC).timestamp())}")
+            backup = db_path.with_name(
+                f"{db_name}.db.corrupted-{int(datetime.now(UTC).timestamp())}"
+            )
             shutil.move(db_path, backup)
             record.backup_path = str(backup)
             record.details += f"\nMoved corrupted database to {backup.name}"
@@ -227,6 +238,7 @@ class SelfHealingEngine:
         # Re-bootstrap
         from services.installer.database import DatabaseBootstrapper
         from services.installer.workspace import WorkspaceBootstrapper
+
         ws = WorkspaceBootstrapper(self.workspace_root)
         db_boot = DatabaseBootstrapper(ws)
         db_boot._bootstrap_sqlite(db_name)  # noqa: SLF001
@@ -235,6 +247,7 @@ class SelfHealingEngine:
     def _repair_workspace(self, record: RepairRecord) -> None:
         """Repair missing workspace directories."""
         from services.installer.workspace import WorkspaceBootstrapper
+
         ws = WorkspaceBootstrapper(self.workspace_root)
         ws.bootstrap()
         record.details += "\nRecreated missing workspace directories"
@@ -273,29 +286,29 @@ class SelfHealingEngine:
         from cryptography.x509.oid import NameOID
 
         key = rsa.generate_private_key(public_exponent=65537, key_size=2048)
-        subject = issuer = x509.Name([
-            x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
-            x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "California"),
-            x509.NameAttribute(NameOID.LOCALITY_NAME, "San Francisco"),
-            x509.NameAttribute(NameOID.ORGANIZATION_NAME, "AAiOS"),
-            x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
-        ])
-        cert = x509.CertificateBuilder().subject_name(
-            subject
-        ).issuer_name(
-            issuer
-        ).public_key(
-            key.public_key()
-        ).serial_number(
-            x509.random_serial_number()
-        ).not_valid_before(
-            dt.datetime.now(dt.UTC)
-        ).not_valid_after(
-            dt.datetime.now(dt.UTC) + dt.timedelta(days=365)
-        ).add_extension(
-            x509.SubjectAlternativeName([x509.DNSName("localhost")]),
-            critical=False,
-        ).sign(key, hashes.SHA256())
+        subject = issuer = x509.Name(
+            [
+                x509.NameAttribute(NameOID.COUNTRY_NAME, "US"),
+                x509.NameAttribute(NameOID.STATE_OR_PROVINCE_NAME, "California"),
+                x509.NameAttribute(NameOID.LOCALITY_NAME, "San Francisco"),
+                x509.NameAttribute(NameOID.ORGANIZATION_NAME, "AAiOS"),
+                x509.NameAttribute(NameOID.COMMON_NAME, "localhost"),
+            ]
+        )
+        cert = (
+            x509.CertificateBuilder()
+            .subject_name(subject)
+            .issuer_name(issuer)
+            .public_key(key.public_key())
+            .serial_number(x509.random_serial_number())
+            .not_valid_before(dt.datetime.now(dt.UTC))
+            .not_valid_after(dt.datetime.now(dt.UTC) + dt.timedelta(days=365))
+            .add_extension(
+                x509.SubjectAlternativeName([x509.DNSName("localhost")]),
+                critical=False,
+            )
+            .sign(key, hashes.SHA256())
+        )
 
         key_file.write_bytes(
             key.private_bytes(
@@ -317,6 +330,7 @@ class SelfHealingEngine:
 
         from services.installer.database import DatabaseBootstrapper
         from services.installer.workspace import WorkspaceBootstrapper
+
         ws = WorkspaceBootstrapper(self.workspace_root)
         db_boot = DatabaseBootstrapper(ws)
         db_boot._bootstrap_sqlite("audit")  # noqa: SLF001
@@ -326,7 +340,11 @@ class SelfHealingEngine:
 
     def _map_issue_to_trigger(self, issue_id: str) -> HealingTrigger | None:
         """Map a doctor issue ID to a self-healing trigger."""
-        if "CONFIG_DIR_MISSING" in issue_id or "DEFAULTS_YAML_MISSING" in issue_id or "CONFIG_YAML_MISSING" in issue_id:
+        if (
+            "CONFIG_DIR_MISSING" in issue_id
+            or "DEFAULTS_YAML_MISSING" in issue_id
+            or "CONFIG_YAML_MISSING" in issue_id
+        ):
             return HealingTrigger.BROKEN_CONFIGURATION
         if "DB_DIR_MISSING" in issue_id:
             return HealingTrigger.BROKEN_WORKSPACE
@@ -348,7 +366,11 @@ class SelfHealingEngine:
             return HealingTrigger.CORRUPTED_CACHE
         if "AGENTS_DIR_MISSING" in issue_id or "PLUGINS_DIR_MISSING" in issue_id:
             return HealingTrigger.BROKEN_WORKSPACE
-        if "MISSION_TABLE_MISSING" in issue_id or "WORKFLOW_TABLE_MISSING" in issue_id or "KG_SCHEMA_INCOMPLETE" in issue_id:
+        if (
+            "MISSION_TABLE_MISSING" in issue_id
+            or "WORKFLOW_TABLE_MISSING" in issue_id
+            or "KG_SCHEMA_INCOMPLETE" in issue_id
+        ):
             return HealingTrigger.BROKEN_MIGRATIONS
         return None
 

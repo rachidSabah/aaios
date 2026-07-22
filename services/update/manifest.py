@@ -43,13 +43,9 @@ def generate_manifest(
         )
     ]
     if delta_url and delta_sha256:
-        assets.append(
-            ManifestAsset(kind=AssetKind.DELTA, url=delta_url, sha256=delta_sha256)
-        )
+        assets.append(ManifestAsset(kind=AssetKind.DELTA, url=delta_url, sha256=delta_sha256))
     if signature:
-        assets.append(
-            ManifestAsset(kind=AssetKind.SIGNATURE, url="", signature=signature)
-        )
+        assets.append(ManifestAsset(kind=AssetKind.SIGNATURE, url="", signature=signature))
     return UpdateManifest(
         version=version,
         channel=channel,

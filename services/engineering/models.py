@@ -143,7 +143,9 @@ class RepoGraphNode:
     """A node in the repository knowledge graph."""
 
     node_id: str = field(default_factory=lambda: uuid4().hex[:12])
-    node_type: str = ""  # repository, directory, package, module, class, function, test, config, etc.
+    node_type: str = (
+        ""  # repository, directory, package, module, class, function, test, config, etc.
+    )
     name: str = ""
     path: str = ""
     properties: dict[str, Any] = field(default_factory=dict)

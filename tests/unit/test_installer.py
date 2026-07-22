@@ -72,7 +72,9 @@ class TestEnvironmentDetector:
         detector = EnvironmentDetector()
         report = detector.detect()
         compat = detector.assess_compatibility(report)
-        plan = detector.build_plan(report, compat, InstallationMode.INTERACTIVE, workspace_root="/tmp/aaios-test")
+        plan = detector.build_plan(
+            report, compat, InstallationMode.INTERACTIVE, workspace_root="/tmp/aaios-test"
+        )
         assert plan.mode == "interactive"
         assert len(plan.steps) > 0
         assert any(s.stage == InstallationStage.ENVIRONMENT_DISCOVERY.value for s in plan.steps)
@@ -82,7 +84,9 @@ class TestEnvironmentDetector:
         detector = EnvironmentDetector()
         report = detector.detect()
         compat = detector.assess_compatibility(report)
-        plan = detector.build_plan(report, compat, InstallationMode.MINIMAL, workspace_root="/tmp/aaios-min")
+        plan = detector.build_plan(
+            report, compat, InstallationMode.MINIMAL, workspace_root="/tmp/aaios-min"
+        )
         # Minimal mode skips provider and agent bootstrap
         stages = [s.stage for s in plan.steps]
         assert InstallationStage.PROVIDER_CONFIGURATION.value not in stages
@@ -101,7 +105,8 @@ class TestEnvironmentDetector:
         detector = EnvironmentDetector()
         assert detector._classify_platform("windows", "10.0.22631") == PlatformSupport.PRIMARY.value
         assert detector._classify_platform("linux", "5.15.0") in (
-            PlatformSupport.SECONDARY.value, PlatformSupport.EXPERIMENTAL.value,
+            PlatformSupport.SECONDARY.value,
+            PlatformSupport.EXPERIMENTAL.value,
         )
         assert detector._classify_platform("darwin", "") == PlatformSupport.EXPERIMENTAL.value
         assert detector._classify_platform("unknown", "") == PlatformSupport.UNSUPPORTED.value
@@ -155,7 +160,8 @@ class TestDependencyChecker:
         results = checker.check_all()
         # Optional deps that are missing should have status MISSING (not raise)
         optional_missing = [
-            r for r in results
+            r
+            for r in results
             if r.category == "optional" and r.status == DependencyStatus.MISSING.value
         ]
         # It's OK to have missing optional deps
@@ -484,7 +490,8 @@ class TestProviderConfigurator:
         with TemporaryDirectory() as d:
             configurator = ProviderConfigurator(workspace_root=d)
             check = configurator.configure_provider(
-                "openai", api_key="sk-test-key-1234567890",
+                "openai",
+                api_key="sk-test-key-1234567890",
             )
             assert check.configured
             assert check.healthy
@@ -671,10 +678,12 @@ class TestInstallerOrchestrator:
         with TemporaryDirectory() as d:
             orchestrator = InstallerOrchestrator(workspace_root=d)
             r1 = await orchestrator.install(
-                mode=InstallationMode.MINIMAL, workspace_root=d,
+                mode=InstallationMode.MINIMAL,
+                workspace_root=d,
             )
             r2 = await orchestrator.install(
-                mode=InstallationMode.MINIMAL, workspace_root=d,
+                mode=InstallationMode.MINIMAL,
+                workspace_root=d,
             )
             assert r1.overall_status in ("success", "partial")
             assert r2.overall_status in ("success", "partial")
@@ -684,7 +693,8 @@ class TestInstallerOrchestrator:
             orchestrator = InstallerOrchestrator(workspace_root=d)
             # First install
             await orchestrator.install(
-                mode=InstallationMode.MINIMAL, workspace_root=d,
+                mode=InstallationMode.MINIMAL,
+                workspace_root=d,
             )
             # Then validate
             report = await orchestrator.validate()

@@ -102,7 +102,9 @@ class ResearchEngine:
             tags=tags or [],
         )
         self._projects[project.project_id] = project
-        self._add_timeline(project.project_id, "project_created", f"Project '{title}' created", actor=owner)
+        self._add_timeline(
+            project.project_id, "project_created", f"Project '{title}' created", actor=owner
+        )
         _log.info("research.project_created", project_id=project.project_id, title=title)
         return project
 
@@ -119,9 +121,7 @@ class ResearchEngine:
             out = [p for p in out if p.domain == domain]
         return out
 
-    async def update_project(
-        self, project_id: str, **updates: Any
-    ) -> ResearchProject | None:
+    async def update_project(self, project_id: str, **updates: Any) -> ResearchProject | None:
         project = self._projects.get(project_id)
         if not project:
             return None
@@ -129,7 +129,9 @@ class ResearchEngine:
             if hasattr(project, key) and key != "project_id":
                 setattr(project, key, value)
         project.updated_at = datetime.now(UTC)
-        self._add_timeline(project_id, "project_updated", f"Project updated: {list(updates.keys())}")
+        self._add_timeline(
+            project_id, "project_updated", f"Project updated: {list(updates.keys())}"
+        )
         return project
 
     async def start_project(self, project_id: str) -> ResearchProject | None:
@@ -189,7 +191,12 @@ class ResearchEngine:
         self._sessions[session.session_id] = session
         project = self._projects[project_id]
         project.session_count += 1
-        self._add_timeline(project_id, "session_created", f"Session '{title}' created", session_id=session.session_id)
+        self._add_timeline(
+            project_id,
+            "session_created",
+            f"Session '{title}' created",
+            session_id=session.session_id,
+        )
         return session
 
     async def get_session(self, session_id: str) -> ResearchSession | None:
@@ -211,7 +218,9 @@ class ResearchEngine:
             return None
         session.status = "running"
         session.started_at = datetime.now(UTC)
-        self._add_timeline(session.project_id, "session_started", f"Session '{session.title}' started", session_id)
+        self._add_timeline(
+            session.project_id, "session_started", f"Session '{session.title}' started", session_id
+        )
         return session
 
     async def complete_session(
@@ -235,7 +244,9 @@ class ResearchEngine:
         session.models_used = models_used or []
         session.error = error
         kind = "session_failed" if error else "session_completed"
-        self._add_timeline(session.project_id, kind, f"Session '{session.title}' {kind}", session_id)
+        self._add_timeline(
+            session.project_id, kind, f"Session '{session.title}' {kind}", session_id
+        )
         return session
 
     # --- Plans ----------------------------------------------------------
@@ -305,7 +316,9 @@ class ResearchEngine:
         )
         self._tasks[task.task_id] = task
         session = self._sessions[session_id]
-        self._add_timeline(session.project_id, "task_created", f"Task '{title}' created", session_id)
+        self._add_timeline(
+            session.project_id, "task_created", f"Task '{title}' created", session_id
+        )
         return task
 
     async def get_task(self, task_id: str) -> ResearchTask | None:
@@ -384,7 +397,9 @@ class ResearchEngine:
             stage.status = "completed"
         pipeline.status = "completed"
         pipeline.completed_at = datetime.now(UTC)
-        self._add_timeline(pipeline.project_id, "pipeline_completed", f"Pipeline '{pipeline.name}' executed")
+        self._add_timeline(
+            pipeline.project_id, "pipeline_completed", f"Pipeline '{pipeline.name}' executed"
+        )
         return pipeline
 
     # --- Templates ------------------------------------------------------
@@ -419,9 +434,7 @@ class ResearchEngine:
     async def get_template(self, template_id: str) -> ResearchTemplate | None:
         return self._templates.get(template_id)
 
-    async def list_templates(
-        self, *, domain: str | None = None
-    ) -> list[ResearchTemplate]:
+    async def list_templates(self, *, domain: str | None = None) -> list[ResearchTemplate]:
         out = list(self._templates.values())
         if domain:
             out = [t for t in out if t.domain == domain]
@@ -492,10 +505,7 @@ class ResearchEngine:
     async def search_memory(self, query: str) -> list[ResearchMemory]:
         """Simple substring search across memory keys and values."""
         q = query.lower()
-        return [
-            m for m in self._memory.values()
-            if q in m.key.lower() or q in m.value.lower()
-        ]
+        return [m for m in self._memory.values() if q in m.key.lower() or q in m.value.lower()]
 
     # --- Workspaces -----------------------------------------------------
 

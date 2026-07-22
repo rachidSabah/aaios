@@ -67,7 +67,8 @@ def _make_record(
         goal=goal,
         input_summary=input_summary,
         output_summary=output_summary,
-        outcome=outcome or (ExperienceOutcome.SUCCESS.value if success else ExperienceOutcome.FAILURE.value),
+        outcome=outcome
+        or (ExperienceOutcome.SUCCESS.value if success else ExperienceOutcome.FAILURE.value),
         success=success,
         failure_reason=failure_reason,
         recovery_action=recovery_action,
@@ -257,11 +258,13 @@ class TestExperienceStore:
     async def test_summarize(self) -> None:
         store = ExperienceStore()
         for i in range(10):
-            await store.store(_make_record(
-                success=i % 3 != 0,
-                cost_usd=0.01 * i,
-                latency_s=0.5 * i,
-            ))
+            await store.store(
+                _make_record(
+                    success=i % 3 != 0,
+                    cost_usd=0.01 * i,
+                    latency_s=0.5 * i,
+                )
+            )
         summary = await store.summarize()
         assert summary.total_count == 10
         # i%3==0 → failure (i=0,3,6,9) = 4 failures, 6 successes
@@ -282,8 +285,12 @@ class TestExperienceStore:
 
     async def test_list_agents_providers_capabilities(self) -> None:
         store = ExperienceStore()
-        await store.store(_make_record(agent_id="a1", provider="openai", capabilities=["code.generate"]))
-        await store.store(_make_record(agent_id="a2", provider="anthropic", capabilities=["code.review"]))
+        await store.store(
+            _make_record(agent_id="a1", provider="openai", capabilities=["code.generate"])
+        )
+        await store.store(
+            _make_record(agent_id="a2", provider="anthropic", capabilities=["code.review"])
+        )
         agents = await store.list_agents()
         providers = await store.list_providers()
         capabilities = await store.list_capabilities()
@@ -311,7 +318,9 @@ class TestExperienceStore:
     async def test_delete_older_than(self) -> None:
         store = ExperienceStore()
         old_record = ExperienceRecord(
-            task_id=uuid4(), agent_id="old", agent_type="coding",
+            task_id=uuid4(),
+            agent_id="old",
+            agent_type="coding",
             timestamp=datetime.now(UTC) - timedelta(days=100),
         )
         new_record = _make_record(agent_id="new")
@@ -340,26 +349,53 @@ class TestExperienceCollector:
 
         task_id = uuid4()
         # Publish task lifecycle events
-        await bus.publish(_make_event(
-            "task.submitted",
-            {"task_id": str(task_id), "goal": "test goal", "input_summary": "test input"},
-            correlation_id=task_id,
-        ))
-        await bus.publish(_make_event(
-            "agent.dispatched",
-            {"task_id": str(task_id), "agent_id": "test-agent", "agent_type": "coding",
-             "provider": "openai", "model": "gpt-4o", "capability": "code.generate"},
-        ))
-        await bus.publish(_make_event(
-            "agent.completed",
-            {"task_id": str(task_id), "output_summary": "test output", "cost_usd": 0.05,
-             "input_tokens": 100, "output_tokens": 50, "success": True, "confidence": 0.8},
-        ))
-        await bus.publish(_make_event(
-            "task.completed",
-            {"task_id": str(task_id), "outcome": "success", "success": True,
-             "reflection_score": 0.9, "qa_score": 0.85, "cost_usd": 0.05},
-        ))
+        await bus.publish(
+            _make_event(
+                "task.submitted",
+                {"task_id": str(task_id), "goal": "test goal", "input_summary": "test input"},
+                correlation_id=task_id,
+            )
+        )
+        await bus.publish(
+            _make_event(
+                "agent.dispatched",
+                {
+                    "task_id": str(task_id),
+                    "agent_id": "test-agent",
+                    "agent_type": "coding",
+                    "provider": "openai",
+                    "model": "gpt-4o",
+                    "capability": "code.generate",
+                },
+            )
+        )
+        await bus.publish(
+            _make_event(
+                "agent.completed",
+                {
+                    "task_id": str(task_id),
+                    "output_summary": "test output",
+                    "cost_usd": 0.05,
+                    "input_tokens": 100,
+                    "output_tokens": 50,
+                    "success": True,
+                    "confidence": 0.8,
+                },
+            )
+        )
+        await bus.publish(
+            _make_event(
+                "task.completed",
+                {
+                    "task_id": str(task_id),
+                    "outcome": "success",
+                    "success": True,
+                    "reflection_score": 0.9,
+                    "qa_score": 0.85,
+                    "cost_usd": 0.05,
+                },
+            )
+        )
         await asyncio.sleep(0.1)
 
         records = await store.query()
@@ -381,24 +417,42 @@ class TestExperienceCollector:
         await collector.subscribe(bus)
 
         task_id = uuid4()
-        await bus.publish(_make_event(
-            "task.submitted",
-            {"task_id": str(task_id), "goal": "failing task"},
-        ))
-        await bus.publish(_make_event(
-            "agent.dispatched",
-            {"task_id": str(task_id), "agent_id": "fail-agent", "agent_type": "coding",
-             "provider": "openai", "capability": "code.generate"},
-        ))
-        await bus.publish(_make_event(
-            "agent.completed",
-            {"task_id": str(task_id), "success": False, "error": "timeout"},
-        ))
-        await bus.publish(_make_event(
-            "task.completed",
-            {"task_id": str(task_id), "outcome": "failure", "success": False,
-             "failure_reason": "timeout", "recovery_action": "retry"},
-        ))
+        await bus.publish(
+            _make_event(
+                "task.submitted",
+                {"task_id": str(task_id), "goal": "failing task"},
+            )
+        )
+        await bus.publish(
+            _make_event(
+                "agent.dispatched",
+                {
+                    "task_id": str(task_id),
+                    "agent_id": "fail-agent",
+                    "agent_type": "coding",
+                    "provider": "openai",
+                    "capability": "code.generate",
+                },
+            )
+        )
+        await bus.publish(
+            _make_event(
+                "agent.completed",
+                {"task_id": str(task_id), "success": False, "error": "timeout"},
+            )
+        )
+        await bus.publish(
+            _make_event(
+                "task.completed",
+                {
+                    "task_id": str(task_id),
+                    "outcome": "failure",
+                    "success": False,
+                    "failure_reason": "timeout",
+                    "recovery_action": "retry",
+                },
+            )
+        )
         await asyncio.sleep(0.1)
 
         records = await store.query()
@@ -422,10 +476,12 @@ class TestExperienceCollector:
         bus = InMemoryEventBus()
         await collector.subscribe(bus)
         task_id = uuid4()
-        await bus.publish(_make_event(
-            "task.submitted",
-            {"task_id": str(task_id), "goal": "in flight"},
-        ))
+        await bus.publish(
+            _make_event(
+                "task.submitted",
+                {"task_id": str(task_id), "goal": "in flight"},
+            )
+        )
         await asyncio.sleep(0.05)
         assert await collector.in_flight_count() == 1
 
@@ -442,10 +498,12 @@ class TestExperienceIndexer:
     async def test_rebuild_and_search(self) -> None:
         store = ExperienceStore()
         for i in range(10):
-            await store.store(_make_record(
-                goal=f"generate python function {i}",
-                input_summary="sort a list of numbers",
-            ))
+            await store.store(
+                _make_record(
+                    goal=f"generate python function {i}",
+                    input_summary="sort a list of numbers",
+                )
+            )
         indexer = ExperienceIndexer(store)
         count = await indexer.rebuild()
         assert count == 10
@@ -481,9 +539,12 @@ class TestExperienceRetriever:
     async def test_similar_successes(self) -> None:
         store = ExperienceStore()
         for i in range(5):
-            await store.store(_make_record(
-                goal=f"python function {i}", success=True,
-            ))
+            await store.store(
+                _make_record(
+                    goal=f"python function {i}",
+                    success=True,
+                )
+            )
         await store.store(_make_record(goal="python failure", success=False))
         indexer = ExperienceIndexer(store)
         retriever = ExperienceRetriever(store, indexer)
@@ -494,9 +555,12 @@ class TestExperienceRetriever:
         store = ExperienceStore()
         await store.store(_make_record(goal="python success", success=True))
         for i in range(3):
-            await store.store(_make_record(
-                goal=f"python failure {i}", success=False,
-            ))
+            await store.store(
+                _make_record(
+                    goal=f"python failure {i}",
+                    success=False,
+                )
+            )
         indexer = ExperienceIndexer(store)
         retriever = ExperienceRetriever(store, indexer)
         results = await retriever.similar_failures("python")
@@ -506,10 +570,14 @@ class TestExperienceRetriever:
         store = ExperienceStore()
         # Agent A: 5 successes
         for _ in range(5):
-            await store.store(_make_record(agent_id="agent-a", success=True, capabilities=["code.generate"]))
+            await store.store(
+                _make_record(agent_id="agent-a", success=True, capabilities=["code.generate"])
+            )
         # Agent B: 5 failures
         for _ in range(5):
-            await store.store(_make_record(agent_id="agent-b", success=False, capabilities=["code.generate"]))
+            await store.store(
+                _make_record(agent_id="agent-b", success=False, capabilities=["code.generate"])
+            )
         indexer = ExperienceIndexer(store)
         retriever = ExperienceRetriever(store, indexer)
         results = await retriever.best_agent_for_capability("code.generate")
@@ -544,13 +612,21 @@ class TestExperienceRetriever:
     async def test_highest_quality_workflows(self) -> None:
         store = ExperienceStore()
         for _ in range(3):
-            await store.store(_make_record(
-                workflow_id="wf-good", reflection_score=0.9, qa_score=0.9,
-            ))
+            await store.store(
+                _make_record(
+                    workflow_id="wf-good",
+                    reflection_score=0.9,
+                    qa_score=0.9,
+                )
+            )
         for _ in range(3):
-            await store.store(_make_record(
-                workflow_id="wf-bad", reflection_score=0.3, qa_score=0.3,
-            ))
+            await store.store(
+                _make_record(
+                    workflow_id="wf-bad",
+                    reflection_score=0.3,
+                    qa_score=0.3,
+                )
+            )
         indexer = ExperienceIndexer(store)
         retriever = ExperienceRetriever(store, indexer)
         results = await retriever.highest_quality_workflows()
@@ -586,14 +662,16 @@ class TestExperienceAnalyzer:
     async def test_learning_stats_populated(self) -> None:
         store = ExperienceStore()
         for i in range(20):
-            await store.store(_make_record(
-                agent_id=f"agent-{i % 3}",
-                provider=f"provider-{i % 2}",
-                success=i % 5 != 0,
-                cost_usd=0.05 * i,
-                capabilities=["code.generate"],
-                workflow_id=f"wf-{i % 4}",
-            ))
+            await store.store(
+                _make_record(
+                    agent_id=f"agent-{i % 3}",
+                    provider=f"provider-{i % 2}",
+                    success=i % 5 != 0,
+                    cost_usd=0.05 * i,
+                    capabilities=["code.generate"],
+                    workflow_id=f"wf-{i % 4}",
+                )
+            )
         analyzer = ExperienceAnalyzer(store)
         stats = await analyzer.learning_stats()
         assert stats.total_experiences == 20
@@ -608,15 +686,24 @@ class TestExperienceAnalyzer:
         store = ExperienceStore()
         # 5 successes with agent-a on code.generate
         for _ in range(5):
-            await store.store(_make_record(
-                agent_id="agent-a", success=True, capabilities=["code.generate"],
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="agent-a",
+                    success=True,
+                    capabilities=["code.generate"],
+                )
+            )
         # 3 failures with same reason
         for _ in range(3):
-            await store.store(_make_record(
-                agent_id="agent-b", success=False, capabilities=["code.generate"],
-                failure_reason="timeout", recovery_action="retry",
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="agent-b",
+                    success=False,
+                    capabilities=["code.generate"],
+                    failure_reason="timeout",
+                    recovery_action="retry",
+                )
+            )
         analyzer = ExperienceAnalyzer(store)
         report = await analyzer.discover_patterns()
         assert len(report.success_patterns) >= 1
@@ -631,6 +718,7 @@ class TestExperienceAnalyzer:
             r = _make_record(success=days_ago % 2 == 0)
             # Override timestamp by storing then manually replacing
             from dataclasses import replace
+
             old_ts = datetime.now(UTC) - timedelta(days=days_ago)
             r = replace(r, timestamp=old_ts)
             await store.store(r)
@@ -649,10 +737,14 @@ class TestExperienceScorer:
     async def test_score_agent(self) -> None:
         store = ExperienceStore()
         for i in range(10):
-            await store.store(_make_record(
-                agent_id="agent-a", success=i % 5 != 0,
-                reflection_score=0.8, qa_score=0.85,
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="agent-a",
+                    success=i % 5 != 0,
+                    reflection_score=0.8,
+                    qa_score=0.85,
+                )
+            )
         scorer = ExperienceScorer(store)
         reliability = await scorer.score_agent("agent-a")
         assert reliability.agent_id == "agent-a"
@@ -680,13 +772,21 @@ class TestExperienceScorer:
     async def test_score_capability(self) -> None:
         store = ExperienceStore()
         for i in range(5):
-            await store.store(_make_record(
-                agent_id="agent-a", success=True, capabilities=["code.generate"],
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="agent-a",
+                    success=True,
+                    capabilities=["code.generate"],
+                )
+            )
         for i in range(3):
-            await store.store(_make_record(
-                agent_id="agent-b", success=False, capabilities=["code.generate"],
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="agent-b",
+                    success=False,
+                    capabilities=["code.generate"],
+                )
+            )
         scorer = ExperienceScorer(store)
         cap = await scorer.score_capability("code.generate")
         assert cap.capability == "code.generate"
@@ -696,9 +796,13 @@ class TestExperienceScorer:
     async def test_rank_agents(self) -> None:
         store = ExperienceStore()
         for _ in range(5):
-            await store.store(_make_record(agent_id="good", success=True, reflection_score=0.9, qa_score=0.9))
+            await store.store(
+                _make_record(agent_id="good", success=True, reflection_score=0.9, qa_score=0.9)
+            )
         for _ in range(5):
-            await store.store(_make_record(agent_id="bad", success=False, reflection_score=0.3, qa_score=0.3))
+            await store.store(
+                _make_record(agent_id="bad", success=False, reflection_score=0.3, qa_score=0.3)
+            )
         scorer = ExperienceScorer(store)
         ranked = await scorer.rank_agents()
         assert ranked[0].agent_id == "good"
@@ -707,14 +811,24 @@ class TestExperienceScorer:
     async def test_recommend_agent_for_capability(self) -> None:
         store = ExperienceStore()
         for _ in range(5):
-            await store.store(_make_record(
-                agent_id="recommended", success=True, capabilities=["code.generate"],
-                reflection_score=0.9, qa_score=0.9, cost_usd=0.01,
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="recommended",
+                    success=True,
+                    capabilities=["code.generate"],
+                    reflection_score=0.9,
+                    qa_score=0.9,
+                    cost_usd=0.01,
+                )
+            )
         for _ in range(3):
-            await store.store(_make_record(
-                agent_id="not-recommended", success=False, capabilities=["code.generate"],
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="not-recommended",
+                    success=False,
+                    capabilities=["code.generate"],
+                )
+            )
         scorer = ExperienceScorer(store)
         rec = await scorer.recommend_agent_for_capability("code.generate")
         assert rec is not None
@@ -795,7 +909,9 @@ class TestExperienceReplayer:
 
         replayer = ExperienceReplayer(store, executor=executor)
         result = await replayer.replay(
-            r.experience_id, mode=ReplayMode.COMPARE, comparison_agent_id="comparison",
+            r.experience_id,
+            mode=ReplayMode.COMPARE,
+            comparison_agent_id="comparison",
         )
         assert result.comparison is not None
         assert result.comparison["comparison_agent_id"] == "comparison"
@@ -848,14 +964,22 @@ class TestExperienceCompressor:
         store = ExperienceStore()
         # 6 similar records (same agent, goal, capability)
         for _ in range(6):
-            await store.store(_make_record(
-                agent_id="agent-a", goal="same goal", capabilities=["code.generate"],
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="agent-a",
+                    goal="same goal",
+                    capabilities=["code.generate"],
+                )
+            )
         # 2 different records (below min_group_size)
         for _ in range(2):
-            await store.store(_make_record(
-                agent_id="agent-b", goal="different goal", capabilities=["code.review"],
-            ))
+            await store.store(
+                _make_record(
+                    agent_id="agent-b",
+                    goal="different goal",
+                    capabilities=["code.review"],
+                )
+            )
         compressor = ExperienceCompressor(store)
         summaries = await compressor.compress(min_group_size=5)
         assert len(summaries) == 1
@@ -873,7 +997,9 @@ class TestExperienceRetentionManager:
         store = ExperienceStore()
         # Old record
         old = ExperienceRecord(
-            task_id=uuid4(), agent_id="old", agent_type="coding",
+            task_id=uuid4(),
+            agent_id="old",
+            agent_type="coding",
             timestamp=datetime.now(UTC) - timedelta(days=200),
         )
         await store.store(old)
@@ -893,7 +1019,9 @@ class TestExperienceRetentionManager:
             await store.store(_make_record())
         retention = ExperienceRetentionManager(
             store,
-            policy=RetentionPolicy(max_age_days=365, max_total_records=10, compress_before_delete=False),
+            policy=RetentionPolicy(
+                max_age_days=365, max_total_records=10, compress_before_delete=False
+            ),
         )
         result = await retention.enforce()
         assert result["deleted_over_limit"] == 10
@@ -943,9 +1071,13 @@ class TestLearningEngine:
     async def test_recommend(self) -> None:
         engine = LearningEngine()
         for _ in range(5):
-            await engine.record(_make_record(
-                agent_id="best", success=True, capabilities=["code.generate"],
-            ))
+            await engine.record(
+                _make_record(
+                    agent_id="best",
+                    success=True,
+                    capabilities=["code.generate"],
+                )
+            )
         rec = await engine.recommend_agent_for_capability("code.generate")
         assert rec is not None
         assert rec["recommended_agent_id"] == "best"
@@ -993,9 +1125,13 @@ class TestLearningEngine:
     async def test_discover_patterns(self) -> None:
         engine = LearningEngine()
         for _ in range(5):
-            await engine.record(_make_record(
-                agent_id="a", success=True, capabilities=["code.generate"],
-            ))
+            await engine.record(
+                _make_record(
+                    agent_id="a",
+                    success=True,
+                    capabilities=["code.generate"],
+                )
+            )
         report = await engine.discover_patterns()
         assert len(report.success_patterns) >= 1
 
@@ -1025,28 +1161,52 @@ class TestExperienceIntegration:
         # Simulate 5 task lifecycles
         for i in range(5):
             task_id = uuid4()
-            await bus.publish(_make_event(
-                "task.submitted",
-                {"task_id": str(task_id), "goal": f"generate python function {i}"},
-            ))
-            await bus.publish(_make_event(
-                "agent.dispatched",
-                {"task_id": str(task_id), "agent_id": f"agent-{i % 2}",
-                 "agent_type": "coding", "provider": "openai", "model": "gpt-4o",
-                 "capability": "code.generate"},
-            ))
-            await bus.publish(_make_event(
-                "agent.completed",
-                {"task_id": str(task_id), "output_summary": f"output {i}",
-                 "cost_usd": 0.05, "input_tokens": 100, "output_tokens": 50,
-                 "success": i % 4 != 0, "confidence": 0.8},
-            ))
-            await bus.publish(_make_event(
-                "task.completed",
-                {"task_id": str(task_id), "outcome": "success" if i % 4 != 0 else "failure",
-                 "success": i % 4 != 0,
-                 "reflection_score": 0.8, "qa_score": 0.85, "cost_usd": 0.05},
-            ))
+            await bus.publish(
+                _make_event(
+                    "task.submitted",
+                    {"task_id": str(task_id), "goal": f"generate python function {i}"},
+                )
+            )
+            await bus.publish(
+                _make_event(
+                    "agent.dispatched",
+                    {
+                        "task_id": str(task_id),
+                        "agent_id": f"agent-{i % 2}",
+                        "agent_type": "coding",
+                        "provider": "openai",
+                        "model": "gpt-4o",
+                        "capability": "code.generate",
+                    },
+                )
+            )
+            await bus.publish(
+                _make_event(
+                    "agent.completed",
+                    {
+                        "task_id": str(task_id),
+                        "output_summary": f"output {i}",
+                        "cost_usd": 0.05,
+                        "input_tokens": 100,
+                        "output_tokens": 50,
+                        "success": i % 4 != 0,
+                        "confidence": 0.8,
+                    },
+                )
+            )
+            await bus.publish(
+                _make_event(
+                    "task.completed",
+                    {
+                        "task_id": str(task_id),
+                        "outcome": "success" if i % 4 != 0 else "failure",
+                        "success": i % 4 != 0,
+                        "reflection_score": 0.8,
+                        "qa_score": 0.85,
+                        "cost_usd": 0.05,
+                    },
+                )
+            )
         await asyncio.sleep(0.2)
 
         stats = await engine.learning_stats()
@@ -1076,11 +1236,13 @@ class TestExperienceStress:
     async def test_store_1000_records(self) -> None:
         store = ExperienceStore()
         for i in range(1000):
-            await store.store(_make_record(
-                agent_id=f"agent-{i % 10}",
-                goal=f"goal {i}",
-                success=i % 5 != 0,
-            ))
+            await store.store(
+                _make_record(
+                    agent_id=f"agent-{i % 10}",
+                    goal=f"goal {i}",
+                    success=i % 5 != 0,
+                )
+            )
         assert await store.count() == 1000
         summary = await store.summarize()
         assert summary.total_count == 1000

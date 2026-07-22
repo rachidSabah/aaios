@@ -123,20 +123,24 @@ class PersistentAuditStore:
 
     def _compute_hash(self, prev_hash: str, entry: AuditEntry) -> str:
         """Compute the hash chain entry."""
-        data = json.dumps({
-            "prev_hash": prev_hash,
-            "audit_id": entry.audit_id,
-            "execution_id": entry.execution_id,
-            "timestamp": entry.timestamp.isoformat(),
-            "event": entry.event,
-            "actor": entry.actor,
-            "domain": entry.domain,
-            "action": entry.action,
-            "target": entry.target,
-            "outcome": entry.outcome,
-            "details": entry.details,
-            "risk_level": entry.risk_level,
-        }, sort_keys=True, default=str)
+        data = json.dumps(
+            {
+                "prev_hash": prev_hash,
+                "audit_id": entry.audit_id,
+                "execution_id": entry.execution_id,
+                "timestamp": entry.timestamp.isoformat(),
+                "event": entry.event,
+                "actor": entry.actor,
+                "domain": entry.domain,
+                "action": entry.action,
+                "target": entry.target,
+                "outcome": entry.outcome,
+                "details": entry.details,
+                "risk_level": entry.risk_level,
+            },
+            sort_keys=True,
+            default=str,
+        )
         return hashlib.sha256(data.encode("utf-8")).hexdigest()
 
     async def append(self, entry: AuditEntry) -> AuditEntry:
@@ -217,19 +221,21 @@ class PersistentAuditStore:
         cursor = conn.execute(sql, params)
         entries: list[AuditEntry] = []
         for row in cursor:
-            entries.append(AuditEntry(
-                audit_id=row["audit_id"],
-                execution_id=row["execution_id"],
-                timestamp=datetime.fromisoformat(row["timestamp"]),
-                event=row["event"],
-                actor=row["actor"],
-                domain=row["domain"],
-                action=row["action"],
-                target=row["target"],
-                outcome=row["outcome"],
-                details=json.loads(row["details"]) if row["details"] else {},
-                risk_level=row["risk_level"],
-            ))
+            entries.append(
+                AuditEntry(
+                    audit_id=row["audit_id"],
+                    execution_id=row["execution_id"],
+                    timestamp=datetime.fromisoformat(row["timestamp"]),
+                    event=row["event"],
+                    actor=row["actor"],
+                    domain=row["domain"],
+                    action=row["action"],
+                    target=row["target"],
+                    outcome=row["outcome"],
+                    details=json.loads(row["details"]) if row["details"] else {},
+                    risk_level=row["risk_level"],
+                )
+            )
         conn.close()
         return entries
 
@@ -265,12 +271,14 @@ class PersistentAuditStore:
             if expected_hash == row["entry_hash"]:
                 valid += 1
             else:
-                broken_at.append({
-                    "sequence": row["sequence"],
-                    "audit_id": row["audit_id"],
-                    "expected": expected_hash,
-                    "actual": row["entry_hash"],
-                })
+                broken_at.append(
+                    {
+                        "sequence": row["sequence"],
+                        "audit_id": row["audit_id"],
+                        "expected": expected_hash,
+                        "actual": row["entry_hash"],
+                    }
+                )
             prev_hash = row["entry_hash"]
         conn.close()
         return {

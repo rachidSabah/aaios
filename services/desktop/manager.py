@@ -19,18 +19,16 @@ Boot order:
 
 from __future__ import annotations
 
-import asyncio
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
 from core.contracts.actor import ActorRef
-from core.contracts.event import Event, EventTopic
+from core.contracts.event import Event
 from core.event_bus import get_bus
 from core.logging import get_logger
-from core.platform import get_platform
 
 _log = get_logger(__name__)
 
@@ -38,6 +36,7 @@ _log = get_logger(__name__)
 @dataclass
 class DesktopRuntimeConfig:
     """Configuration for the Desktop Runtime."""
+
     workspace_root: str | Path = "."
     app_name: str = "AAiOS"
     app_version: str = "1.0.0-rc1"
@@ -111,7 +110,9 @@ class DesktopRuntimeManager:
                 self._boot_errors.append(f"{name}: {exc}")
 
         self._booted = True
-        await self._emit("desktop.booted", {"boot_id": self._boot_id, "version": self.config.app_version})
+        await self._emit(
+            "desktop.booted", {"boot_id": self._boot_id, "version": self.config.app_version}
+        )
         _log.info("desktop.ready", boot_id=self._boot_id, errors=len(self._boot_errors))
         return len(self._boot_errors) == 0
 
@@ -123,9 +124,20 @@ class DesktopRuntimeManager:
         await self._emit("desktop.shutting_down", {})
 
         shutdown_order = [
-            "crash_reporter", "background", "updater", "plugin_loader",
-            "perfmon", "local_ai", "offline", "notifications", "system_tray",
-            "workspace_manager", "window_manager", "local_db", "credentials", "diagnostics",
+            "crash_reporter",
+            "background",
+            "updater",
+            "plugin_loader",
+            "perfmon",
+            "local_ai",
+            "offline",
+            "notifications",
+            "system_tray",
+            "workspace_manager",
+            "window_manager",
+            "local_db",
+            "credentials",
+            "diagnostics",
         ]
         for name in shutdown_order:
             svc = self._services.pop(name, None)
@@ -165,34 +177,38 @@ class DesktopRuntimeManager:
 
     async def _boot_diagnostics(self) -> None:
         from services.desktop.diagnostics import DiagnosticsManager
+
         svc = DiagnosticsManager()
         self._services["diagnostics"] = svc
 
     async def _boot_credentials(self) -> None:
         if not self.config.enable_crash_reporter:
             from services.desktop.credentials import NativeCredentialStore
+
             svc = NativeCredentialStore()
             self._services["credentials"] = svc
             return
         from services.desktop.credentials import NativeCredentialStore
+
         svc = NativeCredentialStore()
         self._services["credentials"] = svc
 
     async def _boot_local_db(self) -> None:
         from services.desktop.local_db import LocalDatabaseManager
-        svc = LocalDatabaseManager(
-            db_dir=Path(self.config.data_dir or "desktop_data") / "db"
-        )
+
+        svc = LocalDatabaseManager(db_dir=Path(self.config.data_dir or "desktop_data") / "db")
         await svc.open()
         self._services["local_db"] = svc
 
     async def _boot_window_manager(self) -> None:
         from services.desktop.window_manager import WindowManager
+
         svc = WindowManager(app_name=self.config.app_name)
         self._services["window_manager"] = svc
 
     async def _boot_workspace_manager(self) -> None:
         from services.desktop.window_manager import WorkspaceManager
+
         svc = WorkspaceManager(
             autostart=self.config.autostart_workspaces,
             restore_state=self.config.restore_window_state,
@@ -203,6 +219,7 @@ class DesktopRuntimeManager:
         if not self.config.enable_system_tray:
             return
         from services.desktop.system_tray import SystemTray
+
         svc = SystemTray(app_name=self.config.app_name)
         self._services["system_tray"] = svc
 
@@ -210,6 +227,7 @@ class DesktopRuntimeManager:
         if not self.config.enable_notifications:
             return
         from services.desktop.notifications import NativeNotificationService
+
         svc = NativeNotificationService(app_name=self.config.app_name)
         self._services["notifications"] = svc
 
@@ -217,6 +235,7 @@ class DesktopRuntimeManager:
         if not self.config.enable_offline_mode:
             return
         from services.desktop.offline import OfflineRuntimeManager
+
         db = self._services.get("local_db")
         svc = OfflineRuntimeManager(db=db)
         await svc.start()
@@ -226,6 +245,7 @@ class DesktopRuntimeManager:
         if not self.config.enable_local_ai:
             return
         from services.desktop.local_ai import LocalAIRuntimeManager
+
         svc = LocalAIRuntimeManager()
         await svc.start()
         self._services["local_ai"] = svc
@@ -234,6 +254,7 @@ class DesktopRuntimeManager:
         if not self.config.enable_performance_monitor:
             return
         from services.desktop.perfmon import PerformanceMonitor
+
         svc = PerformanceMonitor()
         await svc.start()
         self._services["perfmon"] = svc
@@ -242,6 +263,7 @@ class DesktopRuntimeManager:
         if not self.config.enable_plugin_loader:
             return
         from services.desktop.plugins import DesktopPluginLoader
+
         svc = DesktopPluginLoader()
         await svc.start()
         self._services["plugin_loader"] = svc
@@ -250,14 +272,14 @@ class DesktopRuntimeManager:
         if not self.config.enable_auto_update:
             return
         from services.desktop.updater import DesktopUpdater
+
         svc = DesktopUpdater(current_version=self.config.app_version)
         self._services["updater"] = svc
 
     async def _boot_background(self) -> None:
         from services.desktop.background import BackgroundServiceRunner
-        svc = BackgroundServiceRunner(
-            interval_s=self.config.background_service_interval_s
-        )
+
+        svc = BackgroundServiceRunner(interval_s=self.config.background_service_interval_s)
         await svc.start()
         self._services["background"] = svc
 
@@ -265,17 +287,20 @@ class DesktopRuntimeManager:
         if not self.config.enable_crash_reporter:
             return
         from services.desktop.diagnostics import CrashReporter
+
         svc = CrashReporter()
         self._services["crash_reporter"] = svc
 
     async def _emit(self, topic: str, payload: dict) -> None:
         try:
             bus = get_bus()
-            await bus.publish(Event(
-                topic=f"desktop.{topic}",
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload=payload,
-            ))
+            await bus.publish(
+                Event(
+                    topic=f"desktop.{topic}",
+                    correlation_id=uuid4(),
+                    actor=ActorRef.system(),
+                    payload=payload,
+                )
+            )
         except Exception:  # noqa: BLE001
             pass

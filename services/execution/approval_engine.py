@@ -43,26 +43,32 @@ class RoleBasedApprovalPolicy:
     """Policy mapping risk levels to required approval roles."""
 
     # Risk level → required role
-    role_requirements: dict[str, str] = field(default_factory=lambda: {
-        "low": ApprovalRole.OPERATOR,
-        "medium": ApprovalRole.OPERATOR,
-        "high": ApprovalRole.SENIOR_OPERATOR,
-        "critical": ApprovalRole.MISSION_DIRECTOR,
-    })
+    role_requirements: dict[str, str] = field(
+        default_factory=lambda: {
+            "low": ApprovalRole.OPERATOR,
+            "medium": ApprovalRole.OPERATOR,
+            "high": ApprovalRole.SENIOR_OPERATOR,
+            "critical": ApprovalRole.MISSION_DIRECTOR,
+        }
+    )
     # Risk level → number of approvers required
-    approver_counts: dict[str, int] = field(default_factory=lambda: {
-        "low": 1,
-        "medium": 1,
-        "high": 1,
-        "critical": 2,
-    })
+    approver_counts: dict[str, int] = field(
+        default_factory=lambda: {
+            "low": 1,
+            "medium": 1,
+            "high": 1,
+            "critical": 2,
+        }
+    )
     # Default timeout per risk level (seconds)
-    timeout_by_risk: dict[str, float] = field(default_factory=lambda: {
-        "low": 60.0,
-        "medium": 300.0,
-        "high": 600.0,
-        "critical": 900.0,
-    })
+    timeout_by_risk: dict[str, float] = field(
+        default_factory=lambda: {
+            "low": 60.0,
+            "medium": 300.0,
+            "high": 600.0,
+            "critical": 900.0,
+        }
+    )
     # Escalation: after timeout, escalate to next role
     escalation_enabled: bool = True
     escalation_delay_s: float = 120.0  # time before escalating
@@ -98,7 +104,9 @@ class ProductionApprovalEngine:
         self._policy = policy or RoleBasedApprovalPolicy()
         self._pending: dict[str, ApprovalRequest] = {}
         self._futures: dict[str, asyncio.Future[ApprovalRequest]] = {}
-        self._approvals_received: dict[str, list[tuple[str, str]]] = {}  # approval_id → [(decided_by, decision)]
+        self._approvals_received: dict[
+            str, list[tuple[str, str]]
+        ] = {}  # approval_id → [(decided_by, decision)]
         self._history: list[ApprovalRequest] = []
         self._lock = asyncio.Lock()
         self._on_decision: Callable[[ApprovalRequest], Any] | None = None
@@ -133,7 +141,11 @@ class ProductionApprovalEngine:
             self._futures[approval.approval_id] = asyncio.get_event_loop().create_future()
         _log.info(
             "Approval requested: execution=%s domain=%s action=%s risk=%s timeout=%ss",
-            execution_id, domain, action, risk_level, timeout_s,
+            execution_id,
+            domain,
+            action,
+            risk_level,
+            timeout_s,
         )
         return approval
 
@@ -215,7 +227,9 @@ class ProductionApprovalEngine:
             if not self._is_role_sufficient(role, required_role):
                 _log.warning(
                     "Approval rejected: role '%s' insufficient for risk '%s' (requires '%s')",
-                    role, approval.risk_level, required_role,
+                    role,
+                    approval.risk_level,
+                    required_role,
                 )
                 return None
 
@@ -239,7 +253,9 @@ class ProductionApprovalEngine:
             else:
                 _log.info(
                     "Partial approval: %s (%d/%d approvers)",
-                    approval_id, current_count, required_count,
+                    approval_id,
+                    current_count,
+                    required_count,
                 )
             return approval
 

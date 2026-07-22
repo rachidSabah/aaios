@@ -35,7 +35,6 @@ def _make_event(
     )
 
 
-
 @pytest.mark.offline
 class TestWorkflowNode:
     """WorkflowNode tests."""

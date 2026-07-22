@@ -66,9 +66,23 @@ EXT_TO_LANG: dict[str, str] = {
 
 # Directories to skip during analysis
 SKIP_DIRS: set[str] = {
-    ".git", ".venv", "venv", "node_modules", "__pycache__", ".mypy_cache",
-    ".ruff_cache", ".pytest_cache", "dist", "build", ".next", "out",
-    ".tox", ".eggs", "*.egg-info", "coverage", ".coverage",
+    ".git",
+    ".venv",
+    "venv",
+    "node_modules",
+    "__pycache__",
+    ".mypy_cache",
+    ".ruff_cache",
+    ".pytest_cache",
+    "dist",
+    "build",
+    ".next",
+    "out",
+    ".tox",
+    ".eggs",
+    "*.egg-info",
+    "coverage",
+    ".coverage",
 }
 
 
@@ -113,7 +127,9 @@ class RepositoryIntelligenceEngine:
                     continue
                 info.file_count += 1
                 try:
-                    lines = len(file_path.read_text(encoding="utf-8", errors="replace").splitlines())
+                    lines = len(
+                        file_path.read_text(encoding="utf-8", errors="replace").splitlines()
+                    )
                     info.line_count += lines
                     lang_counts[lang] += lines
                 except Exception:
@@ -166,8 +182,14 @@ class RepositoryIntelligenceEngine:
     async def _detect_issues(self) -> list[RepositoryIssue]:
         """Detect repository issues."""
         issues: list[RepositoryIssue] = []
-        src_dirs = [self._root / "services", self._root / "core", self._root / "agents",
-                     self._root / "supervisor", self._root / "orchestrator", self._root / "surfaces"]
+        src_dirs = [
+            self._root / "services",
+            self._root / "core",
+            self._root / "agents",
+            self._root / "supervisor",
+            self._root / "orchestrator",
+            self._root / "surfaces",
+        ]
         for src_dir in src_dirs:
             if not src_dir.exists():
                 continue
@@ -176,13 +198,15 @@ class RepositoryIntelligenceEngine:
                     continue
                 test_name = f"test_{py_file.stem}.py"
                 if not (self._root / "tests" / "unit" / test_name).exists():
-                    issues.append(RepositoryIssue(
-                        issue_type="missing_test",
-                        severity="medium",
-                        file=str(py_file.relative_to(self._root)),
-                        description=f"No test file for {py_file.name}",
-                        recommendation=f"Create {test_name}",
-                    ))
+                    issues.append(
+                        RepositoryIssue(
+                            issue_type="missing_test",
+                            severity="medium",
+                            file=str(py_file.relative_to(self._root)),
+                            description=f"No test file for {py_file.name}",
+                            recommendation=f"Create {test_name}",
+                        )
+                    )
         # Check for missing docstrings
         for py_file in self._root.rglob("*.py"):
             if any(skip in str(py_file) for skip in SKIP_DIRS) or "tests/" in str(py_file):
@@ -192,14 +216,16 @@ class RepositoryIntelligenceEngine:
                 tree = ast.parse(source)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef) and not ast.get_docstring(node):
-                        issues.append(RepositoryIssue(
-                            issue_type="missing_doc",
-                            severity="low",
-                            file=str(py_file.relative_to(self._root)),
-                            line=node.lineno,
-                            description=f"Class '{node.name}' has no docstring",
-                            recommendation="Add a docstring",
-                        ))
+                        issues.append(
+                            RepositoryIssue(
+                                issue_type="missing_doc",
+                                severity="low",
+                                file=str(py_file.relative_to(self._root)),
+                                line=node.lineno,
+                                description=f"Class '{node.name}' has no docstring",
+                                recommendation="Add a docstring",
+                            )
+                        )
             except Exception:
                 pass
         return issues[:50]
@@ -253,21 +279,26 @@ class CodeIntelligenceEngine:
 
     async def _analyze_javascript(self, source: str, analysis: FileAnalysis) -> None:
         import re
+
         # Extract classes
         analysis.classes = re.findall(r"class\s+(\w+)", source)
         # Extract functions
-        analysis.functions = re.findall(r"function\s+(\w+)|const\s+(\w+)\s*=\s*(?:async\s*)?\(", source)
+        analysis.functions = re.findall(
+            r"function\s+(\w+)|const\s+(\w+)\s*=\s*(?:async\s*)?\(", source
+        )
         analysis.functions = [f for pair in analysis.functions for f in pair if f]
         # Extract imports
         analysis.imports = re.findall(r"import\s+.*?\s+from\s+['\"]([^'\"]+)['\"]", source)
 
     async def _analyze_go(self, source: str, analysis: FileAnalysis) -> None:
         import re
+
         analysis.functions = re.findall(r"func\s+(?:\([^)]*\)\s+)?(\w+)\s*\(", source)
         analysis.imports = re.findall(r"\"([^\"]+)\"", source)
 
     async def _analyze_generic(self, source: str, analysis: FileAnalysis) -> None:
         import re
+
         # Generic function detection
         analysis.functions = re.findall(r"def\s+(\w+)|function\s+(\w+)", source)
         analysis.functions = [f for pair in analysis.functions for f in pair if f]
@@ -275,6 +306,7 @@ class CodeIntelligenceEngine:
     def _compute_complexity(self, source: str, language: str) -> float:
         """Compute cyclomatic complexity (simplified)."""
         import re
+
         if language == "python":
             branches = len(re.findall(r"\b(if|elif|for|while|except|and|or)\b", source))
         else:
@@ -305,8 +337,12 @@ class ArchitectureIntelligenceEngine:
         """Detect layer violations (e.g., L3 importing from L5)."""
         recs: list[ArchRecommendation] = []
         layer_map: dict[str, str] = {
-            "core": "L1", "services": "L2", "agents": "L3",
-            "supervisor": "L4", "orchestrator": "L4", "surfaces": "L5",
+            "core": "L1",
+            "services": "L2",
+            "agents": "L3",
+            "supervisor": "L4",
+            "orchestrator": "L4",
+            "surfaces": "L5",
         }
         for src_dir, src_layer in layer_map.items():
             dir_path = self._root / src_dir
@@ -323,26 +359,36 @@ class ArchitectureIntelligenceEngine:
                             for target_dir, target_layer in layer_map.items():
                                 if target_dir == src_dir:
                                     continue
-                                if node.module.startswith(target_dir) or node.module.startswith(f"{target_dir}."):
+                                if node.module.startswith(target_dir) or node.module.startswith(
+                                    f"{target_dir}."
+                                ):
                                     # Check if this is a violation (higher layer importing lower is OK)
                                     src_num = int(src_layer[1:])
                                     tgt_num = int(target_layer[1:])
                                     if tgt_num > src_num:
-                                        recs.append(ArchRecommendation(
-                                            title=f"Layer violation: {src_dir} imports from {target_dir}",
-                                            description=f"{py_file.relative_to(self._root)} imports from {node.module} "
-                                                        f"({src_layer} → {target_layer}). Lower layers should not import from higher layers.",
-                                            recommendation_type="layer_violation",
-                                            confidence=0.8,
-                                            risk="medium",
-                                            impact=0.6,
-                                            affected_files=[str(py_file.relative_to(self._root))],
-                                            reasoning=f"Layer {src_layer} ({src_dir}) should not depend on layer {target_layer} ({target_dir}). "
-                                                      f"This creates unwanted coupling.",
-                                            supporting_evidence={"source_layer": src_layer, "target_layer": target_layer, "import": node.module},
-                                            estimated_effort_hours=2.0,
-                                            rollback_strategy="Revert the import and refactor to use an interface or event.",
-                                        ))
+                                        recs.append(
+                                            ArchRecommendation(
+                                                title=f"Layer violation: {src_dir} imports from {target_dir}",
+                                                description=f"{py_file.relative_to(self._root)} imports from {node.module} "
+                                                f"({src_layer} → {target_layer}). Lower layers should not import from higher layers.",
+                                                recommendation_type="layer_violation",
+                                                confidence=0.8,
+                                                risk="medium",
+                                                impact=0.6,
+                                                affected_files=[
+                                                    str(py_file.relative_to(self._root))
+                                                ],
+                                                reasoning=f"Layer {src_layer} ({src_dir}) should not depend on layer {target_layer} ({target_dir}). "
+                                                f"This creates unwanted coupling.",
+                                                supporting_evidence={
+                                                    "source_layer": src_layer,
+                                                    "target_layer": target_layer,
+                                                    "import": node.module,
+                                                },
+                                                estimated_effort_hours=2.0,
+                                                rollback_strategy="Revert the import and refactor to use an interface or event.",
+                                            )
+                                        )
                                         break
                 except Exception:
                     pass
@@ -363,7 +409,9 @@ class ArchitectureIntelligenceEngine:
                 try:
                     source = py_file.read_text(encoding="utf-8", errors="replace")
                     tree = ast.parse(source)
-                    module_name = str(py_file.relative_to(self._root)).replace("/", ".").replace(".py", "")
+                    module_name = (
+                        str(py_file.relative_to(self._root)).replace("/", ".").replace(".py", "")
+                    )
                     for node in ast.walk(tree):
                         if isinstance(node, ast.ImportFrom) and node.module:
                             deps[module_name].add(node.module)
@@ -380,19 +428,21 @@ class ArchitectureIntelligenceEngine:
                     continue
                 checked.add((mod_a, dep))
                 if dep in deps and mod_a in deps[dep]:
-                    recs.append(ArchRecommendation(
-                        title=f"Circular dependency: {mod_a} ↔ {dep}",
-                        description=f"{mod_a} imports {dep} and {dep} imports {mod_a}.",
-                        recommendation_type="circular_dependency",
-                        confidence=0.7,
-                        risk="high",
-                        impact=0.7,
-                        affected_files=[mod_a, dep],
-                        reasoning="Circular dependencies make modules hard to test, maintain, and reason about independently.",
-                        supporting_evidence={"module_a": mod_a, "module_b": dep},
-                        estimated_effort_hours=4.0,
-                        rollback_strategy="Extract shared logic into a third module that both can depend on.",
-                    ))
+                    recs.append(
+                        ArchRecommendation(
+                            title=f"Circular dependency: {mod_a} ↔ {dep}",
+                            description=f"{mod_a} imports {dep} and {dep} imports {mod_a}.",
+                            recommendation_type="circular_dependency",
+                            confidence=0.7,
+                            risk="high",
+                            impact=0.7,
+                            affected_files=[mod_a, dep],
+                            reasoning="Circular dependencies make modules hard to test, maintain, and reason about independently.",
+                            supporting_evidence={"module_a": mod_a, "module_b": dep},
+                            estimated_effort_hours=4.0,
+                            rollback_strategy="Extract shared logic into a third module that both can depend on.",
+                        )
+                    )
         return recs[:10]
 
     async def _detect_missing_tests(self) -> list[ArchRecommendation]:
@@ -407,17 +457,19 @@ class ArchitectureIntelligenceEngine:
                     continue
                 test_name = f"test_{py_file.stem}.py"
                 if not (self._root / "tests" / "unit" / test_name).exists():
-                    recs.append(ArchRecommendation(
-                        title=f"Missing tests: {py_file.name}",
-                        description=f"No test file found for {py_file.relative_to(self._root)}",
-                        recommendation_type="missing_tests",
-                        confidence=0.9,
-                        risk="low",
-                        impact=0.5,
-                        affected_files=[str(py_file.relative_to(self._root))],
-                        reasoning="Untested code is more likely to contain bugs and regressions.",
-                        supporting_evidence={"file": str(py_file.relative_to(self._root))},
-                        estimated_effort_hours=2.0,
-                        rollback_strategy="Simply delete the test file if not needed.",
-                    ))
+                    recs.append(
+                        ArchRecommendation(
+                            title=f"Missing tests: {py_file.name}",
+                            description=f"No test file found for {py_file.relative_to(self._root)}",
+                            recommendation_type="missing_tests",
+                            confidence=0.9,
+                            risk="low",
+                            impact=0.5,
+                            affected_files=[str(py_file.relative_to(self._root))],
+                            reasoning="Untested code is more likely to contain bugs and regressions.",
+                            supporting_evidence={"file": str(py_file.relative_to(self._root))},
+                            estimated_effort_hours=2.0,
+                            rollback_strategy="Simply delete the test file if not needed.",
+                        )
+                    )
         return recs[:20]

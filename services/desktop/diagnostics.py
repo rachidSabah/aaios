@@ -8,7 +8,6 @@ Event Bus so the update/rollback system can react.
 
 from __future__ import annotations
 
-import asyncio
 import json
 import platform
 import sys
@@ -19,8 +18,6 @@ from pathlib import Path
 from typing import Any
 from uuid import uuid4
 
-from core.contracts.actor import ActorRef
-from core.contracts.event import Event
 from core.event_bus import get_bus
 from core.logging import get_logger
 
@@ -30,6 +27,7 @@ _log = get_logger(__name__)
 @dataclass
 class DiagnosticCheck:
     """Result of a single diagnostic check."""
+
     name: str
     status: str  # pass, fail, warn, error
     message: str = ""
@@ -39,6 +37,7 @@ class DiagnosticCheck:
 @dataclass
 class CrashReport:
     """A captured crash/exception report."""
+
     id: str
     timestamp: str
     exception_type: str
@@ -97,14 +96,18 @@ class DiagnosticsManager:
     async def _check_disk_space(self) -> DiagnosticCheck:
         try:
             import shutil
+
             usage = shutil.disk_usage(Path.cwd())
-            free_gb = usage.free / (1024 ** 3)
+            free_gb = usage.free / (1024**3)
             ok = free_gb > 1.0
             return DiagnosticCheck(
                 name="disk_space",
                 status="pass" if ok else "warn",
                 message=f"{free_gb:.1f} GB free",
-                details={"free_gb": round(free_gb, 1), "total_gb": round(usage.total / (1024**3), 1)},
+                details={
+                    "free_gb": round(free_gb, 1),
+                    "total_gb": round(usage.total / (1024**3), 1),
+                },
             )
         except Exception as exc:
             return DiagnosticCheck(name="disk_space", status="warn", message=str(exc))
@@ -125,6 +128,7 @@ class DiagnosticsManager:
     async def _check_platform(self) -> DiagnosticCheck:
         try:
             from core.platform import get_platform
+
             plat = get_platform()
             return DiagnosticCheck(
                 name="platform",
@@ -195,16 +199,22 @@ class CrashReporter:
     def _persist(self, report: CrashReport) -> None:
         try:
             path = self._crash_dir / f"crash_{report.id}.json"
-            path.write_text(json.dumps({
-                "id": report.id,
-                "timestamp": report.timestamp,
-                "exception_type": report.exception_type,
-                "exception_message": report.exception_message,
-                "traceback": report.traceback,
-                "version": report.version,
-                "platform": report.platform,
-                "component": report.component,
-            }, indent=2), encoding="utf-8")
+            path.write_text(
+                json.dumps(
+                    {
+                        "id": report.id,
+                        "timestamp": report.timestamp,
+                        "exception_type": report.exception_type,
+                        "exception_message": report.exception_message,
+                        "traceback": report.traceback,
+                        "version": report.version,
+                        "platform": report.platform,
+                        "component": report.component,
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
         except Exception as exc:  # noqa: BLE001
             _log.warning("desktop.crash.persist_failed", error=str(exc))
 

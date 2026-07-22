@@ -55,7 +55,9 @@ def test_reset_manager() -> None:
         report = manager.run_reset(config)
         assert report.success
         # Verify defaults are restored
-        assert (workspace_path / "config" / "config.yaml").read_text(encoding="utf-8") == "key: default"
+        assert (workspace_path / "config" / "config.yaml").read_text(
+            encoding="utf-8"
+        ) == "key: default"
 
 
 def test_cleanup_manager() -> None:

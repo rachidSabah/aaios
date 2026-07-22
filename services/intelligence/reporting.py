@@ -84,8 +84,11 @@ class ReportingEngine:
 
         _log.info(
             "Generated %s report: health=%.2f (%s), %d findings, %d actions",
-            report_type, health.overall_score, health.grade,
-            len(report.key_findings), len(report.action_items),
+            report_type,
+            health.overall_score,
+            health.grade,
+            len(report.key_findings),
+            len(report.action_items),
         )
         return report
 
@@ -119,15 +122,21 @@ class ReportingEngine:
 
         # Health findings
         if h.overall_score < 0.7:
-            findings.append(f"Overall health is {h.status} ({h.overall_score:.2f}) — below target of 0.80")
+            findings.append(
+                f"Overall health is {h.status} ({h.overall_score:.2f}) — below target of 0.80"
+            )
         if h.operational < 0.7:
             findings.append(f"Operational health is degraded ({h.operational:.2f})")
         if h.cost_efficiency < 0.3:
-            findings.append(f"Cost efficiency is low ({h.cost_efficiency:.2f}) — budget utilization high")
+            findings.append(
+                f"Cost efficiency is low ({h.cost_efficiency:.2f}) — budget utilization high"
+            )
 
         # Mission findings
         if m.active_missions > 0 and m.avg_mission_completion_pct < 50:
-            findings.append(f"Active missions averaging only {m.avg_mission_completion_pct:.0f}% completion")
+            findings.append(
+                f"Active missions averaging only {m.avg_mission_completion_pct:.0f}% completion"
+            )
 
         # Forecast findings
         for f in report.forecasts:
@@ -141,7 +150,9 @@ class ReportingEngine:
 
         # Cost findings
         if report.cost.budget_utilization_pct > 80:
-            findings.append(f"Budget utilization at {report.cost.budget_utilization_pct:.0f}% — approaching limit")
+            findings.append(
+                f"Budget utilization at {report.cost.budget_utilization_pct:.0f}% — approaching limit"
+            )
 
         if not findings:
             findings.append("System is operating within normal parameters — no issues detected")

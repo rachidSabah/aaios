@@ -224,9 +224,7 @@ class DiscoveryEngine:
 
     # --- Source: PATH ---------------------------------------------------
 
-    async def _discover_via_path(
-        self, spec: ProviderSpec
-    ) -> DiscoveredProvider | None:
+    async def _discover_via_path(self, spec: ProviderSpec) -> DiscoveredProvider | None:
         """Search PATH for the provider's binary."""
         for binary in spec.binary_names:
             path = shutil.which(binary)
@@ -254,9 +252,7 @@ class DiscoveryEngine:
 
     # --- Source: Filesystem ---------------------------------------------
 
-    async def _discover_via_filesystem(
-        self, spec: ProviderSpec
-    ) -> DiscoveredProvider | None:
+    async def _discover_via_filesystem(self, spec: ProviderSpec) -> DiscoveredProvider | None:
         """Search common install directories."""
         search_dirs = self._get_search_dirs(spec)
         for d in search_dirs:
@@ -304,18 +300,20 @@ class DiscoveryEngine:
                             path = shutil.which(binary)
                             if path:
                                 version = npm_installed.get(pkg, "")
-                                result.providers.append(DiscoveredProvider(
-                                    spec_id=spec.spec_id,
-                                    name=spec.name,
-                                    vendor=spec.vendor,
-                                    category=spec.category.value,
-                                    executable=path,
-                                    version=version,
-                                    install_path=str(Path(path).parent),
-                                    detection_method=DetectionMethod.PACKAGE_MANAGER.value,
-                                    package_manager="npm",
-                                    capabilities=list(spec.expected_capabilities),
-                                ))
+                                result.providers.append(
+                                    DiscoveredProvider(
+                                        spec_id=spec.spec_id,
+                                        name=spec.name,
+                                        vendor=spec.vendor,
+                                        category=spec.category.value,
+                                        executable=path,
+                                        version=version,
+                                        install_path=str(Path(path).parent),
+                                        detection_method=DetectionMethod.PACKAGE_MANAGER.value,
+                                        package_manager="npm",
+                                        capabilities=list(spec.expected_capabilities),
+                                    )
+                                )
                                 break
 
         # pip
@@ -329,17 +327,19 @@ class DiscoveryEngine:
                             path = shutil.which(binary)
                             if path:
                                 version = pip_installed.get(pkg, "")
-                                result.providers.append(DiscoveredProvider(
-                                    spec_id=spec.spec_id,
-                                    name=spec.name,
-                                    vendor=spec.vendor,
-                                    category=spec.category.value,
-                                    executable=path,
-                                    version=version,
-                                    detection_method=DetectionMethod.PACKAGE_MANAGER.value,
-                                    package_manager="pip",
-                                    capabilities=list(spec.expected_capabilities),
-                                ))
+                                result.providers.append(
+                                    DiscoveredProvider(
+                                        spec_id=spec.spec_id,
+                                        name=spec.name,
+                                        vendor=spec.vendor,
+                                        category=spec.category.value,
+                                        executable=path,
+                                        version=version,
+                                        detection_method=DetectionMethod.PACKAGE_MANAGER.value,
+                                        package_manager="pip",
+                                        capabilities=list(spec.expected_capabilities),
+                                    )
+                                )
                                 break
 
         # cargo
@@ -353,18 +353,20 @@ class DiscoveryEngine:
                             path = shutil.which(binary)
                             if path:
                                 version = cargo_installed.get(pkg, "")
-                                result.providers.append(DiscoveredProvider(
-                                    spec_id=spec.spec_id,
-                                    name=spec.name,
-                                    vendor=spec.vendor,
-                                    category=spec.category.value,
-                                    executable=path,
-                                    version=version,
-                                    install_path=str(Path(path).parent),
-                                    detection_method=DetectionMethod.PACKAGE_MANAGER.value,
-                                    package_manager="cargo",
-                                    capabilities=list(spec.expected_capabilities),
-                                ))
+                                result.providers.append(
+                                    DiscoveredProvider(
+                                        spec_id=spec.spec_id,
+                                        name=spec.name,
+                                        vendor=spec.vendor,
+                                        category=spec.category.value,
+                                        executable=path,
+                                        version=version,
+                                        install_path=str(Path(path).parent),
+                                        detection_method=DetectionMethod.PACKAGE_MANAGER.value,
+                                        package_manager="cargo",
+                                        capabilities=list(spec.expected_capabilities),
+                                    )
+                                )
                                 break
 
         # brew (macOS only)
@@ -379,18 +381,20 @@ class DiscoveryEngine:
                                 path = shutil.which(binary)
                                 if path:
                                     version = brew_installed.get(pkg, "")
-                                    result.providers.append(DiscoveredProvider(
-                                        spec_id=spec.spec_id,
-                                        name=spec.name,
-                                        vendor=spec.vendor,
-                                        category=spec.category.value,
-                                        executable=path,
-                                        version=version,
-                                        install_path=str(Path(path).parent),
-                                        detection_method=DetectionMethod.PACKAGE_MANAGER.value,
-                                        package_manager="brew",
-                                        capabilities=list(spec.expected_capabilities),
-                                    ))
+                                    result.providers.append(
+                                        DiscoveredProvider(
+                                            spec_id=spec.spec_id,
+                                            name=spec.name,
+                                            vendor=spec.vendor,
+                                            category=spec.category.value,
+                                            executable=path,
+                                            version=version,
+                                            install_path=str(Path(path).parent),
+                                            detection_method=DetectionMethod.PACKAGE_MANAGER.value,
+                                            package_manager="brew",
+                                            capabilities=list(spec.expected_capabilities),
+                                        )
+                                    )
                                     break
 
         # winget (Windows only)
@@ -405,27 +409,27 @@ class DiscoveryEngine:
                                 path = shutil.which(binary)
                                 if path:
                                     version = winget_installed.get(pkg, "")
-                                    result.providers.append(DiscoveredProvider(
-                                        spec_id=spec.spec_id,
-                                        name=spec.name,
-                                        vendor=spec.vendor,
-                                        category=spec.category.value,
-                                        executable=path,
-                                        version=version,
-                                        install_path=str(Path(path).parent),
-                                        detection_method=DetectionMethod.PACKAGE_MANAGER.value,
-                                        package_manager="winget",
-                                        capabilities=list(spec.expected_capabilities),
-                                    ))
+                                    result.providers.append(
+                                        DiscoveredProvider(
+                                            spec_id=spec.spec_id,
+                                            name=spec.name,
+                                            vendor=spec.vendor,
+                                            category=spec.category.value,
+                                            executable=path,
+                                            version=version,
+                                            install_path=str(Path(path).parent),
+                                            detection_method=DetectionMethod.PACKAGE_MANAGER.value,
+                                            package_manager="winget",
+                                            capabilities=list(spec.expected_capabilities),
+                                        )
+                                    )
                                     break
 
         return result
 
     # --- Source: Environment Variables ----------------------------------
 
-    async def _discover_via_env(
-        self, spec: ProviderSpec
-    ) -> DiscoveredProvider | None:
+    async def _discover_via_env(self, spec: ProviderSpec) -> DiscoveredProvider | None:
         """Check environment variables for provider indicators."""
         found_vars: dict[str, str] = {}
         for var in spec.env_indicators:
@@ -467,13 +471,12 @@ class DiscoveryEngine:
 
     # --- Source: MCP Config Files ---------------------------------------
 
-    async def _discover_via_mcp_config(
-        self, spec: ProviderSpec
-    ) -> DiscoveredProvider | None:
+    async def _discover_via_mcp_config(self, spec: ProviderSpec) -> DiscoveredProvider | None:
         """Check MCP config files for the provider."""
         if not spec.supports_mcp:
             return None
         import json
+
         home = Path.home()
         mcp_configs = [
             home / ".claude" / "mcp_servers.json",
@@ -507,9 +510,7 @@ class DiscoveryEngine:
 
     # --- Source: Running Processes --------------------------------------
 
-    async def _discover_via_process(
-        self, spec: ProviderSpec
-    ) -> DiscoveredProvider | None:
+    async def _discover_via_process(self, spec: ProviderSpec) -> DiscoveredProvider | None:
         """Check running processes for the provider."""
         try:
             import psutil
@@ -537,9 +538,7 @@ class DiscoveryEngine:
 
     # --- Source: Listening Ports ----------------------------------------
 
-    async def _discover_via_port(
-        self, spec: ProviderSpec
-    ) -> DiscoveredProvider | None:
+    async def _discover_via_port(self, spec: ProviderSpec) -> DiscoveredProvider | None:
         """Check listening ports for local LLM servers."""
         try:
             import psutil
@@ -592,25 +591,29 @@ class DiscoveryEngine:
             dirs.append(home / d)
         # Common dirs
         if self._is_windows:
-            dirs.extend([
-                Path(os.environ.get("ProgramFiles", "C:\\Program Files")),
-                Path(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")),
-                Path(os.environ.get("LocalAppData", str(home / "AppData" / "Local"))),
-                Path(os.environ.get("AppData", str(home / "AppData" / "Roaming"))),
-                home / ".local" / "bin",
-                home / "bin",
-                Path("C:\\ProgramData\\chocolatey\\bin"),
-            ])
+            dirs.extend(
+                [
+                    Path(os.environ.get("ProgramFiles", "C:\\Program Files")),
+                    Path(os.environ.get("ProgramFiles(x86)", "C:\\Program Files (x86)")),
+                    Path(os.environ.get("LocalAppData", str(home / "AppData" / "Local"))),
+                    Path(os.environ.get("AppData", str(home / "AppData" / "Roaming"))),
+                    home / ".local" / "bin",
+                    home / "bin",
+                    Path("C:\\ProgramData\\chocolatey\\bin"),
+                ]
+            )
         else:
-            dirs.extend([
-                Path("/usr/local/bin"),
-                Path("/usr/bin"),
-                Path("/opt"),
-                home / ".local" / "bin",
-                home / "bin",
-                home / ".cargo" / "bin",
-                home / ".npm-global" / "bin",
-            ])
+            dirs.extend(
+                [
+                    Path("/usr/local/bin"),
+                    Path("/usr/bin"),
+                    Path("/opt"),
+                    home / ".local" / "bin",
+                    home / "bin",
+                    home / ".cargo" / "bin",
+                    home / ".npm-global" / "bin",
+                ]
+            )
             if self._is_macos:
                 dirs.extend([Path("/opt/homebrew/bin"), Path("/usr/local/opt")])
         return dirs
@@ -646,11 +649,15 @@ class DiscoveryEngine:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [npm, "list", "-g", "--depth=0", "--json"],
-                capture_output=True, text=True, timeout=15, check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
             )
             if result.returncode != 0:
                 return None
             import json
+
             data = json.loads(result.stdout)
             deps = data.get("dependencies", {})
             return {name: info.get("version", "") for name, info in deps.items()}
@@ -666,11 +673,15 @@ class DiscoveryEngine:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [pip, "list", "--format=json"],
-                capture_output=True, text=True, timeout=15, check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
             )
             if result.returncode != 0:
                 return None
             import json
+
             data = json.loads(result.stdout)
             return {pkg["name"].lower(): pkg["version"] for pkg in data}
         except (subprocess.SubprocessError, OSError, json.JSONDecodeError, asyncio.TimeoutError):
@@ -685,7 +696,10 @@ class DiscoveryEngine:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [cargo, "install", "--list"],
-                capture_output=True, text=True, timeout=15, check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
             )
             if result.returncode != 0:
                 return None
@@ -707,7 +721,10 @@ class DiscoveryEngine:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [brew, "list", "--versions"],
-                capture_output=True, text=True, timeout=15, check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
             )
             if result.returncode != 0:
                 return None
@@ -729,11 +746,15 @@ class DiscoveryEngine:
             result = await asyncio.to_thread(
                 subprocess.run,
                 [winget, "list", "--format=json"],
-                capture_output=True, text=True, timeout=15, check=False,
+                capture_output=True,
+                text=True,
+                timeout=15,
+                check=False,
             )
             if result.returncode != 0:
                 return None
             import json
+
             data = json.loads(result.stdout)
             packages: dict[str, str] = {}
             for pkg in data.get("Source", []):

@@ -231,12 +231,12 @@ class TestIntelligenceEngine:
             sig_map.setdefault(sig, []).append(t)
         for sig, group in sig_map.items():
             if len(group) > 1:
-                analysis.duplicate_tests.append({
-                    "signature": sig,
-                    "occurrences": [
-                        {"file": t.file, "line": t.line} for t in group
-                    ],
-                })
+                analysis.duplicate_tests.append(
+                    {
+                        "signature": sig,
+                        "occurrences": [{"file": t.file, "line": t.line} for t in group],
+                    }
+                )
 
         # long-running tests (heuristic: sleeps, time.sleep, asyncio.sleep, network)
         for t in all_tests:
@@ -253,9 +253,7 @@ class TestIntelligenceEngine:
 
         # mutation readiness: rough score
         has_assertions = sum(1 for t in all_tests if t.has_assertions)
-        analysis.mutation_readiness = (
-            has_assertions / max(1, len(all_tests))
-        )
+        analysis.mutation_readiness = has_assertions / max(1, len(all_tests))
         return analysis
 
     async def coverage_report(
@@ -272,6 +270,7 @@ class TestIntelligenceEngine:
         if cov_path.exists():
             try:
                 import defusedxml.ElementTree as DefusedET
+
                 tree = DefusedET.parse(cov_path)
                 root_el = tree.getroot()
                 if root_el is None:
@@ -287,9 +286,12 @@ class TestIntelligenceEngine:
                     parent = str(Path(fname).parent) or "."
                     by_dir.setdefault(parent, []).append(lr)
                     if lr < 1.0 and lr > 0:
-                        report.undercovered_files.append({
-                            "file": fname, "coverage_pct": round(lr, 1),
-                        })
+                        report.undercovered_files.append(
+                            {
+                                "file": fname,
+                                "coverage_pct": round(lr, 1),
+                            }
+                        )
                     elif lr == 0:
                         report.uncovered_files.append(fname)
                 for d, vals in by_dir.items():
@@ -303,11 +305,11 @@ class TestIntelligenceEngine:
                 _log.warning("test_intel.coverage_xml_unparseable", path=str(cov_path))
 
         # by_test_type: count tests by type
-        analysis = await self.analyze_suite(root_path / "tests" if (root_path / "tests").exists() else root_path)
+        analysis = await self.analyze_suite(
+            root_path / "tests" if (root_path / "tests").exists() else root_path
+        )
         total = max(1, analysis.total_tests)
-        report.by_test_type = {
-            t: round(c / total * 100, 2) for t, c in analysis.by_type.items()
-        }
+        report.by_test_type = {t: round(c / total * 100, 2) for t, c in analysis.by_type.items()}
         return report
 
     async def risk_report(
@@ -348,32 +350,38 @@ class TestIntelligenceEngine:
         report.risk_factors = risk_factors
         # recommended test cases (engineer writes them; we never generate code)
         for missing in analysis.missing_tests[:10]:
-            report.recommended_test_cases.append({
-                "type": "missing_test",
-                "target": missing.get("source_file"),
-                "suggested_name": f"test_{Path(missing.get('source_file', 'x')).stem}_basic",
-                "reason": "No test file found for this source file.",
-                "confidence": 0.7,
-                "requires_approval": True,
-            })
+            report.recommended_test_cases.append(
+                {
+                    "type": "missing_test",
+                    "target": missing.get("source_file"),
+                    "suggested_name": f"test_{Path(missing.get('source_file', 'x')).stem}_basic",
+                    "reason": "No test file found for this source file.",
+                    "confidence": 0.7,
+                    "requires_approval": True,
+                }
+            )
         for t in analysis.long_running_tests[:5]:
-            report.recommended_test_cases.append({
-                "type": "split_long_test",
-                "target": f"{t.file}::{t.name}",
-                "suggested_name": f"{t.name}_fast_variant",
-                "reason": f"Test estimated >500ms ({t.estimated_duration_ms:.0f}ms).",
-                "confidence": 0.6,
-                "requires_approval": True,
-            })
+            report.recommended_test_cases.append(
+                {
+                    "type": "split_long_test",
+                    "target": f"{t.file}::{t.name}",
+                    "suggested_name": f"{t.name}_fast_variant",
+                    "reason": f"Test estimated >500ms ({t.estimated_duration_ms:.0f}ms).",
+                    "confidence": 0.6,
+                    "requires_approval": True,
+                }
+            )
         for t in analysis.flaky_candidates[:5]:
-            report.recommended_test_cases.append({
-                "type": "stabilize_flaky",
-                "target": f"{t.file}::{t.name}",
-                "suggested_name": f"{t.name}_deterministic",
-                "reason": "Test uses non-deterministic constructs (random/time/network).",
-                "confidence": 0.65,
-                "requires_approval": True,
-            })
+            report.recommended_test_cases.append(
+                {
+                    "type": "stabilize_flaky",
+                    "target": f"{t.file}::{t.name}",
+                    "suggested_name": f"{t.name}_deterministic",
+                    "reason": "Test uses non-deterministic constructs (random/time/network).",
+                    "confidence": 0.65,
+                    "requires_approval": True,
+                }
+            )
         # regression predictions
         report.regression_predictions = [
             {
@@ -417,7 +425,7 @@ class TestIntelligenceEngine:
         duration = 0.0
         has_assertions = False
         flaky_signals = 0
-        body_text = "\n".join(src_lines[node.lineno - 1: getattr(node, "end_lineno", node.lineno)])
+        body_text = "\n".join(src_lines[node.lineno - 1 : getattr(node, "end_lineno", node.lineno)])
         for m in re.finditer(r"asyncio\.sleep\((\d+(?:\.\d+)?)\)", body_text):
             duration += float(m.group(1)) * 1000
         for m in re.finditer(r"time\.sleep\((\d+(?:\.\d+)?)\)", body_text):
@@ -431,7 +439,10 @@ class TestIntelligenceEngine:
             flaky_signals += 1
         if re.search(r"\btime\.time\(\)", body_text):
             flaky_signals += 1
-        if re.search(r"\bsocket\b|\bhttpx\b|\brequests\b", body_text) and "mock" not in body_text.lower():
+        if (
+            re.search(r"\bsocket\b|\bhttpx\b|\brequests\b", body_text)
+            and "mock" not in body_text.lower()
+        ):
             flaky_signals += 1
         flaky_risk = min(flaky_signals * 0.25, 1.0)
         # test type inference
@@ -471,7 +482,8 @@ class TestIntelligenceEngine:
         source_files: list[Path] = []
         for p in project_root.rglob("*.py"):
             if "tests" in p.parts or any(
-                seg in p.parts for seg in (".venv", "node_modules", ".git", "__pycache__", "build", "dist")
+                seg in p.parts
+                for seg in (".venv", "node_modules", ".git", "__pycache__", "build", "dist")
             ):
                 continue
             source_files.append(p)
@@ -481,9 +493,11 @@ class TestIntelligenceEngine:
         for sf in source_files:
             expected_test = f"test_{sf.stem}"
             if expected_test not in test_names and not sf.name.startswith("__"):
-                missing.append({
-                    "source_file": str(sf.relative_to(project_root)),
-                    "expected_test": f"{expected_test}.py",
-                    "confidence": 0.75,
-                })
+                missing.append(
+                    {
+                        "source_file": str(sf.relative_to(project_root)),
+                        "expected_test": f"{expected_test}.py",
+                        "confidence": 0.75,
+                    }
+                )
         return missing[:50]

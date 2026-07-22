@@ -18,7 +18,9 @@ def run_coverage() -> dict:
     """Run pytest with coverage and parse the XML."""
     # Run all unit tests with coverage
     cmd = [
-        "/home/z/.venv/bin/python", "-m", "pytest",
+        "/home/z/.venv/bin/python",
+        "-m",
+        "pytest",
         "tests/unit/",
         "--cov=core",
         "--cov=services",
@@ -42,6 +44,7 @@ def run_coverage() -> dict:
     if not xml_path.exists():
         return {"error": "coverage XML not produced"}
     import defusedxml.ElementTree as DefusedET
+
     tree = DefusedET.parse(xml_path)
     root = tree.getroot()
     line_rate = float(root.attrib.get("line-rate", "0"))
@@ -66,16 +69,16 @@ def run_coverage() -> dict:
         "packages": {
             pkg: {
                 "files": data["files"],
-                "avg_line_rate": round(data["line_rate_sum"] / data["files"], 4) if data["files"] else 0.0,
+                "avg_line_rate": round(data["line_rate_sum"] / data["files"], 4)
+                if data["files"]
+                else 0.0,
                 "covered_files": data["covered_files"],
             }
             for pkg, data in packages.items()
         },
     }
     Path("lts-audit").mkdir(exist_ok=True)
-    Path("lts-audit/coverage_report.json").write_text(
-        json.dumps(summary, indent=2)
-    )
+    Path("lts-audit/coverage_report.json").write_text(json.dumps(summary, indent=2))
     return summary
 
 

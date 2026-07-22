@@ -179,9 +179,14 @@ class RepositoryHealthCenter:
             confidence=0.85,
         )
         py_files = list(self._root.rglob("*.py"))
-        py_files = [p for p in py_files if not any(
-            seg in p.parts for seg in (".venv", "node_modules", ".git", "__pycache__", "build", "dist")
-        )]
+        py_files = [
+            p
+            for p in py_files
+            if not any(
+                seg in p.parts
+                for seg in (".venv", "node_modules", ".git", "__pycache__", "build", "dist")
+            )
+        ]
         has_readme = (self._root / "README.md").exists()
         has_license = (self._root / "LICENSE").exists()
         has_pyproject = (self._root / "pyproject.toml").exists()
@@ -203,7 +208,9 @@ class RepositoryHealthCenter:
         indicators["python_files"] = len(py_files)
         result.score = score
         result.status = "healthy" if score >= 75 else ("warning" if score >= 50 else "critical")
-        result.summary = f"Repository has {len(py_files)} Python files; structural completeness {score:.0f}/100."
+        result.summary = (
+            f"Repository has {len(py_files)} Python files; structural completeness {score:.0f}/100."
+        )
         result.indicators = indicators
         result.recommendation = "Ensure README, LICENSE, pyproject.toml, and .git are all present."
         return result
@@ -216,7 +223,9 @@ class RepositoryHealthCenter:
         # Count layer-direction violations
         violations = 0
         for p in self._root.rglob("*.py"):
-            if any(seg in p.parts for seg in (".venv", "node_modules", "__pycache__", "build", "dist")):
+            if any(
+                seg in p.parts for seg in (".venv", "node_modules", "__pycache__", "build", "dist")
+            ):
                 continue
             if "services" in p.parts or "core" in p.parts:
                 src = p.read_text(encoding="utf-8", errors="ignore")
@@ -289,7 +298,10 @@ class RepositoryHealthCenter:
         )
         dangerous = 0
         for p in self._root.rglob("*.py"):
-            if any(seg in p.parts for seg in (".venv", "node_modules", "__pycache__", "build", "dist", "tests")):
+            if any(
+                seg in p.parts
+                for seg in (".venv", "node_modules", "__pycache__", "build", "dist", "tests")
+            ):
                 continue
             src = p.read_text(encoding="utf-8", errors="ignore")
             for line in src.splitlines():
@@ -315,10 +327,14 @@ class RepositoryHealthCenter:
             result.summary = "No tests directory."
             return result
         test_count = sum(1 for _ in tests_dir.rglob("test_*.py"))
-        py_files = [p for p in self._root.rglob("*.py")
-                    if "tests" not in p.parts and not any(
-                        seg in p.parts for seg in (".venv", "node_modules", "__pycache__", "build", "dist")
-                    )]
+        py_files = [
+            p
+            for p in self._root.rglob("*.py")
+            if "tests" not in p.parts
+            and not any(
+                seg in p.parts for seg in (".venv", "node_modules", "__pycache__", "build", "dist")
+            )
+        ]
         ratio = test_count / max(1, len(py_files))
         score = min(100.0, ratio * 100)
         result.score = score
@@ -390,30 +406,32 @@ class RepositoryHealthCenter:
 
     # --- improvements ---------------------------------------------------
 
-    def _improvements(
-        self, dimensions: list[HealthDimensionResult]
-    ) -> list[dict[str, Any]]:
+    def _improvements(self, dimensions: list[HealthDimensionResult]) -> list[dict[str, Any]]:
         out: list[dict[str, Any]] = []
         for d in dimensions:
             if d.status == "critical":
-                out.append({
-                    "dimension": d.dimension,
-                    "priority": "high",
-                    "current_score": d.score,
-                    "target_score": 80.0,
-                    "recommendation": d.recommendation,
-                    "confidence": d.confidence,
-                    "requires_approval": True,
-                })
+                out.append(
+                    {
+                        "dimension": d.dimension,
+                        "priority": "high",
+                        "current_score": d.score,
+                        "target_score": 80.0,
+                        "recommendation": d.recommendation,
+                        "confidence": d.confidence,
+                        "requires_approval": True,
+                    }
+                )
             elif d.status == "warning":
-                out.append({
-                    "dimension": d.dimension,
-                    "priority": "medium",
-                    "current_score": d.score,
-                    "target_score": 90.0,
-                    "recommendation": d.recommendation,
-                    "confidence": d.confidence,
-                    "requires_approval": True,
-                })
+                out.append(
+                    {
+                        "dimension": d.dimension,
+                        "priority": "medium",
+                        "current_score": d.score,
+                        "target_score": 90.0,
+                        "recommendation": d.recommendation,
+                        "confidence": d.confidence,
+                        "requires_approval": True,
+                    }
+                )
         out.sort(key=lambda x: x["current_score"])
         return out

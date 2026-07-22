@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import statistics
 from collections.abc import Callable
 from dataclasses import dataclass, field
 from enum import StrEnum
@@ -104,7 +103,9 @@ class RoutingContext:
 
 
 class FastestRouter:
-    def select(self, available: list[EngineType], context: RoutingContext | None = None) -> RoutingDecision:
+    def select(
+        self, available: list[EngineType], context: RoutingContext | None = None
+    ) -> RoutingDecision:
         if not available:
             raise ValueError("No available engines to select from")
         sorted_engines = sorted(available, key=lambda e: _AVG_LATENCY_S.get(e, float("inf")))
@@ -117,7 +118,9 @@ class FastestRouter:
 
 
 class LowestCostRouter:
-    def select(self, available: list[EngineType], context: RoutingContext | None = None) -> RoutingDecision:
+    def select(
+        self, available: list[EngineType], context: RoutingContext | None = None
+    ) -> RoutingDecision:
         if not available:
             raise ValueError("No available engines to select from")
         zero_cost = [e for e in available if _COST_PER_TOKEN.get(e, 0) == 0]
@@ -136,7 +139,9 @@ class LowestCostRouter:
 
 
 class HighestQualityRouter:
-    def select(self, available: list[EngineType], context: RoutingContext | None = None) -> RoutingDecision:
+    def select(
+        self, available: list[EngineType], context: RoutingContext | None = None
+    ) -> RoutingDecision:
         if not available:
             raise ValueError("No available engines to select from")
         sorted_engines = sorted(available, key=lambda e: _QUALITY_SCORES.get(e, 0), reverse=True)
@@ -149,7 +154,9 @@ class HighestQualityRouter:
 
 
 class CapabilityBasedRouter:
-    def select(self, available: list[EngineType], context: RoutingContext | None = None) -> RoutingDecision:
+    def select(
+        self, available: list[EngineType], context: RoutingContext | None = None
+    ) -> RoutingDecision:
         if not available:
             raise ValueError("No available engines to select from")
         if not context or not context.required_capabilities:
@@ -176,7 +183,9 @@ class LoadBalancingRouter:
     def __init__(self) -> None:
         self._counter: dict[EngineType, int] = {}
 
-    def select(self, available: list[EngineType], context: RoutingContext | None = None) -> RoutingDecision:
+    def select(
+        self, available: list[EngineType], context: RoutingContext | None = None
+    ) -> RoutingDecision:
         if not available:
             raise ValueError("No available engines to select from")
         for engine in available:
@@ -196,7 +205,9 @@ class FailoverRouter:
     def __init__(self, primary: list[EngineType]) -> None:
         self._primary_order = primary
 
-    def select(self, available: list[EngineType], context: RoutingContext | None = None) -> RoutingDecision:
+    def select(
+        self, available: list[EngineType], context: RoutingContext | None = None
+    ) -> RoutingDecision:
         for engine in self._primary_order:
             if engine in available:
                 return RoutingDecision(
@@ -217,10 +228,14 @@ class FailoverRouter:
 
 
 class CustomRouter:
-    def __init__(self, selector: Callable[[list[EngineType], RoutingContext | None], RoutingDecision]) -> None:
+    def __init__(
+        self, selector: Callable[[list[EngineType], RoutingContext | None], RoutingDecision]
+    ) -> None:
         self._selector = selector
 
-    def select(self, available: list[EngineType], context: RoutingContext | None = None) -> RoutingDecision:
+    def select(
+        self, available: list[EngineType], context: RoutingContext | None = None
+    ) -> RoutingDecision:
         return self._selector(available, context)
 
 

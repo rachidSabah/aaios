@@ -152,7 +152,9 @@ class ResourceManager:
             self._agent_assignments[agent_id].append(assignment)
             _log.info(
                 "Assigned agent '%s' to mission '%s' (task=%s)",
-                agent_id, mission_id, wbs_node_id,
+                agent_id,
+                mission_id,
+                wbs_node_id,
             )
             return assignment
 
@@ -192,7 +194,9 @@ class ResourceManager:
             self._provider_assignments[provider].append(assignment)
             _log.info(
                 "Assigned provider '%s' to mission '%s' (task=%s)",
-                provider, mission_id, wbs_node_id,
+                provider,
+                mission_id,
+                wbs_node_id,
             )
             return assignment
 
@@ -223,7 +227,10 @@ class ResourceManager:
         async with self._lock:
             if self._total_concurrent_tasks >= self._pool.max_total_concurrent_tasks:
                 return False
-            if self._mission_concurrent_tasks[mission_id] >= self._pool.max_mission_concurrent_tasks:
+            if (
+                self._mission_concurrent_tasks[mission_id]
+                >= self._pool.max_mission_concurrent_tasks
+            ):
                 return False
             self._total_concurrent_tasks += 1
             self._mission_concurrent_tasks[mission_id] += 1
@@ -307,26 +314,36 @@ class ResourceManager:
         """Get current resource utilization."""
         async with self._lock:
             total_agents = sum(
-                1 for assignments in self._agent_assignments.values()
-                for a in assignments if a.is_active
+                1
+                for assignments in self._agent_assignments.values()
+                for a in assignments
+                if a.is_active
             )
             total_providers = sum(
-                1 for assignments in self._provider_assignments.values()
-                for a in assignments if a.is_active
+                1
+                for assignments in self._provider_assignments.values()
+                for a in assignments
+                if a.is_active
             )
             active_mission_ids = {
-                a.mission_id for assignments in self._agent_assignments.values()
-                for a in assignments if a.is_active
+                a.mission_id
+                for assignments in self._agent_assignments.values()
+                for a in assignments
+                if a.is_active
             }
             by_mission: dict[str, dict[str, Any]] = {}
             for mid in active_mission_ids:
                 agents = sum(
-                    1 for assignments in self._agent_assignments.values()
-                    for a in assignments if a.is_active and a.mission_id == mid
+                    1
+                    for assignments in self._agent_assignments.values()
+                    for a in assignments
+                    if a.is_active and a.mission_id == mid
                 )
                 providers = sum(
-                    1 for assignments in self._provider_assignments.values()
-                    for a in assignments if a.is_active and a.mission_id == mid
+                    1
+                    for assignments in self._provider_assignments.values()
+                    for a in assignments
+                    if a.is_active and a.mission_id == mid
                 )
                 by_mission[mid] = {
                     "agents": agents,
@@ -344,16 +361,12 @@ class ResourceManager:
     async def get_agent_load(self, agent_id: str) -> int:
         """Get the number of active assignments for an agent."""
         async with self._lock:
-            return sum(
-                1 for a in self._agent_assignments.get(agent_id, []) if a.is_active
-            )
+            return sum(1 for a in self._agent_assignments.get(agent_id, []) if a.is_active)
 
     async def get_provider_load(self, provider: str) -> int:
         """Get the number of active assignments for a provider."""
         async with self._lock:
-            return sum(
-                1 for a in self._provider_assignments.get(provider, []) if a.is_active
-            )
+            return sum(1 for a in self._provider_assignments.get(provider, []) if a.is_active)
 
     async def release_all_for_mission(self, mission_id: str) -> int:
         """Release all resources for a mission. Returns count released."""

@@ -9,7 +9,7 @@ auto-updating, so channel policy is enforced in one place.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from enum import StrEnum
 
 from core.logging import get_logger
@@ -21,9 +21,9 @@ _log = get_logger(__name__)
 class ChannelPolicy(StrEnum):
     """Auto-update behaviour per channel."""
 
-    AUTO = "auto"          # check + install automatically
-    NOTIFY = "notify"      # check + notify, install on user action
-    OFF = "off"            # never check
+    AUTO = "auto"  # check + install automatically
+    NOTIFY = "notify"  # check + notify, install on user action
+    OFF = "off"  # never check
 
 
 @dataclass
@@ -40,9 +40,7 @@ _DEFAULTS: dict[ReleaseChannel, ChannelState] = {
     ReleaseChannel.LTS: ChannelState(ReleaseChannel.LTS, ChannelPolicy.AUTO, False),
     ReleaseChannel.BETA: ChannelState(ReleaseChannel.BETA, ChannelPolicy.NOTIFY, False),
     ReleaseChannel.NIGHTLY: ChannelState(ReleaseChannel.NIGHTLY, ChannelPolicy.NOTIFY, False),
-    ReleaseChannel.ENTERPRISE: ChannelState(
-        ReleaseChannel.ENTERPRISE, ChannelPolicy.OFF, False
-    ),
+    ReleaseChannel.ENTERPRISE: ChannelState(ReleaseChannel.ENTERPRISE, ChannelPolicy.OFF, False),
 }
 
 

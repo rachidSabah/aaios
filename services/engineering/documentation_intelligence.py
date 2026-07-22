@@ -164,14 +164,16 @@ class DocumentationIntelligenceEngine:
         # Issues: missing top-level docs
         for expected in self.EXPECTED_TOP_LEVEL:
             if not (root_path / expected).exists():
-                report.issues.append(DocIssue(
-                    issue_type="missing",
-                    severity="high" if expected in ("README.md", "LICENSE") else "medium",
-                    page=expected,
-                    description=f"Expected top-level document {expected} not found.",
-                    recommendation=f"Create {expected} following project conventions.",
-                    confidence=0.95,
-                ))
+                report.issues.append(
+                    DocIssue(
+                        issue_type="missing",
+                        severity="high" if expected in ("README.md", "LICENSE") else "medium",
+                        page=expected,
+                        description=f"Expected top-level document {expected} not found.",
+                        recommendation=f"Create {expected} following project conventions.",
+                        confidence=0.95,
+                    )
+                )
 
         # Issues: per-page analysis
         for page in pages:
@@ -205,7 +207,10 @@ class DocumentationIntelligenceEngine:
         candidates.extend(root.rglob("*.rst"))
         # Skip common noise
         for p in candidates:
-            if any(seg in p.parts for seg in ("node_modules", ".venv", ".git", "__pycache__", "build", "dist", "site")):
+            if any(
+                seg in p.parts
+                for seg in ("node_modules", ".venv", ".git", "__pycache__", "build", "dist", "site")
+            ):
                 continue
             if p.name in ("CHANGELOG.md",) and p.parent != root:
                 continue
@@ -231,7 +236,9 @@ class DocumentationIntelligenceEngine:
         # Links [text](target)
         links = re.findall(r"\[[^\]]+\]\(([^)]+)\)", text)
         # Filter to local links (no http)
-        local_links = [link for link in links if not link.startswith(("http://", "https://", "mailto:", "#"))]
+        local_links = [
+            link for link in links if not link.startswith(("http://", "https://", "mailto:", "#"))
+        ]
         # Broken links: local targets that do not exist
         broken: list[str] = []
         for link in local_links:
@@ -279,63 +286,83 @@ class DocumentationIntelligenceEngine:
             return DocType.USER_MANUAL
         return DocType.UNKNOWN
 
-    def _analyze_page(
-        self, page: DocPageInfo, root: Path, report: DocAnalysisReport
-    ) -> None:
+    def _analyze_page(self, page: DocPageInfo, root: Path, report: DocAnalysisReport) -> None:
         # Broken links
         for bl in page.broken_links:
-            report.issues.append(DocIssue(
-                issue_type="broken_ref",
-                severity="medium",
-                page=page.path,
-                description=f"Broken link: {bl}",
-                recommendation=f"Fix or remove the broken reference in {page.path}.",
-                confidence=0.9,
-            ))
+            report.issues.append(
+                DocIssue(
+                    issue_type="broken_ref",
+                    severity="medium",
+                    page=page.path,
+                    description=f"Broken link: {bl}",
+                    recommendation=f"Fix or remove the broken reference in {page.path}.",
+                    confidence=0.9,
+                )
+            )
         # Missing examples (no code blocks but the doc is technical)
         if not page.has_examples and page.doc_type in (
-            DocType.API_DOC.value, DocType.CLI_DOC.value, DocType.SDK_DOC.value,
+            DocType.API_DOC.value,
+            DocType.CLI_DOC.value,
+            DocType.SDK_DOC.value,
             DocType.DEVELOPER_GUIDE.value,
         ):
-            report.issues.append(DocIssue(
-                issue_type="missing_examples",
-                severity="medium",
-                page=page.path,
-                description="Technical document has no code examples.",
-                recommendation="Add runnable code examples for each documented feature.",
-                confidence=0.7,
-            ))
+            report.issues.append(
+                DocIssue(
+                    issue_type="missing_examples",
+                    severity="medium",
+                    page=page.path,
+                    description="Technical document has no code examples.",
+                    recommendation="Add runnable code examples for each documented feature.",
+                    confidence=0.7,
+                )
+            )
         # Outdated: not modified in 180 days
         if page.last_modified:
             age_days = (datetime.now(UTC) - page.last_modified).days
             if age_days > 180 and page.doc_type in (
-                DocType.API_DOC.value, DocType.MIGRATION_GUIDE.value,
+                DocType.API_DOC.value,
+                DocType.MIGRATION_GUIDE.value,
                 DocType.RELEASE_NOTES.value,
             ):
-                report.issues.append(DocIssue(
-                    issue_type="outdated",
-                    severity="medium",
-                    page=page.path,
-                    description=f"Document not updated in {age_days} days.",
-                    recommendation="Review and refresh this document.",
-                    confidence=0.7,
-                ))
+                report.issues.append(
+                    DocIssue(
+                        issue_type="outdated",
+                        severity="medium",
+                        page=page.path,
+                        description=f"Document not updated in {age_days} days.",
+                        recommendation="Review and refresh this document.",
+                        confidence=0.7,
+                    )
+                )
         # Thin doc
         if page.word_count < 50 and page.doc_type != DocType.UNKNOWN.value:
-            report.issues.append(DocIssue(
-                issue_type="missing",
-                severity="low",
-                page=page.path,
-                description=f"Document has only {page.word_count} words.",
-                recommendation="Expand the document with substantive content.",
-                confidence=0.8,
-            ))
+            report.issues.append(
+                DocIssue(
+                    issue_type="missing",
+                    severity="low",
+                    page=page.path,
+                    description=f"Document has only {page.word_count} words.",
+                    recommendation="Expand the document with substantive content.",
+                    confidence=0.8,
+                )
+            )
 
     def _compute_coverage(self, root: Path, pages: list[DocPageInfo]) -> float:
         """% of source modules with a corresponding doc page."""
         source_files: list[Path] = []
         for p in root.rglob("*.py"):
-            if any(seg in p.parts for seg in (".venv", "node_modules", ".git", "__pycache__", "build", "dist", "tests")):
+            if any(
+                seg in p.parts
+                for seg in (
+                    ".venv",
+                    "node_modules",
+                    ".git",
+                    "__pycache__",
+                    "build",
+                    "dist",
+                    "tests",
+                )
+            ):
                 continue
             source_files.append(p)
         if not source_files:
@@ -352,9 +379,7 @@ class DocumentationIntelligenceEngine:
         expected = set(self.EXPECTED_TOP_LEVEL)
         found = {p.path for p in report.pages}
         # Normalize found to top-level relative paths
-        found_top = {f for f in found if "/" not in f} | {
-            f for f in found if f.startswith("docs/")
-        }
+        found_top = {f for f in found if "/" not in f} | {f for f in found if f.startswith("docs/")}
         missing = expected - found_top
         if not expected:
             return 1.0
@@ -377,8 +402,10 @@ class DocumentationIntelligenceEngine:
     def _build_recommendations(self, report: DocAnalysisReport) -> list[str]:
         recs: list[str] = []
         missing_types = {
-            DocType.ARCHITECTURE.value, DocType.API_DOC.value,
-            DocType.CLI_DOC.value, DocType.MIGRATION_GUIDE.value,
+            DocType.ARCHITECTURE.value,
+            DocType.API_DOC.value,
+            DocType.CLI_DOC.value,
+            DocType.MIGRATION_GUIDE.value,
         }
         present_types = {p.doc_type for p in report.pages}
         for mt in missing_types:
@@ -391,7 +418,9 @@ class DocumentationIntelligenceEngine:
         if report.coverage_pct < 50.0:
             recs.append("Increase documentation coverage — currently below 50%.")
         if report.consistency_score < 0.7:
-            recs.append("Improve documentation consistency — fix broken refs and outdated sections.")
+            recs.append(
+                "Improve documentation consistency — fix broken refs and outdated sections."
+            )
         if not recs:
             recs.append("Documentation posture is healthy — continue regular reviews.")
         return recs

@@ -85,9 +85,7 @@ class BackupManager:
                 if comp_path.is_file():
                     files_to_backup.append(comp_path)
                 else:
-                    files_to_backup.extend(
-                        [p for p in comp_path.rglob("*") if p.is_file()]
-                    )
+                    files_to_backup.extend([p for p in comp_path.rglob("*") if p.is_file()])
 
         # Apply Incremental/Differential logic
         last_full = self._get_latest_backup(BackupType.FULL, is_snapshot)
@@ -133,6 +131,7 @@ class BackupManager:
             else:
                 archive_file = dest_dir / f"backup-{backup_id}.yaml"
                 import yaml
+
                 archive_file.write_text(yaml.dump(backup_dict))
 
         # Encrypt if requested
@@ -301,7 +300,9 @@ class BackupManager:
                 h.update(chunk)
         return h.hexdigest()
 
-    def _get_latest_backup(self, type_filter: BackupType | None = None, is_snapshot: bool = False) -> BackupMetadata | None:
+    def _get_latest_backup(
+        self, type_filter: BackupType | None = None, is_snapshot: bool = False
+    ) -> BackupMetadata | None:
         """Get the latest backup, optionally filtered by type."""
         backups = self.list_backups(is_snapshot=is_snapshot)
         if type_filter:
@@ -312,6 +313,7 @@ class BackupManager:
         """Get current git commit hash if in a repository."""
         try:
             import subprocess
+
             res = subprocess.run(
                 ["git", "rev-parse", "HEAD"],  # noqa: S603, S607
                 capture_output=True,

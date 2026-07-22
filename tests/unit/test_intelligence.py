@@ -286,6 +286,7 @@ class TestRiskAnalysisEngine:
         engine = RiskAnalysisEngine()
         metrics = _make_metrics()
         from services.intelligence.models import ForecastResult
+
         forecasts = [
             ForecastResult(probability=0.8, prediction="High risk forecast"),
             ForecastResult(probability=0.1, prediction="Low risk forecast"),

@@ -203,12 +203,16 @@ class ReleaseReadinessEngine:
         # Check for layer-direction violations
         violations = 0
         for p in root.rglob("*.py"):
-            if any(seg in p.parts for seg in (".venv", "node_modules", "__pycache__", "build", "dist")):
+            if any(
+                seg in p.parts for seg in (".venv", "node_modules", "__pycache__", "build", "dist")
+            ):
                 continue
             if "services" in p.parts or "core" in p.parts:
                 src = p.read_text(encoding="utf-8", errors="ignore")
                 for line in src.splitlines():
-                    if line.strip().startswith("from surfaces") or line.strip().startswith("import surfaces"):
+                    if line.strip().startswith("from surfaces") or line.strip().startswith(
+                        "import surfaces"
+                    ):
                         if "services" in str(p) or "core" in str(p):
                             violations += 1
         if violations == 0:
@@ -222,7 +226,9 @@ class ReleaseReadinessEngine:
         else:
             result.score = 0.3
             result.status = "fail"
-            result.blocking_issues.append(f"{violations} layer-direction violations must be fixed before release.")
+            result.blocking_issues.append(
+                f"{violations} layer-direction violations must be fixed before release."
+            )
         result.recommendation = "Enforce architecture invariants via CI checks."
         return result
 
@@ -233,7 +239,10 @@ class ReleaseReadinessEngine:
         )
         dangerous_patterns = 0
         for p in root.rglob("*.py"):
-            if any(seg in p.parts for seg in (".venv", "node_modules", "__pycache__", "build", "dist", "tests")):
+            if any(
+                seg in p.parts
+                for seg in (".venv", "node_modules", "__pycache__", "build", "dist", "tests")
+            ):
                 continue
             src = p.read_text(encoding="utf-8", errors="ignore")
             for line in src.splitlines():
@@ -257,7 +266,11 @@ class ReleaseReadinessEngine:
             confidence=0.55,
         )
         # Heuristic: presence of performance tests
-        perf_tests = list((root / "tests" / "performance").glob("test_*.py")) if (root / "tests" / "performance").exists() else []
+        perf_tests = (
+            list((root / "tests" / "performance").glob("test_*.py"))
+            if (root / "tests" / "performance").exists()
+            else []
+        )
         if len(perf_tests) >= 1:
             result.score = 0.8
             result.status = "pass"
@@ -292,7 +305,9 @@ class ReleaseReadinessEngine:
         else:
             result.score = 0.3
             result.status = "fail"
-            result.blocking_issues.append(f"Only {test_count} test files — insufficient for release.")
+            result.blocking_issues.append(
+                f"Only {test_count} test files — insufficient for release."
+            )
         result.recommendation = "Add tests until coverage is at least 80% on critical paths."
         return result
 
@@ -328,7 +343,9 @@ class ReleaseReadinessEngine:
         else:
             result.score = 0.1
             result.status = "fail"
-            result.blocking_issues.append("No packaging manifest (pyproject.toml or package.json) found.")
+            result.blocking_issues.append(
+                "No packaging manifest (pyproject.toml or package.json) found."
+            )
         result.recommendation = "Verify the build pipeline produces a clean artifact."
         return result
 
@@ -383,7 +400,9 @@ class ReleaseReadinessEngine:
             result.status = "pass"
             result.evidence.append("No database migrations needed.")
         # Check for migration guide
-        has_migration_doc = any((root / "docs").rglob("MIGRATION*.md")) if (root / "docs").exists() else False
+        has_migration_doc = (
+            any((root / "docs").rglob("MIGRATION*.md")) if (root / "docs").exists() else False
+        )
         if not has_migration_doc:
             result.warnings.append("No migration guide found in docs/.")
             result.score = min(result.score, 0.7)
@@ -442,7 +461,9 @@ class ReleaseReadinessEngine:
             )
         else:
             result.evidence.append("All operational artifacts present.")
-        result.recommendation = "Provide Dockerfile, compose, and a /health endpoint for production."
+        result.recommendation = (
+            "Provide Dockerfile, compose, and a /health endpoint for production."
+        )
         return result
 
     # --- certification & approvals -------------------------------------
@@ -457,7 +478,10 @@ class ReleaseReadinessEngine:
             approvals.extend(["release_manager", "engineering_lead", "security_officer"])
         # Always require the architect for any release touching architecture
         for d in report.dimensions:
-            if d.dimension == ReadinessDimension.ARCHITECTURE_COMPLIANCE.value and d.status != "pass":
+            if (
+                d.dimension == ReadinessDimension.ARCHITECTURE_COMPLIANCE.value
+                and d.status != "pass"
+            ):
                 approvals.append("architect")
                 break
         return sorted(set(approvals))

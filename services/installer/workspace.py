@@ -136,6 +136,7 @@ class WorkspaceBootstrapper:
         rollback can detect what changed.
         """
         import json
+
         rp_name = name or f"restore-{datetime.now(UTC).strftime('%Y%m%dT%H%M%S')}"
         rp_dir = self._root / "snapshots" / rp_name
         rp_dir.mkdir(parents=True, exist_ok=True)
@@ -149,12 +150,14 @@ class WorkspaceBootstrapper:
                 for entry in path.iterdir():
                     try:
                         stat = entry.stat()
-                        entries.append({
-                            "name": entry.name,
-                            "size": stat.st_size,
-                            "mtime": stat.st_mtime,
-                            "is_dir": entry.is_dir(),
-                        })
+                        entries.append(
+                            {
+                                "name": entry.name,
+                                "size": stat.st_size,
+                                "mtime": stat.st_mtime,
+                                "is_dir": entry.is_dir(),
+                            }
+                        )
                     except OSError:
                         continue
             except OSError:
@@ -176,6 +179,7 @@ class WorkspaceBootstrapper:
         ``projects/`` or ``exports/``.
         """
         import json
+
         rp_path = Path(restore_point_path)
         if not rp_path.exists():
             return {"error": "restore point not found"}

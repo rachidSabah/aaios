@@ -56,6 +56,7 @@ async def boot_desktop(
 
     # 1. Boot kernel if not already booted
     from core.bootstrap import boot_kernel, is_booted
+
     if not is_booted():
         await boot_kernel()
 
@@ -82,16 +83,18 @@ async def boot_desktop(
 
     # 3. Emit desktop.ready
     bus = get_bus()
-    await bus.publish(Event(
-        topic="desktop.ready",
-        correlation_id=uuid4(),
-        actor=ActorRef.system(),
-        payload={
-            "version": app_version,
-            "boot_id": runtime.boot_id,
-            "services": runtime.service_names(),
-        },
-    ))
+    await bus.publish(
+        Event(
+            topic="desktop.ready",
+            correlation_id=uuid4(),
+            actor=ActorRef.system(),
+            payload={
+                "version": app_version,
+                "boot_id": runtime.boot_id,
+                "services": runtime.service_names(),
+            },
+        )
+    )
 
     _log.info("desktop.boot.complete", version=app_version, boot_id=runtime.boot_id)
     return runtime
@@ -104,6 +107,7 @@ async def shutdown_desktop() -> None:
         await _RUNTIME.shutdown()
         _RUNTIME = None
     from core.bootstrap import shutdown_kernel
+
     await shutdown_kernel()
     _log.info("desktop.shutdown.complete")
 

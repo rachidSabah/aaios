@@ -30,7 +30,7 @@ from services.desktop.credentials import NativeCredentialStore
 from services.desktop.diagnostics import CrashReporter, DiagnosticsManager
 from services.desktop.local_ai import LocalAIRuntimeManager
 from services.desktop.local_db import LocalDatabaseManager
-from services.desktop.manager import DesktopRuntimeManager, DesktopRuntimeConfig
+from services.desktop.manager import DesktopRuntimeConfig, DesktopRuntimeManager
 from services.desktop.notifications import NativeNotificationService
 from services.desktop.offline import OfflineRuntimeManager
 from services.desktop.perfmon import PerformanceMonitor

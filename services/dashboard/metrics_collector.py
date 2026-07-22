@@ -57,13 +57,9 @@ class MetricBucket:
     sample_count: int = 0
 
     def add(self, sample: MetricSample) -> None:
-        self.event_counts[sample.event_type] = (
-            self.event_counts.get(sample.event_type, 0) + 1
-        )
+        self.event_counts[sample.event_type] = self.event_counts.get(sample.event_type, 0) + 1
         if sample.agent_id:
-            self.agent_counts[sample.agent_id] = (
-                self.agent_counts.get(sample.agent_id, 0) + 1
-            )
+            self.agent_counts[sample.agent_id] = self.agent_counts.get(sample.agent_id, 0) + 1
         if sample.capability:
             self.capability_counts[sample.capability] = (
                 self.capability_counts.get(sample.capability, 0) + 1
@@ -88,14 +84,10 @@ class MetricBucket:
             "success_count": self.success_count,
             "failure_count": self.failure_count,
             "success_rate": (
-                self.success_count / self.sample_count
-                if self.sample_count > 0
-                else 0.0
+                self.success_count / self.sample_count if self.sample_count > 0 else 0.0
             ),
             "avg_duration_s": (
-                self.total_duration_s / self.sample_count
-                if self.sample_count > 0
-                else 0.0
+                self.total_duration_s / self.sample_count if self.sample_count > 0 else 0.0
             ),
             "total_cost_usd": self.total_cost_usd,
         }
@@ -170,21 +162,15 @@ class MetricsCollector:
         sample = MetricSample(
             timestamp=ts,
             event_type=event.topic,
-            agent_id=str(event.payload.get("agent_id"))
-            if "agent_id" in event.payload
-            else None,
+            agent_id=str(event.payload.get("agent_id")) if "agent_id" in event.payload else None,
             capability=str(event.payload.get("capability"))
             if "capability" in event.payload
             else None,
             duration_s=float(event.payload["duration_s"])
             if "duration_s" in event.payload
             else None,
-            success=bool(event.payload["success"])
-            if "success" in event.payload
-            else None,
-            cost_usd=float(event.payload["cost_usd"])
-            if "cost_usd" in event.payload
-            else None,
+            success=bool(event.payload["success"]) if "success" in event.payload else None,
+            cost_usd=float(event.payload["cost_usd"]) if "cost_usd" in event.payload else None,
         )
         async with self._lock:
             self._recent.append(sample)
@@ -220,12 +206,8 @@ class MetricsCollector:
         async with self._lock:
             minute_ago = now - 60.0
             hour_ago = now - 3600.0
-            events_last_minute = sum(
-                1 for s in self._recent if s.timestamp >= minute_ago
-            )
-            events_last_hour = sum(
-                1 for s in self._recent if s.timestamp >= hour_ago
-            )
+            events_last_minute = sum(1 for s in self._recent if s.timestamp >= minute_ago)
+            events_last_hour = sum(1 for s in self._recent if s.timestamp >= hour_ago)
             active_agents = sorted(
                 {s.agent_id for s in self._recent if s.agent_id and s.timestamp >= hour_ago}
             )

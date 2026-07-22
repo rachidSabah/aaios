@@ -113,15 +113,17 @@ class ExecutionManager:
                 status=ExecutionStatus.PENDING.value,
             )
         await self._queue.put(request)
-        self._audit(AuditEntry(
-            execution_id=request.execution_id,
-            event="queued",
-            actor=request.requested_by,
-            domain=request.domain,
-            action=request.action,
-            outcome="pending",
-            risk_level="low",
-        ))
+        self._audit(
+            AuditEntry(
+                execution_id=request.execution_id,
+                event="queued",
+                actor=request.requested_by,
+                domain=request.domain,
+                action=request.action,
+                outcome="pending",
+                risk_level="low",
+            )
+        )
         return self._results[request.execution_id]
 
     async def get_status(self, execution_id: str) -> ExecutionResult:
@@ -144,16 +146,23 @@ class ExecutionManager:
             if execution_id not in self._results:
                 raise ExecutionNotFoundError(f"Execution {execution_id} not found")
             result = self._results[execution_id]
-            if result.status in (ExecutionStatus.SUCCEEDED.value, ExecutionStatus.FAILED.value,
-                                  ExecutionStatus.CANCELLED.value):
+            if result.status in (
+                ExecutionStatus.SUCCEEDED.value,
+                ExecutionStatus.FAILED.value,
+                ExecutionStatus.CANCELLED.value,
+            ):
                 return result
             result.status = ExecutionStatus.CANCELLED.value
             result.error = reason or "Cancelled by user"
             result.completed_at = datetime.now(UTC)
-        self._audit(AuditEntry(
-            execution_id=execution_id, event="cancelled", outcome="cancelled",
-            details={"reason": reason},
-        ))
+        self._audit(
+            AuditEntry(
+                execution_id=execution_id,
+                event="cancelled",
+                outcome="cancelled",
+                details={"reason": reason},
+            )
+        )
         return result
 
     async def get_logs(self, execution_id: str) -> list[ExecutionLog]:
@@ -186,8 +195,12 @@ class ExecutionManager:
                 "duration_s": r.duration_s,
                 "started_at": r.started_at.isoformat() if r.started_at else None,
                 "completed_at": r.completed_at.isoformat() if r.completed_at else None,
-                "domain": self._requests.get(r.execution_id, ExecutionRequest()).domain if r.execution_id in self._requests else "",
-                "action": self._requests.get(r.execution_id, ExecutionRequest()).action if r.execution_id in self._requests else "",
+                "domain": self._requests.get(r.execution_id, ExecutionRequest()).domain
+                if r.execution_id in self._requests
+                else "",
+                "action": self._requests.get(r.execution_id, ExecutionRequest()).action
+                if r.execution_id in self._requests
+                else "",
                 "exit_code": r.exit_code,
                 "error": r.error,
             }
@@ -203,23 +216,29 @@ class ExecutionManager:
         """Get pending approval requests."""
         return await self.approval_engine.get_pending()
 
-    async def approve(self, approval_id: str, decided_by: str = "operator", reason: str = "") -> ApprovalRequest | None:
+    async def approve(
+        self, approval_id: str, decided_by: str = "operator", reason: str = ""
+    ) -> ApprovalRequest | None:
         """Approve a pending execution."""
         approval = await self.approval_engine.approve(approval_id, decided_by, reason)
         if approval:
-            self._audit(AuditEntry(
-                execution_id=approval.execution_id,
-                event="approved",
-                actor=decided_by,
-                domain=approval.domain,
-                action=approval.action,
-                outcome="success",
-                details={"reason": reason, "risk_level": approval.risk_level},
-                risk_level=approval.risk_level,
-            ))
+            self._audit(
+                AuditEntry(
+                    execution_id=approval.execution_id,
+                    event="approved",
+                    actor=decided_by,
+                    domain=approval.domain,
+                    action=approval.action,
+                    outcome="success",
+                    details={"reason": reason, "risk_level": approval.risk_level},
+                    risk_level=approval.risk_level,
+                )
+            )
         return approval
 
-    async def reject(self, approval_id: str, decided_by: str = "operator", reason: str = "") -> ApprovalRequest | None:
+    async def reject(
+        self, approval_id: str, decided_by: str = "operator", reason: str = ""
+    ) -> ApprovalRequest | None:
         """Reject a pending execution."""
         approval = await self.approval_engine.reject(approval_id, decided_by, reason)
         if approval:
@@ -228,16 +247,18 @@ class ExecutionManager:
                 if approval.execution_id in self._results:
                     self._results[approval.execution_id].status = ExecutionStatus.REJECTED.value
                     self._results[approval.execution_id].error = f"Rejected: {reason}"
-            self._audit(AuditEntry(
-                execution_id=approval.execution_id,
-                event="rejected",
-                actor=decided_by,
-                domain=approval.domain,
-                action=approval.action,
-                outcome="failure",
-                details={"reason": reason},
-                risk_level=approval.risk_level,
-            ))
+            self._audit(
+                AuditEntry(
+                    execution_id=approval.execution_id,
+                    event="rejected",
+                    actor=decided_by,
+                    domain=approval.domain,
+                    action=approval.action,
+                    outcome="failure",
+                    details={"reason": reason},
+                    risk_level=approval.risk_level,
+                )
+            )
         return approval
 
     async def replay(self, execution_id: str) -> ExecutionResult:
@@ -305,9 +326,13 @@ class ExecutionManager:
         async with self._lock:
             if execution_id in self._results:
                 self._results[execution_id].status = ExecutionStatus.ROLLED_BACK.value
-        self._audit(AuditEntry(
-            execution_id=execution_id, event="rolled_back", outcome="success",
-        ))
+        self._audit(
+            AuditEntry(
+                execution_id=execution_id,
+                event="rolled_back",
+                outcome="success",
+            )
+        )
         return rollback_result
 
     # --- Internal execution ---
@@ -324,16 +349,18 @@ class ExecutionManager:
 
         # 1. Policy check
         decision = await self.policy_engine.evaluate(request)
-        self._audit(AuditEntry(
-            execution_id=request.execution_id,
-            event="policy_check",
-            actor=request.requested_by,
-            domain=request.domain,
-            action=request.action,
-            outcome="success" if decision.allowed else "failure",
-            details=decision.to_dict(),
-            risk_level=decision.risk_level,
-        ))
+        self._audit(
+            AuditEntry(
+                execution_id=request.execution_id,
+                event="policy_check",
+                actor=request.requested_by,
+                domain=request.domain,
+                action=request.action,
+                outcome="success" if decision.allowed else "failure",
+                details=decision.to_dict(),
+                risk_level=decision.risk_level,
+            )
+        )
         if not decision.allowed:
             result = ExecutionResult(
                 execution_id=request.execution_id,
@@ -360,19 +387,23 @@ class ExecutionManager:
             async with self._lock:
                 self._results[request.execution_id].status = ExecutionStatus.APPROVING.value
                 self._results[request.execution_id].approval_id = approval.approval_id
-            self._audit(AuditEntry(
-                execution_id=request.execution_id,
-                event="approval_requested",
-                actor=request.requested_by,
-                domain=request.domain,
-                action=request.action,
-                outcome="pending",
-                risk_level=decision.risk_level,
-            ))
+            self._audit(
+                AuditEntry(
+                    execution_id=request.execution_id,
+                    event="approval_requested",
+                    actor=request.requested_by,
+                    domain=request.domain,
+                    action=request.action,
+                    outcome="pending",
+                    risk_level=decision.risk_level,
+                )
+            )
             # In synchronous mode, auto-approve if the policy says so
             # In production, this would block until the approval is decided
             # For now, we auto-approve for testing
-            await self.approval_engine.approve(approval.approval_id, "auto", "Auto-approved for synchronous execution")
+            await self.approval_engine.approve(
+                approval.approval_id, "auto", "Auto-approved for synchronous execution"
+            )
             async with self._lock:
                 self._results[request.execution_id].status = ExecutionStatus.APPROVED.value
 
@@ -385,14 +416,16 @@ class ExecutionManager:
         async with self._lock:
             self._results[request.execution_id].status = ExecutionStatus.RUNNING.value
             self._results[request.execution_id].started_at = datetime.now(UTC)
-        self._audit(AuditEntry(
-            execution_id=request.execution_id,
-            event="dispatched",
-            actor=request.requested_by,
-            domain=request.domain,
-            action=request.action,
-            outcome="pending",
-        ))
+        self._audit(
+            AuditEntry(
+                execution_id=request.execution_id,
+                event="dispatched",
+                actor=request.requested_by,
+                domain=request.domain,
+                action=request.action,
+                outcome="pending",
+            )
+        )
 
         handler = get_handler(request.domain)
         if handler is None:
@@ -426,20 +459,22 @@ class ExecutionManager:
             await sandbox.cleanup()
 
         # 7. Audit
-        self._audit(AuditEntry(
-            execution_id=request.execution_id,
-            event="completed" if result.succeeded else "failed",
-            actor=request.requested_by,
-            domain=request.domain,
-            action=request.action,
-            outcome="success" if result.succeeded else "failure",
-            details={
-                "exit_code": result.exit_code,
-                "duration_s": result.duration_s,
-                "error": result.error,
-            },
-            risk_level=decision.risk_level,
-        ))
+        self._audit(
+            AuditEntry(
+                execution_id=request.execution_id,
+                event="completed" if result.succeeded else "failed",
+                actor=request.requested_by,
+                domain=request.domain,
+                action=request.action,
+                outcome="success" if result.succeeded else "failure",
+                details={
+                    "exit_code": result.exit_code,
+                    "duration_s": result.duration_s,
+                    "error": result.error,
+                },
+                risk_level=decision.risk_level,
+            )
+        )
         return result
 
     async def _dispatch_loop(self) -> None:
@@ -459,5 +494,7 @@ class ExecutionManager:
         self._audit_log.append(entry)
         _log.debug(
             "Audit: execution=%s event=%s outcome=%s",
-            entry.execution_id, entry.event, entry.outcome,
+            entry.execution_id,
+            entry.event,
+            entry.outcome,
         )

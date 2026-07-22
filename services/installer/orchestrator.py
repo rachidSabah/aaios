@@ -84,9 +84,14 @@ class InstallerOrchestrator:
         try:
             report.environment = self._detector.detect()
             report.compatibility = self._detector.assess_compatibility(report.environment)
-            plan_root = workspace_root or self._workspace_root or self._detector._default_workspace_root(m)  # noqa: SLF001
+            plan_root = (
+                workspace_root or self._workspace_root or self._detector._default_workspace_root(m)
+            )  # noqa: SLF001
             report.plan = self._detector.build_plan(
-                report.environment, report.compatibility, m, workspace_root=plan_root,
+                report.environment,
+                report.compatibility,
+                m,
+                workspace_root=plan_root,
             )
             report.risks = self._detector.assess_risks(report.environment, report.compatibility)
             # Use the plan's workspace root going forward

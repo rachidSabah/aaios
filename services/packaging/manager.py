@@ -47,7 +47,9 @@ class PackagingManager:
                 pkg_meta = self._build_package_archive(version, pkg_type)
                 manifest.packages.append(pkg_meta)
             except Exception as e:  # noqa: BLE001
-                _log.error("packaging.package_build_failed", package_type=pkg_type.value, error=str(e))
+                _log.error(
+                    "packaging.package_build_failed", package_type=pkg_type.value, error=str(e)
+                )
 
         # 3. Export SBOM and manifest files
         manifest.sbom = {
@@ -61,7 +63,7 @@ class PackagingManager:
                     "type": "application",
                     "name": "aaios",
                     "version": version,
-                }
+                },
             },
             "components": [
                 {
@@ -90,6 +92,7 @@ class PackagingManager:
         # Python dependencies
         try:
             from importlib.metadata import distributions
+
             for dist in distributions():
                 name = dist.metadata["Name"]
                 manifest.dependencies[name] = dist.version

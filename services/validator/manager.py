@@ -53,9 +53,11 @@ class ReleaseValidator:
                 text=True,
                 check=False,
             )
-            report.static_analysis_ok = (ruff_res.returncode == 0)
+            report.static_analysis_ok = ruff_res.returncode == 0
             if ruff_res.returncode != 0:
-                report.errors.append(f"Static Analysis Ruff error: {ruff_res.stdout or ruff_res.stderr}")
+                report.errors.append(
+                    f"Static Analysis Ruff error: {ruff_res.stdout or ruff_res.stderr}"
+                )
         except Exception:  # noqa: BLE001
             # If ruff is not installed in the context or fails, we use a fallback check
             report.static_analysis_ok = True
@@ -76,7 +78,9 @@ class ReleaseValidator:
 
         # 4. Plugin & MCP Validation
         report.checked_stages.append("plugin_validation")
-        plug_issues = [i for i in doctor_report.issues if i.scan_type in (ScanType.PLUGIN, ScanType.MCP)]
+        plug_issues = [
+            i for i in doctor_report.issues if i.scan_type in (ScanType.PLUGIN, ScanType.MCP)
+        ]
         report.plugins_ok = len([i for i in plug_issues if i.scan_type == ScanType.PLUGIN]) == 0
         report.mcp_ok = len([i for i in plug_issues if i.scan_type == ScanType.MCP]) == 0
         for issue in plug_issues:
@@ -106,7 +110,9 @@ class ReleaseValidator:
 
         # 7. Security Validation
         report.checked_stages.append("security_validation")
-        sec_issues = [i for i in doctor_report.issues if i.scan_type in (ScanType.SECURITY, ScanType.AUDIT)]
+        sec_issues = [
+            i for i in doctor_report.issues if i.scan_type in (ScanType.SECURITY, ScanType.AUDIT)
+        ]
         report.security_ok = len(sec_issues) == 0
         for issue in sec_issues:
             report.errors.append(f"Security/Audit error: {issue.description}")
@@ -119,13 +125,19 @@ class ReleaseValidator:
         # 9. Mission & Workflow Validation
         report.checked_stages.append("mission_validation")
         report.checked_stages.append("workflow_validation")
-        miss_issues = [i for i in doctor_report.issues if i.scan_type in (ScanType.MISSION, ScanType.WORKFLOW)]
+        miss_issues = [
+            i for i in doctor_report.issues if i.scan_type in (ScanType.MISSION, ScanType.WORKFLOW)
+        ]
         report.mission_ok = len([i for i in miss_issues if i.scan_type == ScanType.MISSION]) == 0
         report.workflow_ok = len([i for i in miss_issues if i.scan_type == ScanType.WORKFLOW]) == 0
 
         # 10. Dashboard, API & CLI Validation
         report.checked_stages.append("interface_validation")
-        int_issues = [i for i in doctor_report.issues if i.scan_type in (ScanType.DASHBOARD, ScanType.API, ScanType.CLI)]
+        int_issues = [
+            i
+            for i in doctor_report.issues
+            if i.scan_type in (ScanType.DASHBOARD, ScanType.API, ScanType.CLI)
+        ]
         report.dashboard_ok = len([i for i in int_issues if i.scan_type == ScanType.DASHBOARD]) == 0
         report.api_ok = len([i for i in int_issues if i.scan_type == ScanType.API]) == 0
         report.cli_ok = len([i for i in int_issues if i.scan_type == ScanType.CLI]) == 0
@@ -136,11 +148,14 @@ class ReleaseValidator:
 
         return report
 
-    def generate_certification_report(self, validation_report: ValidationReport) -> CertificationReport:
+    def generate_certification_report(
+        self, validation_report: ValidationReport
+    ) -> CertificationReport:
         """Compile a formal compliance certification report based on validation checks."""
         total_controls = len(validation_report.checked_stages)
         passed_controls = sum(
-            1 for stage in [
+            1
+            for stage in [
                 validation_report.static_analysis_ok,
                 validation_report.runtime_ok,
                 validation_report.dependencies_ok,
@@ -156,11 +171,16 @@ class ReleaseValidator:
                 validation_report.dashboard_ok,
                 validation_report.api_ok,
                 validation_report.cli_ok,
-            ] if stage
+            ]
+            if stage
         )
 
         status = "certified" if validation_report.success else "non_compliant"
-        notes = "All enterprise checks passed successfully." if validation_report.success else "Some enterprise checks failed. Please see validation report."
+        notes = (
+            "All enterprise checks passed successfully."
+            if validation_report.success
+            else "Some enterprise checks failed. Please see validation report."
+        )
 
         return CertificationReport(
             timestamp=datetime.now(UTC),
@@ -170,7 +190,9 @@ class ReleaseValidator:
             notes=notes,
         )
 
-    def generate_readiness_report(self, validation_report: ValidationReport) -> DeploymentReadinessReport:
+    def generate_readiness_report(
+        self, validation_report: ValidationReport
+    ) -> DeploymentReadinessReport:
         """Assess and score deployment readiness prior to production push."""
         blockers: list[str] = []
         recommendations: list[str] = []

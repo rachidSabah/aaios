@@ -61,9 +61,7 @@ async def download_asset(
     digest = hasher.hexdigest()
     if expected_sha256 and digest.lower() != expected_sha256.lower():
         tmp.unlink(missing_ok=True)
-        raise DownloadError(
-            f"checksum mismatch: expected {expected_sha256}, got {digest}"
-        )
+        raise DownloadError(f"checksum mismatch: expected {expected_sha256}, got {digest}")
 
     shutil.move(str(tmp), str(dest))
     _log.info("update.download.completed", url=asset.url, sha256=digest, dest=str(dest))

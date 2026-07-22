@@ -27,6 +27,7 @@ _log = get_logger(__name__)
 @dataclass
 class LocalEngine:
     """Describes a local AI inference engine."""
+
     name: str
     display_name: str
     executable: str
@@ -48,18 +49,24 @@ class LocalAIRuntimeManager:
     def __init__(self) -> None:
         self._engines: dict[str, LocalEngine] = {
             "ollama": LocalEngine(
-                name="ollama", display_name="Ollama",
-                executable="ollama", api_url=_OLLAMA_DEFAULT_URL,
+                name="ollama",
+                display_name="Ollama",
+                executable="ollama",
+                api_url=_OLLAMA_DEFAULT_URL,
                 supported_models=["llama3", "mistral", "codellama", "phi"],
             ),
             "llama.cpp": LocalEngine(
-                name="llama.cpp", display_name="llama.cpp",
-                executable="llama-server", api_url=_LLAMACPP_DEFAULT_URL,
+                name="llama.cpp",
+                display_name="llama.cpp",
+                executable="llama-server",
+                api_url=_LLAMACPP_DEFAULT_URL,
                 supported_models=["gguf"],
             ),
             "localai": LocalEngine(
-                name="localai", display_name="LocalAI",
-                executable="local-ai", api_url=_LOCALAI_DEFAULT_URL,
+                name="localai",
+                display_name="LocalAI",
+                executable="local-ai",
+                api_url=_LOCALAI_DEFAULT_URL,
                 supported_models=["*"],
             ),
         }
@@ -96,8 +103,11 @@ class LocalAIRuntimeManager:
             return False
         try:
             import httpx
+
             async with httpx.AsyncClient(timeout=3.0) as cli:
-                resp = await cli.get(f"{engine.api_url}/api/tags" if name == "ollama" else engine.api_url)
+                resp = await cli.get(
+                    f"{engine.api_url}/api/tags" if name == "ollama" else engine.api_url
+                )
                 engine.running = resp.status_code < 500
                 engine.health = "healthy" if engine.running else "unreachable"
         except Exception:  # noqa: BLE001
@@ -109,9 +119,12 @@ class LocalAIRuntimeManager:
         return {
             "engines": {
                 name: {
-                    "name": e.name, "display_name": e.display_name,
-                    "running": e.running, "health": e.health,
-                    "api_url": e.api_url, "version": e.version,
+                    "name": e.name,
+                    "display_name": e.display_name,
+                    "running": e.running,
+                    "health": e.health,
+                    "api_url": e.api_url,
+                    "version": e.version,
                     "supported_models": e.supported_models,
                 }
                 for name, e in self._engines.items()
@@ -138,12 +151,14 @@ class LocalAIRuntimeManager:
     async def _emit(self, topic: str, payload: dict) -> None:
         try:
             bus = get_bus()
-            await bus.publish(Event(
-                topic=topic,
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload=payload,
-            ))
+            await bus.publish(
+                Event(
+                    topic=topic,
+                    correlation_id=uuid4(),
+                    actor=ActorRef.system(),
+                    payload=payload,
+                )
+            )
         except Exception:  # noqa: BLE001
             pass
 

@@ -53,8 +53,19 @@ SECRET_PATTERNS: list[tuple[str, str]] = [
 ]
 
 FALSE_POSITIVE_HINTS: tuple[str, ...] = (
-    "example", "sample", "test", "placeholder", "your-", "<your", "xxx",
-    "changeme", "demo", "fake", "mock", "test_key", "test_secret",
+    "example",
+    "sample",
+    "test",
+    "placeholder",
+    "your-",
+    "<your",
+    "xxx",
+    "changeme",
+    "demo",
+    "fake",
+    "mock",
+    "test_key",
+    "test_secret",
 )
 
 
@@ -79,21 +90,24 @@ def scan_for_secrets(root: Path) -> list[dict[str, Any]]:
                     # Skip test files
                     if "test" in p.name.lower() or "tests" in p.parts:
                         continue
-                    findings.append({
-                        "type": "hardcoded_secret",
-                        "severity": "critical",
-                        "file": str(p.relative_to(root)),
-                        "line": i,
-                        "description": f"{desc} detected",
-                        "snippet_hash": hashlib.sha256(snippet.encode()).hexdigest()[:16],
-                        "recommendation": "Move the secret to an environment variable or secret store.",
-                    })
+                    findings.append(
+                        {
+                            "type": "hardcoded_secret",
+                            "severity": "critical",
+                            "file": str(p.relative_to(root)),
+                            "line": i,
+                            "description": f"{desc} detected",
+                            "snippet_hash": hashlib.sha256(snippet.encode()).hexdigest()[:16],
+                            "recommendation": "Move the secret to an environment variable or secret store.",
+                        }
+                    )
     return findings
 
 
 # ---------------------------------------------------------------------------
 # Security configuration audit
 # ---------------------------------------------------------------------------
+
 
 def audit_security_config(root: Path) -> list[dict[str, Any]]:
     """Audit security configuration."""
@@ -103,37 +117,43 @@ def audit_security_config(root: Path) -> list[dict[str, Any]]:
     if api_app.exists():
         text = api_app.read_text(encoding="utf-8", errors="ignore")
         if "HTTPSRedirectMiddleware" not in text:
-            findings.append({
-                "type": "missing_https_redirect",
-                "severity": "medium",
-                "file": "surfaces/api/app.py",
-                "line": 0,
-                "description": "No HTTPS redirect middleware in API",
-                "recommendation": "Add HTTPSRedirectMiddleware for production.",
-            })
+            findings.append(
+                {
+                    "type": "missing_https_redirect",
+                    "severity": "medium",
+                    "file": "surfaces/api/app.py",
+                    "line": 0,
+                    "description": "No HTTPS redirect middleware in API",
+                    "recommendation": "Add HTTPSRedirectMiddleware for production.",
+                }
+            )
         # CORS check
         if "CORSMiddleware" in text:
             cors_match = re.search(r"allow_origins\s*=\s*\[([^\]]+)\]", text)
             if cors_match:
                 origins = cors_match.group(1)
                 if "*" in origins:
-                    findings.append({
-                        "type": "cors_wildcard",
-                        "severity": "high",
-                        "file": "surfaces/api/app.py",
-                        "line": 0,
-                        "description": "CORS allows all origins (*)",
-                        "recommendation": "Restrict CORS to known origins.",
-                    })
+                    findings.append(
+                        {
+                            "type": "cors_wildcard",
+                            "severity": "high",
+                            "file": "surfaces/api/app.py",
+                            "line": 0,
+                            "description": "CORS allows all origins (*)",
+                            "recommendation": "Restrict CORS to known origins.",
+                        }
+                    )
         else:
-            findings.append({
-                "type": "missing_cors_config",
-                "severity": "low",
-                "file": "surfaces/api/app.py",
-                "line": 0,
-                "description": "No CORS middleware configured",
-                "recommendation": "Add CORSMiddleware with explicit allowed origins.",
-            })
+            findings.append(
+                {
+                    "type": "missing_cors_config",
+                    "severity": "low",
+                    "file": "surfaces/api/app.py",
+                    "line": 0,
+                    "description": "No CORS middleware configured",
+                    "recommendation": "Add CORSMiddleware with explicit allowed origins.",
+                }
+            )
     # Check for rate limiting
     has_rate_limit = False
     for p in root.rglob("*.py"):
@@ -147,14 +167,16 @@ def audit_security_config(root: Path) -> list[dict[str, Any]]:
             has_rate_limit = True
             break
     if not has_rate_limit:
-        findings.append({
-            "type": "missing_rate_limiting",
-            "severity": "medium",
-            "file": "surfaces/api/",
-            "line": 0,
-            "description": "No rate limiting middleware detected",
-            "recommendation": "Add rate limiting to public API endpoints.",
-        })
+        findings.append(
+            {
+                "type": "missing_rate_limiting",
+                "severity": "medium",
+                "file": "surfaces/api/",
+                "line": 0,
+                "description": "No rate limiting middleware detected",
+                "recommendation": "Add rate limiting to public API endpoints.",
+            }
+        )
     # Check for security middleware (CSRF)
     # Note: FastAPI/REST APIs typically don't need CSRF (uses tokens, not cookies)
     # We document this rather than flag it.
@@ -164,6 +186,7 @@ def audit_security_config(root: Path) -> list[dict[str, Any]]:
 # ---------------------------------------------------------------------------
 # RBAC / Auth audit
 # ---------------------------------------------------------------------------
+
 
 def audit_auth_rbac(root: Path) -> dict[str, Any]:
     """Audit authentication and RBAC."""
@@ -181,26 +204,32 @@ def audit_auth_rbac(root: Path) -> dict[str, Any]:
     audit_file = security_dir / "audit_log.py"
     has_audit_log = audit_file.exists()
     if not has_rbac:
-        findings.append({
-            "type": "missing_rbac",
-            "severity": "high",
-            "description": "No RBAC policy engine found",
-            "recommendation": "Implement role-based access control.",
-        })
+        findings.append(
+            {
+                "type": "missing_rbac",
+                "severity": "high",
+                "description": "No RBAC policy engine found",
+                "recommendation": "Implement role-based access control.",
+            }
+        )
     if not has_encrypted_secrets:
-        findings.append({
-            "type": "missing_secret_store",
-            "severity": "high",
-            "description": "No encrypted secret store found",
-            "recommendation": "Add an encrypted secret store for credentials.",
-        })
+        findings.append(
+            {
+                "type": "missing_secret_store",
+                "severity": "high",
+                "description": "No encrypted secret store found",
+                "recommendation": "Add an encrypted secret store for credentials.",
+            }
+        )
     if not has_audit_log:
-        findings.append({
-            "type": "missing_audit_log",
-            "severity": "high",
-            "description": "No audit log found",
-            "recommendation": "Add an immutable audit log.",
-        })
+        findings.append(
+            {
+                "type": "missing_audit_log",
+                "severity": "high",
+                "description": "No audit log found",
+                "recommendation": "Add an immutable audit log.",
+            }
+        )
     return {
         "status": "ok" if not findings else "warning",
         "rbac_present": has_rbac,
@@ -213,6 +242,7 @@ def audit_auth_rbac(root: Path) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Sandbox audit
 # ---------------------------------------------------------------------------
+
 
 def audit_sandbox(root: Path) -> dict[str, Any]:
     """Audit sandbox configuration."""
@@ -230,6 +260,7 @@ def audit_sandbox(root: Path) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # SBOM (Software Bill of Materials)
 # ---------------------------------------------------------------------------
+
 
 def generate_sbom(root: Path) -> dict[str, Any]:
     """Generate a Software Bill of Materials from pyproject.toml."""
@@ -255,23 +286,27 @@ def generate_sbom(root: Path) -> dict[str, Any]:
             if m:
                 name = m.group(1)
                 version_spec = m.group(2)
-                dependencies.append({
-                    "name": name,
-                    "version_spec": version_spec,
-                    "license": "see package metadata",
-                    "source": "pypi",
-                })
+                dependencies.append(
+                    {
+                        "name": name,
+                        "version_spec": version_spec,
+                        "license": "see package metadata",
+                        "source": "pypi",
+                    }
+                )
     # Also include optional deps
     optional_deps = re.findall(r'"([a-zA-Z0-9_-]+)>=', text)
     for name in set(optional_deps):
         if not any(d["name"] == name for d in dependencies):
-            dependencies.append({
-                "name": name,
-                "version_spec": ">= (optional)",
-                "license": "see package metadata",
-                "source": "pypi",
-                "optional": True,
-            })
+            dependencies.append(
+                {
+                    "name": name,
+                    "version_spec": ">= (optional)",
+                    "license": "see package metadata",
+                    "source": "pypi",
+                    "optional": True,
+                }
+            )
     return {
         "generated_at": datetime.now(UTC).isoformat(),
         "tool": "aaios-lts-security-audit",
@@ -290,6 +325,7 @@ def generate_sbom(root: Path) -> dict[str, Any]:
 # ---------------------------------------------------------------------------
 # Threat model
 # ---------------------------------------------------------------------------
+
 
 def generate_threat_model() -> dict[str, Any]:
     """Generate a STRIDE-based threat model."""
@@ -347,48 +383,55 @@ def generate_threat_model() -> dict[str, Any]:
 # Risk assessment
 # ---------------------------------------------------------------------------
 
+
 def generate_risk_assessment(secrets: list, sec_findings: list, auth: dict) -> dict[str, Any]:
     """Generate a risk assessment."""
     risks: list[dict[str, Any]] = []
     # Critical risks
     critical_secrets = [s for s in secrets if s["severity"] == "critical"]
     if critical_secrets:
-        risks.append({
-            "id": "R-001",
-            "category": "Secrets",
-            "severity": "critical",
-            "description": f"{len(critical_secrets)} hardcoded secrets detected in source",
-            "likelihood": "high",
-            "impact": "critical",
-            "score": 10.0,
-            "mitigation": "Rotate all leaked secrets immediately; move to EncryptedSecretStore.",
-        })
+        risks.append(
+            {
+                "id": "R-001",
+                "category": "Secrets",
+                "severity": "critical",
+                "description": f"{len(critical_secrets)} hardcoded secrets detected in source",
+                "likelihood": "high",
+                "impact": "critical",
+                "score": 10.0,
+                "mitigation": "Rotate all leaked secrets immediately; move to EncryptedSecretStore.",
+            }
+        )
     # CORS
     cors_issues = [f for f in sec_findings if f["type"] == "cors_wildcard"]
     if cors_issues:
-        risks.append({
-            "id": "R-002",
-            "category": "CORS",
-            "severity": "high",
-            "description": "CORS wildcard (*) allows any origin",
-            "likelihood": "medium",
-            "impact": "high",
-            "score": 7.0,
-            "mitigation": "Restrict CORS to known origins.",
-        })
+        risks.append(
+            {
+                "id": "R-002",
+                "category": "CORS",
+                "severity": "high",
+                "description": "CORS wildcard (*) allows any origin",
+                "likelihood": "medium",
+                "impact": "high",
+                "score": 7.0,
+                "mitigation": "Restrict CORS to known origins.",
+            }
+        )
     # Rate limiting
     rate_limit_issues = [f for f in sec_findings if f["type"] == "missing_rate_limiting"]
     if rate_limit_issues:
-        risks.append({
-            "id": "R-003",
-            "category": "Availability",
-            "severity": "medium",
-            "description": "No rate limiting on API endpoints",
-            "likelihood": "medium",
-            "impact": "medium",
-            "score": 5.0,
-            "mitigation": "Add slowapi or equivalent rate limiter to FastAPI.",
-        })
+        risks.append(
+            {
+                "id": "R-003",
+                "category": "Availability",
+                "severity": "medium",
+                "description": "No rate limiting on API endpoints",
+                "likelihood": "medium",
+                "impact": "medium",
+                "score": 5.0,
+                "mitigation": "Add slowapi or equivalent rate limiter to FastAPI.",
+            }
+        )
     # Compute overall risk
     if any(r["severity"] == "critical" for r in risks):
         overall = "critical"
@@ -409,6 +452,7 @@ def generate_risk_assessment(secrets: list, sec_findings: list, auth: dict) -> d
 # ---------------------------------------------------------------------------
 # Main
 # ---------------------------------------------------------------------------
+
 
 def main() -> int:
     root = Path().resolve()

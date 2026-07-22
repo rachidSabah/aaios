@@ -72,6 +72,7 @@ class LinuxPlatform:
         from ``tempfile.gettempdir()`` so it respects the ``TMPDIR`` env var.
         """
         import tempfile
+
         return Path(tempfile.gettempdir()) / "aaios"  # nosec B108 — respects TMPDIR
 
     def normalize_path(self, path: str | Path) -> Path:

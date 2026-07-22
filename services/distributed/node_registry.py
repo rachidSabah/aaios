@@ -157,7 +157,10 @@ class NodeRegistry:
                 if node.status != old_status:
                     _log.info(
                         "Node %s status: %s -> %s (heartbeat age %.1fs)",
-                        node.node_id, old_status, node.status, age,
+                        node.node_id,
+                        old_status,
+                        node.status,
+                        age,
                     )
                     if self._on_node_status_change is not None:
                         try:
@@ -195,7 +198,10 @@ class NodeRegistry:
             self._by_address[address] = node_id
             _log.info(
                 "Registered node '%s' at %s (caps=%s, tags=%s)",
-                node_id, address, node.capabilities, node.tags,
+                node_id,
+                address,
+                node.capabilities,
+                node.tags,
             )
             return node
 
@@ -248,7 +254,8 @@ class NodeRegistry:
         """Find online nodes that can serve a capability."""
         async with self._lock:
             return [
-                n for n in self._nodes.values()
+                n
+                for n in self._nodes.values()
                 if capability in n.capabilities and n.status == NodeStatus.ONLINE
             ]
 
@@ -267,7 +274,9 @@ class NodeRegistry:
             if old_status != status:
                 _log.info(
                     "Node '%s' status manually set: %s -> %s",
-                    node_id, old_status, status,
+                    node_id,
+                    old_status,
+                    status,
                 )
             return node
 

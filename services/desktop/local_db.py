@@ -29,10 +29,13 @@ class LocalDatabaseManager:
         """Open (or create) the local database."""
         try:
             from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
+
             db_url = f"sqlite+aiosqlite:///{self._db_path}"
             self._engine = create_async_engine(db_url, echo=False)
             self._session_factory = async_sessionmaker(
-                self._engine, class_=AsyncSession, expire_on_commit=False,
+                self._engine,
+                class_=AsyncSession,
+                expire_on_commit=False,
             )
             async with self._engine.begin() as conn:
                 await conn.run_sync(self._create_tables)
@@ -59,17 +62,20 @@ class LocalDatabaseManager:
         return self._session_factory()
 
     def _create_tables(self, conn: Any) -> None:
-        from sqlalchemy import Column, Integer, MetaData, String, Table, Text, create_engine
+        from sqlalchemy import Column, Integer, MetaData, String, Table, Text
+
         meta = MetaData()
         Table(
-            "offline_cache", meta,
+            "offline_cache",
+            meta,
             Column("id", Integer, primary_key=True),
             Column("key", String(255), unique=True, nullable=False),
             Column("value", Text, nullable=False),
             Column("created_at", String(32)),
         )
         Table(
-            "sync_queue", meta,
+            "sync_queue",
+            meta,
             Column("id", Integer, primary_key=True),
             Column("action", String(255), nullable=False),
             Column("payload", Text),
@@ -78,7 +84,8 @@ class LocalDatabaseManager:
             Column("created_at", String(32)),
         )
         Table(
-            "desktop_settings", meta,
+            "desktop_settings",
+            meta,
             Column("key", String(255), primary_key=True),
             Column("value", Text),
         )

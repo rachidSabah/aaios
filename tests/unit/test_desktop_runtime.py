@@ -5,27 +5,23 @@ initialized fresh per test module so subscriptions are isolated.
 
 from __future__ import annotations
 
-import asyncio
 from pathlib import Path
-from uuid import uuid4
 
 import pytest
 
 from core.bootstrap import boot_kernel, is_booted, shutdown_kernel
 from services.desktop.background import BackgroundServiceRunner
 from services.desktop.credentials import NativeCredentialStore
-from services.desktop.diagnostics import CrashReporter, DiagnosticsManager, DiagnosticCheck
-from services.desktop.local_ai import LocalAIRuntimeManager, LocalEngine
-from services.desktop.local_db import LocalDatabaseManager
+from services.desktop.diagnostics import CrashReporter, DiagnosticsManager
+from services.desktop.local_ai import LocalAIRuntimeManager
 from services.desktop.manager import DesktopRuntimeConfig, DesktopRuntimeManager
-from services.desktop.notifications import DesktopNotification, NativeNotificationService
-from services.desktop.offline import OfflineRuntimeManager, SyncQueueItem
+from services.desktop.notifications import NativeNotificationService
+from services.desktop.offline import OfflineRuntimeManager
 from services.desktop.perfmon import PerformanceMonitor, PerfSnapshot
-from services.desktop.plugins import DesktopPlugin, DesktopPluginLoader
-from services.desktop.system_tray import SystemTray, TrayMenuItem
+from services.desktop.plugins import DesktopPluginLoader
+from services.desktop.system_tray import SystemTray
 from services.desktop.updater import DesktopUpdater
-from services.desktop.window_manager import WindowManager, WindowState, WorkspaceManager
-
+from services.desktop.window_manager import WindowManager, WorkspaceManager
 
 # ---------------------------------------------------------------------------
 # Fixtures
@@ -60,7 +56,7 @@ def test_create_window() -> None:
 def test_close_window() -> None:
     wm = WindowManager()
     w1 = wm.create_window("W1")
-    w2 = wm.create_window("W2")
+    wm.create_window("W2")
     assert wm.close_window(w1.id) is True
     assert wm.close_window("nonexistent") is False
     assert len(wm.list_windows()) == 1
@@ -120,7 +116,7 @@ async def test_notify_and_history(kernel) -> None:
     n1 = await svc.notify("Hello", "World", level="info")
     assert n1.title == "Hello"
     assert n1.level == "info"
-    n2 = await svc.notify("Warning", "Something", level="warning", category="system")
+    await svc.notify("Warning", "Something", level="warning", category="system")
     history = svc.history()
     assert len(history) == 2
     warns = svc.history(level="warning")

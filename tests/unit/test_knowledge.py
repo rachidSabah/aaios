@@ -34,36 +34,58 @@ class TestMemoryPlatform:
 
     async def test_search(self) -> None:
         orch = MemoryOrchestrator()
-        await orch.store(MemoryRecord(memory_type=MemoryType.LONG_TERM.value, content="python programming", tags=["code"]))
-        await orch.store(MemoryRecord(memory_type=MemoryType.SHORT_TERM.value, content="java programming", tags=["code"]))
+        await orch.store(
+            MemoryRecord(
+                memory_type=MemoryType.LONG_TERM.value, content="python programming", tags=["code"]
+            )
+        )
+        await orch.store(
+            MemoryRecord(
+                memory_type=MemoryType.SHORT_TERM.value, content="java programming", tags=["code"]
+            )
+        )
         results = await orch.search("python", limit=10)
         assert len(results) >= 1
         assert "python" in results[0].content
 
     async def test_promote(self) -> None:
         orch = MemoryOrchestrator()
-        record = MemoryRecord(memory_type=MemoryType.SHORT_TERM.value, content="promote me", importance=0.5)
+        record = MemoryRecord(
+            memory_type=MemoryType.SHORT_TERM.value, content="promote me", importance=0.5
+        )
         stored = await orch.store(record)
-        promoted = await orch.promote(stored.memory_id, MemoryType.SHORT_TERM.value, MemoryType.LONG_TERM.value)
+        promoted = await orch.promote(
+            stored.memory_id, MemoryType.SHORT_TERM.value, MemoryType.LONG_TERM.value
+        )
         assert promoted is not None
         assert promoted.memory_type == MemoryType.LONG_TERM.value
         assert promoted.importance > 0.5
 
     async def test_merge_duplicates(self) -> None:
         orch = MemoryOrchestrator()
-        await orch.store(MemoryRecord(memory_type=MemoryType.LONG_TERM.value, content="duplicate content", importance=0.8))
-        await orch.store(MemoryRecord(memory_type=MemoryType.LONG_TERM.value, content="duplicate content", importance=0.5))
+        await orch.store(
+            MemoryRecord(
+                memory_type=MemoryType.LONG_TERM.value, content="duplicate content", importance=0.8
+            )
+        )
+        await orch.store(
+            MemoryRecord(
+                memory_type=MemoryType.LONG_TERM.value, content="duplicate content", importance=0.5
+            )
+        )
         merged = await orch.merge_duplicates()
         assert merged >= 1
 
     async def test_compress_context(self) -> None:
         orch = MemoryOrchestrator()
         for i in range(20):
-            await orch.store(MemoryRecord(
-                memory_type=MemoryType.WORKING.value,
-                content=f"item {i} " * 100,
-                importance=0.5 + i * 0.02,
-            ))
+            await orch.store(
+                MemoryRecord(
+                    memory_type=MemoryType.WORKING.value,
+                    content=f"item {i} " * 100,
+                    importance=0.5 + i * 0.02,
+                )
+            )
         compressed = await orch.compress_context(max_tokens=100)
         assert len(compressed) > 0
         assert len(compressed) < 10000  # should be compressed
@@ -78,6 +100,7 @@ class TestMemoryPlatform:
 
     async def test_expire_old(self) -> None:
         from datetime import UTC, datetime, timedelta
+
         orch = MemoryOrchestrator()
         expired_record = MemoryRecord(
             memory_type=MemoryType.SHORT_TERM.value,
@@ -109,15 +132,21 @@ class TestKnowledgePlatform:
 
     async def test_search(self) -> None:
         platform = KnowledgePlatform()
-        await platform.create_entry(KnowledgeEntry(title="Python Guide", content="Python is great", summary="Guide"))
-        await platform.create_entry(KnowledgeEntry(title="Java Guide", content="Java is also great", summary="Guide"))
+        await platform.create_entry(
+            KnowledgeEntry(title="Python Guide", content="Python is great", summary="Guide")
+        )
+        await platform.create_entry(
+            KnowledgeEntry(title="Java Guide", content="Java is also great", summary="Guide")
+        )
         results = await platform.search("python")
         assert len(results) >= 1
         assert "Python" in results[0]["title"]
 
     async def test_rag(self) -> None:
         platform = KnowledgePlatform()
-        await platform.create_entry(KnowledgeEntry(title="AI Guide", content="AI is transforming the world", summary="AI"))
+        await platform.create_entry(
+            KnowledgeEntry(title="AI Guide", content="AI is transforming the world", summary="AI")
+        )
         await platform.store_memory(MemoryRecord(content="AI is the future of technology"))
         result = await platform.rag(RetrievalRequest(query="AI", max_results=5))
         assert result["token_count"] > 0
@@ -171,6 +200,7 @@ class TestKnowledgeGraph:
 
     async def test_add_and_traverse(self) -> None:
         from services.knowledge import EnterpriseKnowledgeGraph
+
         graph = EnterpriseKnowledgeGraph()
         await graph.add_node("n1", "agent", "agent-a")
         await graph.add_node("n2", "task", "task-1")
@@ -180,6 +210,7 @@ class TestKnowledgeGraph:
 
     async def test_impact_analysis(self) -> None:
         from services.knowledge import EnterpriseKnowledgeGraph
+
         graph = EnterpriseKnowledgeGraph()
         await graph.add_node("a", "agent", "agent-a")
         await graph.add_node("b", "task", "task-b")
@@ -191,6 +222,7 @@ class TestKnowledgeGraph:
 
     async def test_semantic_search(self) -> None:
         from services.knowledge import EnterpriseKnowledgeGraph
+
         graph = EnterpriseKnowledgeGraph()
         await graph.add_node("n1", "agent", "python-coder")
         await graph.add_node("n2", "provider", "openai")
@@ -204,8 +236,14 @@ class TestRetrievalEngine:
 
     async def test_retrieve_with_citations(self) -> None:
         platform = KnowledgePlatform()
-        await platform.create_entry(KnowledgeEntry(title="RAG Test", content="This is test content for RAG retrieval", summary="RAG"))
-        result = await platform.rag(RetrievalRequest(query="test", max_results=5, include_citations=True))
+        await platform.create_entry(
+            KnowledgeEntry(
+                title="RAG Test", content="This is test content for RAG retrieval", summary="RAG"
+            )
+        )
+        result = await platform.rag(
+            RetrievalRequest(query="test", max_results=5, include_citations=True)
+        )
         assert len(result["citations"]) > 0
 
     async def test_conflict_detection(self) -> None:
@@ -218,9 +256,13 @@ class TestRetrievalEngine:
 
     async def test_deduplication(self) -> None:
         platform = KnowledgePlatform()
-        await platform.create_entry(KnowledgeEntry(title="Dedup", content="identical content for dedup test"))
+        await platform.create_entry(
+            KnowledgeEntry(title="Dedup", content="identical content for dedup test")
+        )
         await platform.store_memory(MemoryRecord(content="identical content for dedup test"))
-        result = await platform.rag(RetrievalRequest(query="dedup", max_results=10, deduplicate=True))
+        result = await platform.rag(
+            RetrievalRequest(query="dedup", max_results=10, deduplicate=True)
+        )
         # Should have deduplicated the identical content
         assert result["token_count"] > 0
 
@@ -232,10 +274,14 @@ class TestKnowledgeStress:
     async def test_100_entries(self) -> None:
         platform = KnowledgePlatform()
         for i in range(100):
-            await platform.create_entry(KnowledgeEntry(
-                title=f"Entry {i}", content=f"content {i}", summary=f"summary {i}",
-                labels=[f"tag-{i%5}"],
-            ))
+            await platform.create_entry(
+                KnowledgeEntry(
+                    title=f"Entry {i}",
+                    content=f"content {i}",
+                    summary=f"summary {i}",
+                    labels=[f"tag-{i % 5}"],
+                )
+            )
         stats = await platform.stats()
         assert stats["entries"] == 100
         results = await platform.search("entry")
@@ -246,10 +292,12 @@ class TestKnowledgeStress:
         memory_types = list(MemoryType)
         for i in range(1000):
             mt = memory_types[i % len(memory_types)]
-            await orch.store(MemoryRecord(
-                memory_type=mt.value,
-                content=f"memory item {i}",
-                importance=0.1 + (i % 10) * 0.09,
-            ))
+            await orch.store(
+                MemoryRecord(
+                    memory_type=mt.value,
+                    content=f"memory item {i}",
+                    importance=0.1 + (i % 10) * 0.09,
+                )
+            )
         stats = await orch.stats()
         assert stats["total"] == 1000

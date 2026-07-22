@@ -581,18 +581,53 @@ class Mission:
         """Deserialize from a dict."""
         # Filter budget to only constructor fields (exclude computed properties)
         budget_data = data.get("budget", {})
-        budget_fields = {"total_usd", "spent_usd", "reserved_usd", "max_cost_per_task_usd", "alert_threshold_pct"}
-        budget = Budget(**{k: v for k, v in budget_data.items() if k in budget_fields}) if budget_data else Budget()
+        budget_fields = {
+            "total_usd",
+            "spent_usd",
+            "reserved_usd",
+            "max_cost_per_task_usd",
+            "alert_threshold_pct",
+        }
+        budget = (
+            Budget(**{k: v for k, v in budget_data.items() if k in budget_fields})
+            if budget_data
+            else Budget()
+        )
 
         # Filter quality to only constructor fields
         quality_data = data.get("quality", {})
-        quality_fields = {"reflection_score", "qa_score", "user_satisfaction", "defect_count", "rework_count", "test_pass_rate"}
-        quality = QualityMetrics(**{k: v for k, v in quality_data.items() if k in quality_fields}) if quality_data else QualityMetrics()
+        quality_fields = {
+            "reflection_score",
+            "qa_score",
+            "user_satisfaction",
+            "defect_count",
+            "rework_count",
+            "test_pass_rate",
+        }
+        quality = (
+            QualityMetrics(**{k: v for k, v in quality_data.items() if k in quality_fields})
+            if quality_data
+            else QualityMetrics()
+        )
 
         # Filter resources to only constructor fields
         resources_data = data.get("resources", {})
-        resource_fields = {"assigned_agents", "assigned_providers", "max_concurrent_tasks", "max_concurrent_agents", "memory_limit_mb", "cpu_cores", "gpu_count", "storage_limit_mb", "network_bandwidth_mbps"}
-        resources = ResourceAllocation(**{k: v for k, v in resources_data.items() if k in resource_fields}) if resources_data else ResourceAllocation()
+        resource_fields = {
+            "assigned_agents",
+            "assigned_providers",
+            "max_concurrent_tasks",
+            "max_concurrent_agents",
+            "memory_limit_mb",
+            "cpu_cores",
+            "gpu_count",
+            "storage_limit_mb",
+            "network_bandwidth_mbps",
+        }
+        resources = (
+            ResourceAllocation(**{k: v for k, v in resources_data.items() if k in resource_fields})
+            if resources_data
+            else ResourceAllocation()
+        )
 
         wbs_nodes = [WBSNode(**n) for n in data.get("wbs_nodes", [])]
         risks = [Risk(**r) for r in data.get("risks", [])]

@@ -46,20 +46,118 @@ class SearchType:
 
 
 # Stop words to exclude from indexing
-_STOP_WORDS = frozenset({
-    "a", "an", "the", "and", "or", "but", "is", "are", "was", "were",
-    "be", "been", "being", "have", "has", "had", "do", "does", "did",
-    "will", "would", "could", "should", "may", "might", "must", "shall",
-    "can", "need", "ought", "i", "you", "he", "she", "it", "we", "they",
-    "me", "him", "her", "us", "them", "my", "your", "his", "its", "our",
-    "their", "this", "that", "these", "those", "of", "in", "on", "at",
-    "to", "for", "with", "by", "from", "as", "into", "through", "during",
-    "before", "after", "above", "below", "up", "down", "out", "off",
-    "over", "under", "again", "further", "then", "once", "here", "there",
-    "when", "where", "why", "how", "all", "each", "every", "both", "few",
-    "more", "most", "other", "some", "such", "no", "not", "only", "own",
-    "same", "so", "than", "too", "very", "s", "t", "if", "because",
-})
+_STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "can",
+        "need",
+        "ought",
+        "i",
+        "you",
+        "he",
+        "she",
+        "it",
+        "we",
+        "they",
+        "me",
+        "him",
+        "her",
+        "us",
+        "them",
+        "my",
+        "your",
+        "his",
+        "its",
+        "our",
+        "their",
+        "this",
+        "that",
+        "these",
+        "those",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "with",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "up",
+        "down",
+        "out",
+        "off",
+        "over",
+        "under",
+        "again",
+        "further",
+        "then",
+        "once",
+        "here",
+        "there",
+        "when",
+        "where",
+        "why",
+        "how",
+        "all",
+        "each",
+        "every",
+        "both",
+        "few",
+        "more",
+        "most",
+        "other",
+        "some",
+        "such",
+        "no",
+        "not",
+        "only",
+        "own",
+        "same",
+        "so",
+        "than",
+        "too",
+        "very",
+        "s",
+        "t",
+        "if",
+        "because",
+    }
+)
 
 
 def _tokenize(text: str) -> list[str]:
@@ -115,21 +213,27 @@ class ExperienceIndexer:
             for record in records:
                 doc_id = str(record.experience_id)
                 # Combine all text fields
-                text = " ".join([
-                    record.goal,
-                    record.input_summary,
-                    record.output_summary,
-                    " ".join(record.capabilities_used),
-                    record.failure_reason or "",
-                    record.agent_type,
-                ])
+                text = " ".join(
+                    [
+                        record.goal,
+                        record.input_summary,
+                        record.output_summary,
+                        " ".join(record.capabilities_used),
+                        record.failure_reason or "",
+                        record.agent_type,
+                    ]
+                )
                 tokens = _tokenize(text)
                 self._doc_lengths[doc_id] = len(tokens)
                 tf = Counter(tokens)
                 for term, count in tf.items():
                     self._index[term].append((doc_id, count))
             self._built = True
-            _log.info("Experience index built: %d docs, %d unique terms", self._total_docs, len(self._index))
+            _log.info(
+                "Experience index built: %d docs, %d unique terms",
+                self._total_docs,
+                len(self._index),
+            )
         return self._total_docs
 
     def _idf(self, term: str) -> float:
@@ -176,17 +280,20 @@ class ExperienceIndexer:
         )[:limit]
         # Fetch full records
         from uuid import UUID
+
         results: list[SearchResult] = []
         for doc_id, score in ranked:
             if score < min_score:
                 continue
             try:
                 record = await self._store.get(UUID(doc_id))
-                results.append(SearchResult(
-                    experience=record,
-                    score=score,
-                    matched_terms=sorted(matched_terms[doc_id]),
-                ))
+                results.append(
+                    SearchResult(
+                        experience=record,
+                        score=score,
+                        matched_terms=sorted(matched_terms[doc_id]),
+                    )
+                )
             except Exception:
                 pass
         return results
@@ -222,11 +329,13 @@ class ExperienceRetriever:
     async def similar_successes(self, query: str, limit: int = 10) -> list[SearchResult]:
         """Find successful experiences similar to a query."""
         from services.experience.models import ExperienceOutcome
+
         return await self.similar(query, limit=limit, outcome=ExperienceOutcome.SUCCESS.value)
 
     async def similar_failures(self, query: str, limit: int = 10) -> list[SearchResult]:
         """Find failed experiences similar to a query (for debugging)."""
         from services.experience.models import ExperienceOutcome
+
         return await self.similar(query, limit=limit, outcome=ExperienceOutcome.FAILURE.value)
 
     async def best_agent_for_capability(
@@ -238,8 +347,10 @@ class ExperienceRetriever:
     ) -> list[dict[str, Any]]:
         """Find the agent with the highest success rate for a capability."""
         from services.experience.store import ExperienceFilter
+
         records = await self._store.query(
-            ExperienceFilter(capability=capability, success=True), limit=1000,
+            ExperienceFilter(capability=capability, success=True),
+            limit=1000,
         )
         if not records:
             return []
@@ -256,15 +367,17 @@ class ExperienceRetriever:
             avg_quality = sum(r.quality_score() for r in agent_records) / len(agent_records)
             avg_latency = sum(r.latency_s for r in agent_records) / len(agent_records)
             avg_cost = sum(r.cost_usd for r in agent_records) / len(agent_records)
-            scored.append({
-                "agent_id": agent_id,
-                "experience_count": len(agent_records),
-                "success_rate": round(success_rate, 4),
-                "avg_quality": round(avg_quality, 4),
-                "avg_latency_s": round(avg_latency, 4),
-                "avg_cost_usd": round(avg_cost, 6),
-                "score": round(success_rate * 0.5 + avg_quality * 0.5, 4),
-            })
+            scored.append(
+                {
+                    "agent_id": agent_id,
+                    "experience_count": len(agent_records),
+                    "success_rate": round(success_rate, 4),
+                    "avg_quality": round(avg_quality, 4),
+                    "avg_latency_s": round(avg_latency, 4),
+                    "avg_cost_usd": round(avg_cost, 6),
+                    "score": round(success_rate * 0.5 + avg_quality * 0.5, 4),
+                }
+            )
         scored.sort(key=lambda x: x["score"], reverse=True)
         return scored[:limit]
 
@@ -285,14 +398,17 @@ class ExperienceRetriever:
             if len(provider_records) < min_experiences:
                 continue
             avg_latency = sum(r.latency_s for r in provider_records) / len(provider_records)
-            scored.append({
-                "provider": provider,
-                "experience_count": len(provider_records),
-                "avg_latency_s": round(avg_latency, 4),
-                "avg_cost_usd": round(
-                    sum(r.cost_usd for r in provider_records) / len(provider_records), 6,
-                ),
-            })
+            scored.append(
+                {
+                    "provider": provider,
+                    "experience_count": len(provider_records),
+                    "avg_latency_s": round(avg_latency, 4),
+                    "avg_cost_usd": round(
+                        sum(r.cost_usd for r in provider_records) / len(provider_records),
+                        6,
+                    ),
+                }
+            )
         scored.sort(key=lambda x: x["avg_latency_s"])
         return scored[:limit]
 
@@ -313,14 +429,17 @@ class ExperienceRetriever:
             if len(provider_records) < min_experiences:
                 continue
             avg_cost = sum(r.cost_usd for r in provider_records) / len(provider_records)
-            scored.append({
-                "provider": provider,
-                "experience_count": len(provider_records),
-                "avg_cost_usd": round(avg_cost, 6),
-                "avg_latency_s": round(
-                    sum(r.latency_s for r in provider_records) / len(provider_records), 4,
-                ),
-            })
+            scored.append(
+                {
+                    "provider": provider,
+                    "experience_count": len(provider_records),
+                    "avg_cost_usd": round(avg_cost, 6),
+                    "avg_latency_s": round(
+                        sum(r.latency_s for r in provider_records) / len(provider_records),
+                        4,
+                    ),
+                }
+            )
         scored.sort(key=lambda x: x["avg_cost_usd"])
         return scored[:limit]
 
@@ -342,12 +461,14 @@ class ExperienceRetriever:
                 continue
             avg_quality = sum(r.quality_score() for r in wf_records) / len(wf_records)
             success_rate = sum(1 for r in wf_records if r.success) / len(wf_records)
-            scored.append({
-                "workflow_id": wf_id,
-                "experience_count": len(wf_records),
-                "avg_quality": round(avg_quality, 4),
-                "success_rate": round(success_rate, 4),
-            })
+            scored.append(
+                {
+                    "workflow_id": wf_id,
+                    "experience_count": len(wf_records),
+                    "avg_quality": round(avg_quality, 4),
+                    "success_rate": round(success_rate, 4),
+                }
+            )
         scored.sort(key=lambda x: x["avg_quality"], reverse=True)
         return scored[:limit]
 

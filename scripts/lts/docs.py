@@ -37,12 +37,14 @@ def audit_docs(root: Path) -> dict:
     for path_str, desc in REQUIRED_DOCS:
         full = root / path_str
         exists = full.exists()
-        results.append({
-            "path": path_str,
-            "description": desc,
-            "exists": exists,
-            "type": "directory" if "." not in path_str else "file",
-        })
+        results.append(
+            {
+                "path": path_str,
+                "description": desc,
+                "exists": exists,
+                "type": "directory" if "." not in path_str else "file",
+            }
+        )
     existing = sum(1 for r in results if r["exists"])
     return {
         "total_required": len(REQUIRED_DOCS),

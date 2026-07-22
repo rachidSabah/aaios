@@ -12,10 +12,11 @@ from __future__ import annotations
 
 import asyncio
 import json
-from dataclasses import dataclass, field
+from collections.abc import Callable
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
 import httpx
@@ -31,6 +32,7 @@ _log = get_logger(__name__)
 @dataclass
 class SyncQueueItem:
     """An operation queued for sync when connectivity returns."""
+
     id: str
     action: str
     payload: dict[str, Any]
@@ -186,10 +188,16 @@ class OfflineRuntimeManager:
             path = self._sync_dir / "sync_queue.json"
             path.parent.mkdir(parents=True, exist_ok=True)
             data = [
-                {"id": i.id, "action": i.action, "payload": i.payload,
-                 "created_at": i.created_at, "retries": i.retries,
-                 "max_retries": i.max_retries, "completed": i.completed,
-                 "error": i.error}
+                {
+                    "id": i.id,
+                    "action": i.action,
+                    "payload": i.payload,
+                    "created_at": i.created_at,
+                    "retries": i.retries,
+                    "max_retries": i.max_retries,
+                    "completed": i.completed,
+                    "error": i.error,
+                }
                 for i in self._sync_queue
             ]
             path.write_text(json.dumps(data, indent=2), encoding="utf-8")
@@ -199,12 +207,14 @@ class OfflineRuntimeManager:
     async def _emit(self, topic: str, payload: dict) -> None:
         try:
             bus = get_bus()
-            await bus.publish(Event(
-                topic=topic,
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload={**payload, "timestamp": datetime.now(UTC).isoformat()},
-            ))
+            await bus.publish(
+                Event(
+                    topic=topic,
+                    correlation_id=uuid4(),
+                    actor=ActorRef.system(),
+                    payload={**payload, "timestamp": datetime.now(UTC).isoformat()},
+                )
+            )
         except Exception:  # noqa: BLE001
             pass
 

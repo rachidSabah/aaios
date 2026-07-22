@@ -35,6 +35,7 @@ from typing import Any
 @dataclass
 class AuditFinding:
     """A single audit finding."""
+
     category: str
     severity: str  # info | low | medium | high | critical
     file: str
@@ -46,6 +47,7 @@ class AuditFinding:
 @dataclass
 class AuditReport:
     """Complete audit report."""
+
     generated_at: str
     root: str
     findings: list[dict[str, Any]] = field(default_factory=list)
@@ -87,11 +89,21 @@ class RepositoryAuditor:
     )
 
     # Noise directories to skip
-    SKIP_DIRS: frozenset[str] = frozenset({
-        ".venv", "node_modules", ".git", "__pycache__",
-        "build", "dist", ".next", ".mypy_cache", ".ruff_cache",
-        "coverage", "site",
-    })
+    SKIP_DIRS: frozenset[str] = frozenset(
+        {
+            ".venv",
+            "node_modules",
+            ".git",
+            "__pycache__",
+            "build",
+            "dist",
+            ".next",
+            ".mypy_cache",
+            ".ruff_cache",
+            "coverage",
+            "site",
+        }
+    )
 
     def __init__(self, root: Path) -> None:
         self.root = root.resolve()
@@ -142,18 +154,28 @@ class RepositoryAuditor:
                         continue
                     for banned in self.BANNED_IO_IMPORTS:
                         if banned in stripped:
-                            self.findings.append(AuditFinding(
-                                category="INV-02_violation",
-                                severity="high",
-                                file=str(py.relative_to(self.root)),
-                                line=i,
-                                description=f"Banned I/O import: {stripped}",
-                                recommendation="Move I/O to core/gateway/ or use the existing gateway.",
-                            ))
+                            self.findings.append(
+                                AuditFinding(
+                                    category="INV-02_violation",
+                                    severity="high",
+                                    file=str(py.relative_to(self.root)),
+                                    line=i,
+                                    description=f"Banned I/O import: {stripped}",
+                                    recommendation="Move I/O to core/gateway/ or use the existing gateway.",
+                                )
+                            )
                             break
 
         # INV-09: agent implementation names in core/services/supervisor
-        agent_names = ("ClaudeCode", "Hermes", "OpenHands", "Cline", "RooCode", "GeminiCLI", "CodexCLI")
+        agent_names = (
+            "ClaudeCode",
+            "Hermes",
+            "OpenHands",
+            "Cline",
+            "RooCode",
+            "GeminiCLI",
+            "CodexCLI",
+        )
         for pkg in ("core", "services", "supervisor", "orchestrator"):
             pkg_dir = self.root / pkg
             if not pkg_dir.exists():
@@ -171,14 +193,16 @@ class RepositoryAuditor:
                             # Allow in comments and string literals minimally
                             if "test_" in py.name:
                                 continue
-                            self.findings.append(AuditFinding(
-                                category="INV-09_violation",
-                                severity="medium",
-                                file=str(py.relative_to(self.root)),
-                                line=i,
-                                description=f"Agent implementation name '{name}' referenced in core layer",
-                                recommendation="Use the generic Agent protocol instead of concrete names.",
-                            ))
+                            self.findings.append(
+                                AuditFinding(
+                                    category="INV-09_violation",
+                                    severity="medium",
+                                    file=str(py.relative_to(self.root)),
+                                    line=i,
+                                    description=f"Agent implementation name '{name}' referenced in core layer",
+                                    recommendation="Use the generic Agent protocol instead of concrete names.",
+                                )
+                            )
 
     # --- layering -------------------------------------------------------
 
@@ -212,14 +236,16 @@ class RepositoryAuditor:
         if top not in self.LAYER_ORDER:
             return
         if self.LAYER_ORDER[top] > self.LAYER_ORDER[current_layer]:
-            self.findings.append(AuditFinding(
-                category="layer_violation",
-                severity="high",
-                file=str(py.relative_to(self.root)),
-                line=line,
-                description=f"Layer '{current_layer}' imports from higher layer '{top}'",
-                recommendation=f"Reverse the dependency: {top} should depend on {current_layer}, not vice versa.",
-            ))
+            self.findings.append(
+                AuditFinding(
+                    category="layer_violation",
+                    severity="high",
+                    file=str(py.relative_to(self.root)),
+                    line=line,
+                    description=f"Layer '{current_layer}' imports from higher layer '{top}'",
+                    recommendation=f"Reverse the dependency: {top} should depend on {current_layer}, not vice versa.",
+                )
+            )
 
     # --- dependency graph ----------------------------------------------
 
@@ -274,14 +300,16 @@ class RepositoryAuditor:
         first_party = {"core", "services", "agents", "supervisor", "orchestrator", "surfaces"}
         for cycle in cycles[:10]:
             if any(c.split(".")[0] in first_party for c in cycle):
-                self.findings.append(AuditFinding(
-                    category="circular_import",
-                    severity="medium",
-                    file=cycle[0] if cycle else "",
-                    line=0,
-                    description=f"Circular import: {' -> '.join(cycle)}",
-                    recommendation="Break the cycle by extracting shared code into a lower layer.",
-                ))
+                self.findings.append(
+                    AuditFinding(
+                        category="circular_import",
+                        severity="medium",
+                        file=cycle[0] if cycle else "",
+                        line=0,
+                        description=f"Circular import: {' -> '.join(cycle)}",
+                        recommendation="Break the cycle by extracting shared code into a lower layer.",
+                    )
+                )
 
     # --- dead code ------------------------------------------------------
 
@@ -302,14 +330,16 @@ class RepositoryAuditor:
                 # Check if the function is called anywhere in the file or its tests
                 if name not in text.replace(f"def {name}", ""):
                     # Could be used via reflection — only flag as low-severity
-                    self.findings.append(AuditFinding(
-                        category="dead_code_candidate",
-                        severity="low",
-                        file=str(py.relative_to(self.root)),
-                        line=line,
-                        description=f"Private function '{name}' may be unused",
-                        recommendation="Verify usage and remove if dead.",
-                    ))
+                    self.findings.append(
+                        AuditFinding(
+                            category="dead_code_candidate",
+                            severity="low",
+                            file=str(py.relative_to(self.root)),
+                            line=line,
+                            description=f"Private function '{name}' may be unused",
+                            recommendation="Verify usage and remove if dead.",
+                        )
+                    )
 
     # --- duplicate logic ------------------------------------------------
 
@@ -330,11 +360,13 @@ class RepositoryAuditor:
                     normalized = re.sub(r"[a-z_]+", "id", normalized)
                     length = len(normalized)
                     if length > 200:  # only consider substantial functions
-                        buckets[length].append((
-                            f"{py.relative_to(self.root)}::{node.name}",
-                            node.lineno,
-                            normalized,
-                        ))
+                        buckets[length].append(
+                            (
+                                f"{py.relative_to(self.root)}::{node.name}",
+                                node.lineno,
+                                normalized,
+                            )
+                        )
         for length, group in buckets.items():
             if len(group) < 2:
                 continue
@@ -344,17 +376,19 @@ class RepositoryAuditor:
                 seen[norm].append((fname, line))
             for norm, occurrences in seen.items():
                 if len(occurrences) >= 2:
-                    self.findings.append(AuditFinding(
-                        category="duplicate_logic",
-                        severity="medium",
-                        file=occurrences[0][0].split("::")[0],
-                        line=occurrences[0][1],
-                        description=(
-                            f"Duplicated function body across {len(occurrences)} locations: "
-                            + ", ".join(f for f, _ in occurrences[:5])
-                        ),
-                        recommendation="Extract the shared logic into a common helper.",
-                    ))
+                    self.findings.append(
+                        AuditFinding(
+                            category="duplicate_logic",
+                            severity="medium",
+                            file=occurrences[0][0].split("::")[0],
+                            line=occurrences[0][1],
+                            description=(
+                                f"Duplicated function body across {len(occurrences)} locations: "
+                                + ", ".join(f for f, _ in occurrences[:5])
+                            ),
+                            recommendation="Extract the shared logic into a common helper.",
+                        )
+                    )
 
     # --- unused APIs ----------------------------------------------------
 
@@ -381,14 +415,16 @@ class RepositoryAuditor:
                     # Count occurrences excluding the definition
                     occurrences = len(re.findall(rf"\b{re.escape(name)}\b", all_text))
                     if occurrences <= 1:
-                        self.findings.append(AuditFinding(
-                            category="unused_api_candidate",
-                            severity="low",
-                            file=str(py.relative_to(self.root)),
-                            line=node.lineno,
-                            description=f"Public API '{name}' is never imported or called elsewhere",
-                            recommendation="Remove if truly unused, or document as part of the public contract.",
-                        ))
+                        self.findings.append(
+                            AuditFinding(
+                                category="unused_api_candidate",
+                                severity="low",
+                                file=str(py.relative_to(self.root)),
+                                line=node.lineno,
+                                description=f"Public API '{name}' is never imported or called elsewhere",
+                                recommendation="Remove if truly unused, or document as part of the public contract.",
+                            )
+                        )
 
     # --- unreachable code ----------------------------------------------
 
@@ -408,14 +444,16 @@ class RepositoryAuditor:
                     body = getattr(stmt, "body", []) or []
                     for i, child in enumerate(body[:-1]):
                         if isinstance(child, (ast.Return, ast.Raise, ast.Break, ast.Continue)):
-                            self.findings.append(AuditFinding(
-                                category="unreachable_code",
-                                severity="low",
-                                file=str(py.relative_to(self.root)),
-                                line=getattr(body[i + 1], "lineno", 0),
-                                description=f"Unreachable code after {type(child).__name__}",
-                                recommendation="Remove the unreachable statements.",
-                            ))
+                            self.findings.append(
+                                AuditFinding(
+                                    category="unreachable_code",
+                                    severity="low",
+                                    file=str(py.relative_to(self.root)),
+                                    line=getattr(body[i + 1], "lineno", 0),
+                                    description=f"Unreachable code after {type(child).__name__}",
+                                    recommendation="Remove the unreachable statements.",
+                                )
+                            )
 
     # --- deprecated interfaces -----------------------------------------
 
@@ -428,14 +466,16 @@ class RepositoryAuditor:
                 continue
             for i, line in enumerate(text.splitlines(), 1):
                 if "deprecated" in line.lower() and not line.strip().startswith("#"):
-                    self.findings.append(AuditFinding(
-                        category="deprecated_interface",
-                        severity="info",
-                        file=str(py.relative_to(self.root)),
-                        line=i,
-                        description=f"Deprecated marker: {line.strip()[:100]}",
-                        recommendation="Plan removal in the next major version.",
-                    ))
+                    self.findings.append(
+                        AuditFinding(
+                            category="deprecated_interface",
+                            severity="info",
+                            file=str(py.relative_to(self.root)),
+                            line=i,
+                            description=f"Deprecated marker: {line.strip()[:100]}",
+                            recommendation="Plan removal in the next major version.",
+                        )
+                    )
 
     # --- security issues ------------------------------------------------
 
@@ -458,15 +498,17 @@ class RepositoryAuditor:
                 continue
             for pattern, desc in dangerous_patterns:
                 for m in re.finditer(pattern, text):
-                    line_num = text[:m.start()].count("\n") + 1
-                    self.findings.append(AuditFinding(
-                        category="security_issue",
-                        severity="high",
-                        file=str(py.relative_to(self.root)),
-                        line=line_num,
-                        description=desc,
-                        recommendation="Replace with a safer alternative.",
-                    ))
+                    line_num = text[: m.start()].count("\n") + 1
+                    self.findings.append(
+                        AuditFinding(
+                            category="security_issue",
+                            severity="high",
+                            file=str(py.relative_to(self.root)),
+                            line=line_num,
+                            description=desc,
+                            recommendation="Replace with a safer alternative.",
+                        )
+                    )
 
     # --- performance bottlenecks ---------------------------------------
 
@@ -482,28 +524,33 @@ class RepositoryAuditor:
             # Blocking calls in async functions
             for m in re.finditer(
                 r"async\s+def\s+\w+[^:]*:\s*(?:#[^\n]*\n|\s*\n|\s*[^a-zA-Z\n])*?\s*(?:time\.sleep|requests\.get|requests\.post|urllib\.request\.urlopen)\s*\(",
-                text, re.DOTALL,
+                text,
+                re.DOTALL,
             ):
-                line_num = text[:m.start()].count("\n") + 1
-                self.findings.append(AuditFinding(
-                    category="performance_bottleneck",
-                    severity="medium",
-                    file=str(py.relative_to(self.root)),
-                    line=line_num,
-                    description="Blocking call inside async function",
-                    recommendation="Use asyncio.to_thread() or an async-native alternative.",
-                ))
+                line_num = text[: m.start()].count("\n") + 1
+                self.findings.append(
+                    AuditFinding(
+                        category="performance_bottleneck",
+                        severity="medium",
+                        file=str(py.relative_to(self.root)),
+                        line=line_num,
+                        description="Blocking call inside async function",
+                        recommendation="Use asyncio.to_thread() or an async-native alternative.",
+                    )
+                )
             # List append in tight loops (heuristic)
             for m in re.finditer(r"for\s+\w+\s+in\s+\w+:\s*\n\s*\w+\.append\(", text):
-                line_num = text[:m.start()].count("\n") + 1
-                self.findings.append(AuditFinding(
-                    category="performance_bottleneck",
-                    severity="low",
-                    file=str(py.relative_to(self.root)),
-                    line=line_num,
-                    description="List append in for-loop — consider list comprehension",
-                    recommendation="Replace with a list comprehension for better performance.",
-                ))
+                line_num = text[: m.start()].count("\n") + 1
+                self.findings.append(
+                    AuditFinding(
+                        category="performance_bottleneck",
+                        severity="low",
+                        file=str(py.relative_to(self.root)),
+                        line=line_num,
+                        description="List append in for-loop — consider list comprehension",
+                        recommendation="Replace with a list comprehension for better performance.",
+                    )
+                )
 
     # --- helpers --------------------------------------------------------
 
@@ -574,11 +621,21 @@ class TechnicalDebtScanner:
         (r"^\s*#\s*[a-zA-Z_]+\s*=\s*", "commented_code_candidate"),
     )
 
-    SKIP_DIRS: frozenset[str] = frozenset({
-        ".venv", "node_modules", ".git", "__pycache__",
-        "build", "dist", ".next", ".mypy_cache", ".ruff_cache",
-        "coverage", "site",
-    })
+    SKIP_DIRS: frozenset[str] = frozenset(
+        {
+            ".venv",
+            "node_modules",
+            ".git",
+            "__pycache__",
+            "build",
+            "dist",
+            ".next",
+            ".mypy_cache",
+            ".ruff_cache",
+            "coverage",
+            "site",
+        }
+    )
 
     def __init__(self, root: Path) -> None:
         self.root = root.resolve()
@@ -594,17 +651,21 @@ class TechnicalDebtScanner:
                 for pattern, category in self.PATTERNS:
                     if re.search(pattern, line):
                         # Skip legitimate noqa with specific code
-                        if category == "noqa_suppression" and re.search(r"#\s*noqa:\s*[A-Z]+", line):
+                        if category == "noqa_suppression" and re.search(
+                            r"#\s*noqa:\s*[A-Z]+", line
+                        ):
                             continue
                         # Skip noqa: S603,S607 etc. (specific) - allowed
-                        self.findings.append(AuditFinding(
-                            category=category,
-                            severity=self._severity(category),
-                            file=str(py.relative_to(self.root)),
-                            line=i,
-                            description=line.strip()[:200],
-                            recommendation=self._recommendation(category),
-                        ))
+                        self.findings.append(
+                            AuditFinding(
+                                category=category,
+                                severity=self._severity(category),
+                                file=str(py.relative_to(self.root)),
+                                line=i,
+                                description=line.strip()[:200],
+                                recommendation=self._recommendation(category),
+                            )
+                        )
         return self._build_report()
 
     def _severity(self, category: str) -> str:
@@ -703,13 +764,18 @@ def main() -> int:
             for i, (name, desc) in enumerate(RepositoryAuditor.LAYERS)
         ],
         "invariant_violations": [
-            f for f in audit_report.findings
+            f
+            for f in audit_report.findings
             if f["category"] in ("INV-02_violation", "INV-09_violation", "layer_violation")
         ],
         "dependency_graph": {
-            k: sorted(v) for k, v in auditor._dep_graph.items()
-            if k and any(k.startswith(p) for p in
-                         ("core", "services", "agents", "supervisor", "orchestrator", "surfaces"))
+            k: sorted(v)
+            for k, v in auditor._dep_graph.items()
+            if k
+            and any(
+                k.startswith(p)
+                for p in ("core", "services", "agents", "supervisor", "orchestrator", "surfaces")
+            )
         },
     }
     (out_dir / "architecture_compliance_report.json").write_text(

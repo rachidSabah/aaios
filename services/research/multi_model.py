@@ -104,30 +104,36 @@ class MultiModelReasoningEngine:
                 all_claims.append((a.model, claim))
         # Compare claims pairwise for negation patterns
         for i, (m1, c1) in enumerate(all_claims):
-            for m2, c2 in all_claims[i + 1:]:
+            for m2, c2 in all_claims[i + 1 :]:
                 if m1 == m2:
                     continue
                 conflict_kind = self._claims_conflict(c1, c2)
                 if conflict_kind:
-                    conflicts.append({
-                        "model_a": m1,
-                        "claim_a": c1,
-                        "model_b": m2,
-                        "claim_b": c2,
-                        "conflict_type": conflict_kind,
-                        "explanation": f"Models disagree: '{c1[:80]}' vs '{c2[:80]}'.",
-                    })
+                    conflicts.append(
+                        {
+                            "model_a": m1,
+                            "claim_a": c1,
+                            "model_b": m2,
+                            "claim_b": c2,
+                            "conflict_type": conflict_kind,
+                            "explanation": f"Models disagree: '{c1[:80]}' vs '{c2[:80]}'.",
+                        }
+                    )
         return conflicts
 
     def _claims_conflict(self, c1: str, c2: str) -> str | None:
         """Heuristic conflict detection between two claims."""
         # Negation conflict (check both directions)
         for a, b in ((c1, c2), (c2, c1)):
-            negated = re.search(r"\b(not|no|never|cannot|cannot|doesn't|isn't|wasn't|won't)\b", a, re.I)
+            negated = re.search(
+                r"\b(not|no|never|cannot|cannot|doesn't|isn't|wasn't|won't)\b", a, re.I
+            )
             if negated:
                 a_stripped = re.sub(
                     r"\s*\b(not|no|never|cannot|cannot|doesn't|isn't|wasn't|won't)\b\s*",
-                    " ", a, flags=re.I,
+                    " ",
+                    a,
+                    flags=re.I,
                 )
                 a_stripped = re.sub(r"\s+", " ", a_stripped).strip()
                 if a_stripped and a_stripped.lower() in b.lower():
@@ -191,9 +197,8 @@ class MultiModelReasoningEngine:
         confidence = min(1.0, agreement_ratio * 0.7 + 0.2)
         if conflicts:
             confidence *= max(0.3, 1.0 - len(conflicts) * 0.15)
-        consensus_text = (
-            f"Consensus across {len(analyses)} models: "
-            + "; ".join(claim for claim, _ in top_claims)
+        consensus_text = f"Consensus across {len(analyses)} models: " + "; ".join(
+            claim for claim, _ in top_claims
         )
         if conflicts:
             consensus_text += f" (with {len(conflicts)} conflict(s) noted)."
@@ -240,18 +245,24 @@ class MultiModelReasoningEngine:
             if overlap_ratio < 0.3 or a.confidence < avg_conf * 0.7:
                 # Find the most distinctive claim
                 claim = a.claims[0] if a.claims else a.response[:200]
-                minority.append(MinorityOpinion(
-                    model=a.model,
-                    provider=a.provider,
-                    claim=claim,
-                    rationale=a.reasoning or a.response[:300],
-                    evidence=[f"model_confidence={a.confidence:.2f}", f"overlap_ratio={overlap_ratio:.2f}"],
-                    confidence=a.confidence,
-                    disagreement_reason=(
-                        "low_vocabulary_overlap" if overlap_ratio < 0.3
-                        else "low_confidence_relative_to_peers"
-                    ),
-                ))
+                minority.append(
+                    MinorityOpinion(
+                        model=a.model,
+                        provider=a.provider,
+                        claim=claim,
+                        rationale=a.reasoning or a.response[:300],
+                        evidence=[
+                            f"model_confidence={a.confidence:.2f}",
+                            f"overlap_ratio={overlap_ratio:.2f}",
+                        ],
+                        confidence=a.confidence,
+                        disagreement_reason=(
+                            "low_vocabulary_overlap"
+                            if overlap_ratio < 0.3
+                            else "low_confidence_relative_to_peers"
+                        ),
+                    )
+                )
         return minority
 
     # --- evidence ranking ----------------------------------------------
@@ -263,13 +274,15 @@ class MultiModelReasoningEngine:
             if a.error:
                 continue
             for claim in a.claims:
-                evidence_items.append({
-                    "claim": claim,
-                    "model": a.model,
-                    "provider": a.provider,
-                    "confidence": a.confidence,
-                    "evidence_strength": self._evidence_strength(a),
-                })
+                evidence_items.append(
+                    {
+                        "claim": claim,
+                        "model": a.model,
+                        "provider": a.provider,
+                        "confidence": a.confidence,
+                        "evidence_strength": self._evidence_strength(a),
+                    }
+                )
         # Sort by evidence_strength descending
         evidence_items.sort(key=lambda x: x["evidence_strength"], reverse=True)
         return evidence_items[:20]
@@ -300,9 +313,15 @@ class MultiModelReasoningEngine:
             f"Final confidence: {confidence:.2f}",
         ]
         if confidence < 0.3:
-            parts.append("WARNING: Low confidence — gather additional model analyses or evidence before relying on this conclusion.")
+            parts.append(
+                "WARNING: Low confidence — gather additional model analyses or evidence before relying on this conclusion."
+            )
         elif confidence < 0.6:
-            parts.append("CAUTION: Moderate confidence — verify with additional sources before publication.")
+            parts.append(
+                "CAUTION: Moderate confidence — verify with additional sources before publication."
+            )
         else:
-            parts.append("Confidence is sufficient for internal use; human review still required for publication.")
+            parts.append(
+                "Confidence is sufficient for internal use; human review still required for publication."
+            )
         return ". ".join(parts) + "."

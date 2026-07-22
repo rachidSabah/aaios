@@ -66,25 +66,59 @@ class ExperienceExporter:
         output = io.StringIO()
         writer = csv.writer(output)
         # Header
-        writer.writerow([
-            "experience_id", "timestamp", "task_id", "agent_id", "agent_type",
-            "provider", "model", "capabilities", "goal", "outcome", "success",
-            "execution_time_s", "latency_s", "cost_usd", "tokens_total",
-            "reflection_score", "qa_score", "quality_score", "confidence",
-            "retries", "failure_reason", "recovery_action",
-        ])
+        writer.writerow(
+            [
+                "experience_id",
+                "timestamp",
+                "task_id",
+                "agent_id",
+                "agent_type",
+                "provider",
+                "model",
+                "capabilities",
+                "goal",
+                "outcome",
+                "success",
+                "execution_time_s",
+                "latency_s",
+                "cost_usd",
+                "tokens_total",
+                "reflection_score",
+                "qa_score",
+                "quality_score",
+                "confidence",
+                "retries",
+                "failure_reason",
+                "recovery_action",
+            ]
+        )
         for r in records:
-            writer.writerow([
-                r.experience_id, r.timestamp.isoformat(), r.task_id,
-                r.agent_id, r.agent_type, r.provider or "", r.model or "",
-                ";".join(r.capabilities_used),
-                r.goal[:200], r.outcome, r.success,
-                r.execution_time_s, r.latency_s, r.cost_usd,
-                r.token_usage.total_tokens,
-                r.reflection_score, r.qa_score, r.quality_score(),
-                r.confidence, r.retries,
-                r.failure_reason or "", r.recovery_action or "",
-            ])
+            writer.writerow(
+                [
+                    r.experience_id,
+                    r.timestamp.isoformat(),
+                    r.task_id,
+                    r.agent_id,
+                    r.agent_type,
+                    r.provider or "",
+                    r.model or "",
+                    ";".join(r.capabilities_used),
+                    r.goal[:200],
+                    r.outcome,
+                    r.success,
+                    r.execution_time_s,
+                    r.latency_s,
+                    r.cost_usd,
+                    r.token_usage.total_tokens,
+                    r.reflection_score,
+                    r.qa_score,
+                    r.quality_score(),
+                    r.confidence,
+                    r.retries,
+                    r.failure_reason or "",
+                    r.recovery_action or "",
+                ]
+            )
         return output.getvalue()
 
     async def export_summary_json(

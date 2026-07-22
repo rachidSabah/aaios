@@ -330,7 +330,9 @@ class CollaborationEngine:
         self._messages: list[AgentMessage] = []
         self._inbox: dict[str, list[AgentMessage]] = defaultdict(list)  # agent_id → messages
         self._broadcast_inbox: list[AgentMessage] = []
-        self._shared_memory: dict[str, dict[str, Any]] = defaultdict(dict)  # mission_id → key → value
+        self._shared_memory: dict[str, dict[str, Any]] = defaultdict(
+            dict
+        )  # mission_id → key → value
         self._lock = asyncio.Lock()
 
     async def send_message(self, message: AgentMessage) -> AgentMessage:
@@ -344,7 +346,9 @@ class CollaborationEngine:
                 self._inbox[message.to_agent_id].append(message)
         _log.debug(
             "Agent message: %s → %s (%s)",
-            message.from_agent_id, message.to_agent_id or "all", message.message_type,
+            message.from_agent_id,
+            message.to_agent_id or "all",
+            message.message_type,
         )
         return message
 
@@ -395,8 +399,7 @@ class CollaborationEngine:
         else:
             # Simulate: each participant votes yes (in production, ask agents)
             result.votes = [
-                Vote(agent_id=aid, vote="yes", reasoning="auto-approve")
-                for aid in participants
+                Vote(agent_id=aid, vote="yes", reasoning="auto-approve") for aid in participants
             ]
         return result
 
@@ -427,6 +430,7 @@ class CollaborationEngine:
             else:
                 # Simulate convergence: after max_rounds, take majority position
                 from collections import Counter
+
                 position_counts = Counter(positions.values())
                 result.consensus_position = position_counts.most_common(1)[0][0]
                 result.consensus_reached = len(position_counts) == 1
@@ -462,7 +466,10 @@ class CollaborationEngine:
         )
         _log.info(
             "Peer review: %s reviewed %s (verdict=%s, score=%.2f)",
-            reviewer_agent_id, reviewed_agent_id, verdict, quality_score,
+            reviewer_agent_id,
+            reviewed_agent_id,
+            verdict,
+            quality_score,
         )
         return review
 
@@ -485,7 +492,9 @@ class CollaborationEngine:
         )
         _log.info(
             "Delegation: %s → %s (accepted=%s)",
-            request.from_agent_id, request.to_agent_id, accepted,
+            request.from_agent_id,
+            request.to_agent_id,
+            accepted,
         )
         return result
 
@@ -554,6 +563,7 @@ class CollaborationEngine:
             resolution.resolved_by = "mission_director"
         else:
             import secrets
+
             winner = secrets.choice(conflicting_agents) if conflicting_agents else "none"  # nosec S311 — non-cryptographic use
             resolution.resolution = f"Random selection: {winner}"
             resolution.resolved_by = "random"
@@ -572,7 +582,9 @@ class CollaborationEngine:
             self._shared_memory[mission_id][key] = value
         _log.debug(
             "Shared memory update: mission=%s key=%s by=%s",
-            mission_id, key, agent_id,
+            mission_id,
+            key,
+            agent_id,
         )
 
     async def get_shared_memory(

@@ -8,14 +8,9 @@ from __future__ import annotations
 
 import asyncio
 import time
-from dataclasses import dataclass, field
-from datetime import UTC, datetime
+from dataclasses import dataclass
 from typing import Any
-from uuid import uuid4
 
-from core.contracts.actor import ActorRef
-from core.contracts.event import Event
-from core.event_bus import get_bus
 from core.logging import get_logger
 
 _log = get_logger(__name__)
@@ -24,6 +19,7 @@ _log = get_logger(__name__)
 @dataclass
 class PerfSnapshot:
     """A point-in-time performance snapshot."""
+
     timestamp: float
     cpu_percent: float
     memory_percent: float
@@ -68,13 +64,14 @@ class PerformanceMonitor:
         """Take a single performance snapshot."""
         try:
             import psutil
+
             cpu = psutil.cpu_percent(interval=0.1)
             mem = psutil.virtual_memory()
-            disk = psutil.disk_usage(Path.cwd() if 'Path' in dir() else ".")
+            disk = psutil.disk_usage(Path.cwd() if "Path" in dir() else ".")
             boot = psutil.boot_time()
             net = psutil.net_io_counters()
             proc_count = len(psutil.pids())
-            thread_count = sum(p.num_threads() for p in psutil.process_iter(['num_threads']))
+            thread_count = sum(p.num_threads() for p in psutil.process_iter(["num_threads"]))
             now = time.time()
             snap = PerfSnapshot(
                 timestamp=now,
@@ -82,7 +79,7 @@ class PerformanceMonitor:
                 memory_percent=mem.percent,
                 memory_used_mb=mem.used / (1024 * 1024),
                 disk_usage_percent=disk.percent,
-                disk_free_gb=disk.free / (1024 ** 3),
+                disk_free_gb=disk.free / (1024**3),
                 uptime_s=now - boot,
                 process_count=proc_count,
                 thread_count=thread_count,
@@ -95,17 +92,27 @@ class PerformanceMonitor:
         except ImportError:
             snap = PerfSnapshot(
                 timestamp=time.time(),
-                cpu_percent=0.0, memory_percent=0.0, memory_used_mb=0.0,
-                disk_usage_percent=0.0, disk_free_gb=0.0,
-                uptime_s=0.0, process_count=0, thread_count=0,
+                cpu_percent=0.0,
+                memory_percent=0.0,
+                memory_used_mb=0.0,
+                disk_usage_percent=0.0,
+                disk_free_gb=0.0,
+                uptime_s=0.0,
+                process_count=0,
+                thread_count=0,
             )
         except Exception as exc:  # noqa: BLE001
             _log.warning("desktop.perfmon.snapshot_failed", error=str(exc))
             snap = PerfSnapshot(
                 timestamp=time.time(),
-                cpu_percent=0.0, memory_percent=0.0, memory_used_mb=0.0,
-                disk_usage_percent=0.0, disk_free_gb=0.0,
-                uptime_s=0.0, process_count=0, thread_count=0,
+                cpu_percent=0.0,
+                memory_percent=0.0,
+                memory_used_mb=0.0,
+                disk_usage_percent=0.0,
+                disk_free_gb=0.0,
+                uptime_s=0.0,
+                process_count=0,
+                thread_count=0,
             )
         self._history.append(snap)
         if len(self._history) > self._max_history:
@@ -139,7 +146,9 @@ class PerformanceMonitor:
                 "disk_free_gb": latest.disk_free_gb if latest else 0,
                 "uptime_s": latest.uptime_s if latest else 0,
                 "process_count": latest.process_count if latest else 0,
-            } if latest else {},
+            }
+            if latest
+            else {},
         }
 
     async def _collection_loop(self) -> None:

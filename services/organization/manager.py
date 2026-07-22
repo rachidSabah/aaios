@@ -232,7 +232,8 @@ class MissionManager:
         await self.store.create(mission)
         await self.persistence.save(mission)
         await self._record_history(
-            mission.mission_id, "mission_created",
+            mission.mission_id,
+            "mission_created",
             f"Mission '{title}' created with {len(mission.wbs_nodes)} WBS nodes",
         )
         await self._publish_event(
@@ -279,7 +280,9 @@ class MissionManager:
             mission.budget.total_usd = changes["budget_total_usd"]
         updated = await self.store.update(mission)
         await self.persistence.save(updated)
-        await self._record_history(mission_id, "mission_updated", f"Mission updated: {list(changes.keys())}")
+        await self._record_history(
+            mission_id, "mission_updated", f"Mission updated: {list(changes.keys())}"
+        )
         return updated
 
     async def delete_mission(self, mission_id: str) -> bool:
@@ -298,22 +301,28 @@ class MissionManager:
         # If in CREATED, move to PLANNING
         if mission.status == MissionStatus.CREATED.value:
             transition = self.state_machine.transition(
-                mission, MissionStatus.PLANNING.value,
-                reason="Starting mission", actor="mission_manager",
+                mission,
+                MissionStatus.PLANNING.value,
+                reason="Starting mission",
+                actor="mission_manager",
             )
             await self._publish_transition(mission, transition)
         # If in PLANNING, move to READY
         if mission.status == MissionStatus.PLANNING.value:
             transition = self.state_machine.transition(
-                mission, MissionStatus.READY.value,
-                reason="Planning complete", actor="mission_manager",
+                mission,
+                MissionStatus.READY.value,
+                reason="Planning complete",
+                actor="mission_manager",
             )
             await self._publish_transition(mission, transition)
         # If in READY, move to EXECUTING
         if mission.status == MissionStatus.READY.value:
             transition = self.state_machine.transition(
-                mission, MissionStatus.EXECUTING.value,
-                reason="Starting execution", actor="mission_manager",
+                mission,
+                MissionStatus.EXECUTING.value,
+                reason="Starting execution",
+                actor="mission_manager",
             )
             await self._publish_transition(mission, transition)
         updated = await self.store.update(mission)
@@ -325,8 +334,10 @@ class MissionManager:
         """Pause a mission."""
         mission = await self.store.get(mission_id)
         transition = self.state_machine.transition(
-            mission, MissionStatus.PAUSED.value,
-            reason=reason or "User requested pause", actor="mission_manager",
+            mission,
+            MissionStatus.PAUSED.value,
+            reason=reason or "User requested pause",
+            actor="mission_manager",
         )
         await self._publish_transition(mission, transition)
         updated = await self.store.update(mission)
@@ -338,8 +349,10 @@ class MissionManager:
         """Resume a paused mission."""
         mission = await self.store.get(mission_id)
         transition = self.state_machine.transition(
-            mission, MissionStatus.EXECUTING.value,
-            reason="User requested resume", actor="mission_manager",
+            mission,
+            MissionStatus.EXECUTING.value,
+            reason="User requested resume",
+            actor="mission_manager",
         )
         await self._publish_transition(mission, transition)
         updated = await self.store.update(mission)
@@ -351,8 +364,10 @@ class MissionManager:
         """Cancel a mission."""
         mission = await self.store.get(mission_id)
         transition = self.state_machine.transition(
-            mission, MissionStatus.CANCELLED.value,
-            reason=reason or "User requested cancellation", actor="mission_manager",
+            mission,
+            MissionStatus.CANCELLED.value,
+            reason=reason or "User requested cancellation",
+            actor="mission_manager",
         )
         await self._publish_transition(mission, transition)
         # Release all resources
@@ -366,22 +381,28 @@ class MissionManager:
         """Mark a mission as completed."""
         mission = await self.store.get(mission_id)
         transition = self.state_machine.transition(
-            mission, MissionStatus.COMPLETED.value,
-            reason="All objectives achieved", actor="mission_manager",
+            mission,
+            MissionStatus.COMPLETED.value,
+            reason="All objectives achieved",
+            actor="mission_manager",
         )
         await self._publish_transition(mission, transition)
         await self.resources.release_all_for_mission(mission_id)
         updated = await self.store.update(mission)
         await self.persistence.save(updated)
-        await self._record_history(mission_id, "mission_completed", "Mission completed successfully")
+        await self._record_history(
+            mission_id, "mission_completed", "Mission completed successfully"
+        )
         return updated
 
     async def fail_mission(self, mission_id: str, *, reason: str = "") -> Mission:
         """Mark a mission as failed."""
         mission = await self.store.get(mission_id)
         transition = self.state_machine.transition(
-            mission, MissionStatus.FAILED.value,
-            reason=reason or "Mission failed", actor="mission_manager",
+            mission,
+            MissionStatus.FAILED.value,
+            reason=reason or "Mission failed",
+            actor="mission_manager",
         )
         await self._publish_transition(mission, transition)
         await self.resources.release_all_for_mission(mission_id)
@@ -394,8 +415,10 @@ class MissionManager:
         """Replan a mission — transition back to PLANNING."""
         mission = await self.store.get(mission_id)
         transition = self.state_machine.transition(
-            mission, MissionStatus.PLANNING.value,
-            reason=reason or "Replanning requested", actor="mission_manager",
+            mission,
+            MissionStatus.PLANNING.value,
+            reason=reason or "Replanning requested",
+            actor="mission_manager",
         )
         await self._publish_transition(mission, transition)
         updated = await self.store.update(mission)
@@ -451,7 +474,8 @@ class MissionManager:
         await self.store.update(mission)
         await self.persistence.save(mission)
         await self._record_history(
-            mission_id, "wbs_node_added",
+            mission_id,
+            "wbs_node_added",
             f"WBS node '{title}' added (type={node_type})",
             {"node_id": node.node_id},
         )
@@ -476,7 +500,8 @@ class MissionManager:
         await self.store.update(mission)
         await self.persistence.save(mission)
         await self._record_history(
-            mission_id, "wbs_node_completed",
+            mission_id,
+            "wbs_node_completed",
             f"WBS node '{node.title}' {status}",
             {"node_id": node_id, "status": status},
         )
@@ -519,7 +544,8 @@ class MissionManager:
             mission_id=mission_id,
         )
         await self._record_history(
-            mission_id, "decision",
+            mission_id,
+            "decision",
             f"Decision: {decision.decision_type} by {decision.made_by}",
             decision.to_dict(),
         )
@@ -538,7 +564,9 @@ class MissionManager:
         if node is None:
             raise ValueError(f"Node {node_id} not found")
         return self.decision_engine.select_agent_for_task(
-            mission, node, available_agents=available_agents,
+            mission,
+            node,
+            available_agents=available_agents,
         )
 
     # --- Analytics + Search + Export ---

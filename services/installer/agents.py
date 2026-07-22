@@ -100,8 +100,11 @@ SUPPORTED_AGENTS: tuple[AgentSpec, ...] = (
         tool="hermes",
         agent_type="desktop",
         capabilities=[
-            "desktop_automation", "browser_automation", "file_management",
-            "window_management", "screenshot",
+            "desktop_automation",
+            "browser_automation",
+            "file_management",
+            "window_management",
+            "screenshot",
         ],
     ),
     AgentSpec(
@@ -185,7 +188,8 @@ class AgentBootstrapper:
                 result.error = f"registration failed: {e}"
                 _log.warning(
                     "installer.agent_registration_failed",
-                    name=result.name, error=str(e),
+                    name=result.name,
+                    error=str(e),
                 )
         return registered
 
@@ -215,7 +219,10 @@ class AgentBootstrapper:
             try:
                 install_result = subprocess.run(  # noqa: S603
                     spec.install_command,  # noqa: S607
-                    capture_output=True, text=True, timeout=300, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                    check=False,
                 )
                 if install_result.returncode == 0:
                     # Re-discover
@@ -223,7 +230,9 @@ class AgentBootstrapper:
                     new_result.registered = True
                     updated.append(new_result)
                 else:
-                    result.error = install_result.stderr[:200] if install_result.stderr else "install failed"
+                    result.error = (
+                        install_result.stderr[:200] if install_result.stderr else "install failed"
+                    )
                     updated.append(result)
             except (subprocess.SubprocessError, OSError) as e:
                 result.error = str(e)
@@ -255,7 +264,10 @@ class AgentBootstrapper:
         try:
             result = subprocess.run(  # noqa: S603
                 [path, *args],  # noqa: S607
-                capture_output=True, text=True, timeout=5, check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             if result.returncode == 0:
                 for line in result.stdout.splitlines():
@@ -265,9 +277,7 @@ class AgentBootstrapper:
         except (subprocess.SubprocessError, OSError):
             return ""
 
-    def _validate_agent(
-        self, spec: AgentSpec, path: str, version: str
-    ) -> bool:
+    def _validate_agent(self, spec: AgentSpec, path: str, version: str) -> bool:
         """Validate that the agent is functional.
 
         Validation checks:
@@ -281,7 +291,10 @@ class AgentBootstrapper:
         try:
             result = subprocess.run(  # noqa: S603
                 [path, "--help"],  # noqa: S607
-                capture_output=True, text=True, timeout=5, check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             # Some agents exit non-zero on --help; that's OK
             return result.returncode in (0, 1, 2)
@@ -296,6 +309,7 @@ class AgentBootstrapper:
         """
         import json
         from pathlib import Path
+
         if not self._workspace_root:
             return
         agents_dir = Path(self._workspace_root) / "agents"
@@ -330,6 +344,7 @@ class AgentBootstrapper:
     def _save_manifest(self, name: str, manifest: dict[str, Any]) -> None:
         import json
         from pathlib import Path
+
         if not self._workspace_root:
             return
         path = Path(self._workspace_root) / "agents" / f"{name}.manifest.json"
@@ -344,4 +359,5 @@ class AgentBootstrapper:
 
     def _now_iso(self) -> str:
         from datetime import UTC, datetime
+
         return datetime.now(UTC).isoformat()

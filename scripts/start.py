@@ -13,7 +13,6 @@ Usage:
 
 from __future__ import annotations
 
-
 import asyncio
 import json
 import os
@@ -37,18 +36,18 @@ async def _start_9router() -> None:
         claude_dir = Path.home() / ".claude"
         claude_dir.mkdir(parents=True, exist_ok=True)
         config_path = claude_dir / "config.json"
-        
+
         config_data = {}
         if config_path.is_file():
             try:
                 config_data = json.loads(config_path.read_text(encoding="utf-8"))
             except Exception:
                 pass
-                
+
         config_data["anthropic_api_base"] = "http://localhost:20128/v1"
         if not config_data.get("anthropic_api_key"):
             config_data["anthropic_api_key"] = "sk_9router"
-            
+
         config_path.write_text(json.dumps(config_data, indent=2), encoding="utf-8")
         _log.info("aaios.start.claude_cli_routed", config_path=str(config_path))
     except Exception as e:
@@ -61,7 +60,7 @@ async def _start_9router() -> None:
             is_running = True
     except Exception:
         pass
-        
+
     if is_running:
         _log.info("aaios.start.9router_already_running", port=20128)
         return
@@ -70,13 +69,16 @@ async def _start_9router() -> None:
     binary_path = None
     try:
         config_paths = [
-            Path(os.environ.get("ProgramData", "C:\\ProgramData")) / "AAiOS" / "config" / "agents.json",
+            Path(os.environ.get("ProgramData", "C:\\ProgramData"))
+            / "AAiOS"
+            / "config"
+            / "agents.json",
             Path.home() / ".config" / "aaios" / "agents.json",
-            Path("config") / "agents.json"
+            Path("config") / "agents.json",
         ]
         for p in config_paths:
             if p.is_file():
-                with open(p, "r", encoding="utf-8") as f:
+                with open(p, encoding="utf-8") as f:
                     data = json.load(f)
                     cfg = data.get("9router", {})
                     if cfg.get("binary_path"):
@@ -89,7 +91,10 @@ async def _start_9router() -> None:
         binary_path = shutil.which("9router")
 
     if not binary_path:
-        _log.warning("aaios.start.9router_binary_not_found", msg="9router binary not found. Skipping startup.")
+        _log.warning(
+            "aaios.start.9router_binary_not_found",
+            msg="9router binary not found. Skipping startup.",
+        )
         return
 
     # 4. Spawn 9router process in the background
@@ -97,42 +102,49 @@ async def _start_9router() -> None:
     try:
         # Run in tray mode, port 20128, no browser
         if binary_path.lower().endswith((".cmd", ".bat")):
-            proc = await asyncio.create_subprocess_shell(
+            await asyncio.create_subprocess_shell(
                 f'"{binary_path}" -p 20128 -n -t',
                 stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
+                stderr=asyncio.subprocess.DEVNULL,
             )
         else:
-            proc = await asyncio.create_subprocess_exec(
-                binary_path, "-p", "20128", "-n", "-t",
+            await asyncio.create_subprocess_exec(
+                binary_path,
+                "-p",
+                "20128",
+                "-n",
+                "-t",
                 stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
+                stderr=asyncio.subprocess.DEVNULL,
             )
-        
+
         await asyncio.sleep(1.0)
-        
+
         is_running_now = False
         try:
             with socket.create_connection(("127.0.0.1", 20128), timeout=0.5):
                 is_running_now = True
         except Exception:
             pass
-            
+
         if is_running_now:
             _log.info("aaios.start.9router_started_successfully", port=20128)
         else:
             _log.warning("aaios.start.9router_tray_failed_trying_direct")
             if binary_path.lower().endswith((".cmd", ".bat")):
-                proc = await asyncio.create_subprocess_shell(
+                await asyncio.create_subprocess_shell(
                     f'"{binary_path}" -p 20128 -n',
                     stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL
+                    stderr=asyncio.subprocess.DEVNULL,
                 )
             else:
-                proc = await asyncio.create_subprocess_exec(
-                    binary_path, "-p", "20128", "-n",
+                await asyncio.create_subprocess_exec(
+                    binary_path,
+                    "-p",
+                    "20128",
+                    "-n",
                     stdout=asyncio.subprocess.DEVNULL,
-                    stderr=asyncio.subprocess.DEVNULL
+                    stderr=asyncio.subprocess.DEVNULL,
                 )
             await asyncio.sleep(1.0)
             _log.info("aaios.start.9router_started_direct", port=20128)
@@ -142,8 +154,8 @@ async def _start_9router() -> None:
 
 async def _start_web_ui() -> None:
     """Check if Next.js Web UI is running. If not, start it in the background."""
-    import socket
     import shutil
+    import socket
     from pathlib import Path
 
     # 1. Check if already running on port 3000
@@ -161,7 +173,9 @@ async def _start_web_ui() -> None:
     # 2. Find pnpm binary
     pnpm_path = shutil.which("pnpm")
     if not pnpm_path:
-        _log.warning("aaios.start.pnpm_not_found", msg="pnpm binary not found. Skipping web UI startup.")
+        _log.warning(
+            "aaios.start.pnpm_not_found", msg="pnpm binary not found. Skipping web UI startup."
+        )
         return
 
     # 3. Start Next.js dev server in the background
@@ -174,14 +188,17 @@ async def _start_web_ui() -> None:
                 f'"{pnpm_path}" --filter @aaios/web dev',
                 cwd=str(app_root),
                 stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
+                stderr=asyncio.subprocess.DEVNULL,
             )
         else:
             proc = await asyncio.create_subprocess_exec(
-                pnpm_path, "--filter", "@aaios/web", "dev",
+                pnpm_path,
+                "--filter",
+                "@aaios/web",
+                "dev",
                 cwd=str(app_root),
                 stdout=asyncio.subprocess.DEVNULL,
-                stderr=asyncio.subprocess.DEVNULL
+                stderr=asyncio.subprocess.DEVNULL,
             )
         _log.info("aaios.start.web_ui_started_background", pid=proc.pid)
     except Exception as e:
@@ -409,10 +426,10 @@ async def boot_and_serve(
     _log.info("aaios.start.starting_api", host=host, port=port)
     print(f"\n{'=' * 60}")
     print("  AAiOS v1.0.0 is LIVE")
-    print(f"  Dashboard: http://localhost:3000")
+    print("  Dashboard: http://localhost:3000")
     print(f"  API:       http://{host}:{bind_port}")
     print(f"  Docs:      http://{host}:{bind_port}/docs")
-    print(f"  9router:   http://localhost:20128")
+    print("  9router:   http://localhost:20128")
     print(f"  Health:    http://{host}:{bind_port}/healthz")
     print(f"  Agents:    {', '.join(agents_registered) or 'none (install agents)'}")
     print(f"  Providers: {len(router.list_providers())}")
@@ -464,6 +481,7 @@ async def boot_and_serve(
         """Wait for services to be ready, then open the AAiOS dashboard."""
         await asyncio.sleep(2.0)
         import webbrowser
+
         try:
             # Primary: AAiOS agentic OS dashboard (Next.js on port 3000)
             webbrowser.open("http://localhost:3000")

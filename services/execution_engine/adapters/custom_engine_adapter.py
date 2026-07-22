@@ -2,9 +2,6 @@ from __future__ import annotations
 
 import asyncio
 import json
-import os
-from collections.abc import AsyncIterator
-from pathlib import Path
 from typing import Any
 
 from core.contracts.execution_engine import (
@@ -12,7 +9,6 @@ from core.contracts.execution_engine import (
     EngineConfig,
     EngineCostEstimate,
     EngineLatencyEstimate,
-    EngineType,
 )
 from core.logging import get_logger
 from services.execution_engine.adapters.base import BaseExecutionEngineAdapter
@@ -60,7 +56,9 @@ class CustomEngineAdapter(BaseExecutionEngineAdapter):
             self._process.stdin.write(request.encode())
             await self._process.stdin.drain()
             assert self._process.stdout is not None
-            response = await asyncio.wait_for(self._process.stdout.readline(), timeout=self._config.extra.get("timeout_s", 300))
+            response = await asyncio.wait_for(
+                self._process.stdout.readline(), timeout=self._config.extra.get("timeout_s", 300)
+            )
             return json.loads(response.decode()) if response else {"result": "empty"}
         return {"goal": goal, "result": f"custom_execution: {command[:50]}", "mock": True}
 

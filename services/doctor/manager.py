@@ -314,6 +314,7 @@ class DoctorManager:
         # Check PowerShell version
         try:
             import subprocess
+
             res = subprocess.run(
                 ["powershell", "-NoProfile", "-Command", "$PSVersionTable.PSVersion.Major"],  # noqa: S603, S607
                 capture_output=True,
@@ -399,7 +400,9 @@ class DoctorManager:
                 conn = sqlite3.connect(f"file:{audit_db}?mode=ro", uri=True)
                 try:
                     cursor = conn.cursor()
-                    cursor.execute("SELECT hash_prev, hash_current FROM audit_events ORDER BY id ASC;")
+                    cursor.execute(
+                        "SELECT hash_prev, hash_current FROM audit_events ORDER BY id ASC;"
+                    )
                     rows = cursor.fetchall()
                     if rows:
                         # Verify the hash chain
@@ -460,6 +463,7 @@ class DoctorManager:
         # Memory Scan
         try:
             import psutil
+
             mem = psutil.virtual_memory()
             free_mem_gb = mem.available / (1024**3)
             if free_mem_gb < 1.0:
@@ -514,10 +518,13 @@ class DoctorManager:
         if config_yaml.exists():
             try:
                 import yaml
+
                 cfg = yaml.safe_load(config_yaml.read_text(encoding="utf-8")) or {}
                 providers = cfg.get("providers", {})
                 for provider_name, provider_cfg in providers.items():
-                    api_key = provider_cfg.get("api_key") or os.environ.get(f"{provider_name.upper()}_API_KEY")
+                    api_key = provider_cfg.get("api_key") or os.environ.get(
+                        f"{provider_name.upper()}_API_KEY"
+                    )
                     if api_key:
                         has_keys = True
                         # If online mode requested, we can run a mock validation or a fast check
@@ -540,7 +547,12 @@ class DoctorManager:
 
         if not has_keys:
             # Check environment variables
-            common_env_keys = ["OPENAI_API_KEY", "ANTHROPIC_API_KEY", "GEMINI_API_KEY", "DEEPSEEK_API_KEY"]
+            common_env_keys = [
+                "OPENAI_API_KEY",
+                "ANTHROPIC_API_KEY",
+                "GEMINI_API_KEY",
+                "DEEPSEEK_API_KEY",
+            ]
             has_env = any(os.environ.get(k) for k in common_env_keys)
             if not has_env:
                 issues.append(

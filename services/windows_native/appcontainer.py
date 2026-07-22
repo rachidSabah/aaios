@@ -60,8 +60,17 @@ class SandboxCapability:
     SHARED_USER_CERTIFICATES = "shared_user_certificates"
 
     ALL = [
-        INTERNET, INTERNET_SERVER, PRIVATE_NETWORK, DOCUMENTS, PICTURES,
-        VIDEOS, MUSIC, REMOVABLE_STORAGE, MICROPHONE, WEBCAM, LOCATION,
+        INTERNET,
+        INTERNET_SERVER,
+        PRIVATE_NETWORK,
+        DOCUMENTS,
+        PICTURES,
+        VIDEOS,
+        MUSIC,
+        REMOVABLE_STORAGE,
+        MICROPHONE,
+        WEBCAM,
+        LOCATION,
         SHARED_USER_CERTIFICATES,
     ]
 
@@ -155,12 +164,15 @@ class AppContainerManager:
                 # Real implementation: CreateAppContainerProfile(name, ...)
                 _log.info(
                     "Created real AppContainer profile '%s' (sid=%s, caps=%s)",
-                    name, sid, capabilities,
+                    name,
+                    sid,
+                    capabilities,
                 )
             else:
                 _log.info(
                     "AppContainer not supported on %s; recording stub '%s'",
-                    sys.platform, name,
+                    sys.platform,
+                    name,
                 )
             self._profiles[name] = profile
             return profile
@@ -208,12 +220,16 @@ class AppContainerManager:
                 # with PROC_THREAD_ATTRIBUTE_JOB_LIST → AppContainer SID
                 _log.info(
                     "Launched pid=%d in AppContainer '%s' (exe=%s)",
-                    pid, profile_name, exe_path,
+                    pid,
+                    profile_name,
+                    exe_path,
                 )
             else:
                 _log.info(
                     "Stub launch: pid=%d in AppContainer '%s' (exe=%s)",
-                    pid, profile_name, exe_path,
+                    pid,
+                    profile_name,
+                    exe_path,
                 )
             self._processes[pid] = proc
             return proc

@@ -188,10 +188,7 @@ class ProviderConfigurator:
 
     def discover_cloud(self) -> list[ProviderCheck]:
         """Discover only cloud providers (everything except local)."""
-        return [
-            self._check_one(n) for n in SUPPORTED_PROVIDERS
-            if n not in ("ollama", "lm_studio")
-        ]
+        return [self._check_one(n) for n in SUPPORTED_PROVIDERS if n not in ("ollama", "lm_studio")]
 
     def configure_provider(
         self,
@@ -236,16 +233,19 @@ class ProviderConfigurator:
             # Local provider — no key required
             check.healthy = True
         # Save the configuration to the workspace
-        self._save_provider_config(name, {
-            "api_key_set": bool(api_key or os.environ.get(env_var, "")),
-            "base_url": base_url or meta["base_url"],
-            "proxy_url": proxy_url,
-            "region": region,
-            "rate_limit_per_minute": rate_limit_per_minute,
-            "fallback_priority": fallback_priority,
-            "enabled": check.enabled,
-            "healthy": check.healthy,
-        })
+        self._save_provider_config(
+            name,
+            {
+                "api_key_set": bool(api_key or os.environ.get(env_var, "")),
+                "base_url": base_url or meta["base_url"],
+                "proxy_url": proxy_url,
+                "region": region,
+                "rate_limit_per_minute": rate_limit_per_minute,
+                "fallback_priority": fallback_priority,
+                "enabled": check.enabled,
+                "healthy": check.healthy,
+            },
+        )
         return check
 
     def validate_provider(self, name: str) -> ProviderCheck:
@@ -265,6 +265,7 @@ class ProviderConfigurator:
         try:
             import socket
             from urllib.parse import urlparse
+
             url = config.get("base_url", "")
             if url:
                 parsed = urlparse(url)
@@ -287,10 +288,7 @@ class ProviderConfigurator:
 
     def list_supported(self) -> list[dict[str, Any]]:
         """List all supported providers with their metadata."""
-        return [
-            {"name": name, **meta}
-            for name, meta in _PROVIDER_META.items()
-        ]
+        return [{"name": name, **meta} for name, meta in _PROVIDER_META.items()]
 
     def disable_provider(self, name: str) -> bool:
         """Disable a provider (e.g. after a failed health check)."""
@@ -302,9 +300,7 @@ class ProviderConfigurator:
         self._save_provider_config(name, config)
         return True
 
-    def configure_fallback_routing(
-        self, priorities: dict[str, int]
-    ) -> dict[str, int]:
+    def configure_fallback_routing(self, priorities: dict[str, int]) -> dict[str, int]:
         """Configure fallback routing across providers.
 
         Args:
@@ -333,8 +329,7 @@ class ProviderConfigurator:
         config = self._load_provider_config(name)
         env_var = meta["env_var"]
         api_key_present = bool(
-            (config and config.get("api_key_set"))
-            or (env_var and os.environ.get(env_var))
+            (config and config.get("api_key_set")) or (env_var and os.environ.get(env_var))
         )
         configured = bool(config)
         enabled = bool(config and config.get("enabled")) if configured else False
@@ -343,6 +338,7 @@ class ProviderConfigurator:
             try:
                 import socket
                 from urllib.parse import urlparse
+
                 url = meta["base_url"]
                 parsed = urlparse(url)
                 host = parsed.hostname or "127.0.0.1"
@@ -369,6 +365,7 @@ class ProviderConfigurator:
 
     def _provider_config_path(self, name: str) -> str:
         from pathlib import Path
+
         if not self._workspace_root:
             return ""
         return str(Path(self._workspace_root) / "providers" / f"{name}.json")
@@ -376,6 +373,7 @@ class ProviderConfigurator:
     def _save_provider_config(self, name: str, config: dict[str, Any]) -> None:
         import json
         from pathlib import Path
+
         if not self._workspace_root:
             return
         path = Path(self._workspace_root) / "providers" / f"{name}.json"
@@ -387,6 +385,7 @@ class ProviderConfigurator:
     def _load_provider_config(self, name: str) -> dict[str, Any] | None:
         import json
         from pathlib import Path
+
         if not self._workspace_root:
             return None
         path = Path(self._workspace_root) / "providers" / f"{name}.json"

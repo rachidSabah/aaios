@@ -95,6 +95,7 @@ class ResetManager:
         # Re-bootstrap
         from services.installer.database import DatabaseBootstrapper
         from services.installer.workspace import WorkspaceBootstrapper
+
         ws = WorkspaceBootstrapper(self.workspace_root)
         db_boot = DatabaseBootstrapper(ws)
         db_boot.bootstrap_all()
@@ -156,6 +157,7 @@ class ResetManager:
 
         from services.installer.database import DatabaseBootstrapper
         from services.installer.workspace import WorkspaceBootstrapper
+
         ws = WorkspaceBootstrapper(self.workspace_root)
         db_boot = DatabaseBootstrapper(ws)
         db_boot.bootstrap_all()

@@ -83,20 +83,35 @@ class PolicyEngine:
 
     # Actions that always require approval
     HIGH_RISK_ACTIONS: set[str] = {
-        "delete_file", "delete_directory", "format_disk",
-        "git_push", "git_push_force", "git_reset_hard",
-        "docker_rm", "docker_rmi", "docker_system_prune",
-        "k8s_delete", "k8s_scale_down",
-        "db_drop", "db_truncate", "db_delete",
-        "cloud_terminate", "cloud_delete",
-        "ssh_shutdown", "ssh_reboot",
+        "delete_file",
+        "delete_directory",
+        "format_disk",
+        "git_push",
+        "git_push_force",
+        "git_reset_hard",
+        "docker_rm",
+        "docker_rmi",
+        "docker_system_prune",
+        "k8s_delete",
+        "k8s_scale_down",
+        "db_drop",
+        "db_truncate",
+        "db_delete",
+        "cloud_terminate",
+        "cloud_delete",
+        "ssh_shutdown",
+        "ssh_reboot",
         "email_send_bulk",
     }
 
     CRITICAL_RISK_ACTIONS: set[str] = {
-        "format_disk", "git_push_force", "git_reset_hard",
-        "docker_system_prune", "k8s_delete_namespace",
-        "db_drop_database", "cloud_terminate_instance",
+        "format_disk",
+        "git_push_force",
+        "git_reset_hard",
+        "docker_system_prune",
+        "k8s_delete_namespace",
+        "db_drop_database",
+        "cloud_terminate_instance",
     }
 
     def __init__(self) -> None:
@@ -124,8 +139,10 @@ class PolicyEngine:
 
         # 3. Host check (for network operations)
         if request.domain in (
-            ExecutionDomain.SSH.value, ExecutionDomain.REST_API.value,
-            ExecutionDomain.CLOUD.value, ExecutionDomain.DATABASE.value,
+            ExecutionDomain.SSH.value,
+            ExecutionDomain.REST_API.value,
+            ExecutionDomain.CLOUD.value,
+            ExecutionDomain.DATABASE.value,
         ):
             host = str(request.parameters.get("host", ""))
             if host and not pol.is_host_allowed(host):
@@ -176,8 +193,10 @@ class PolicyEngine:
             return "high"
         # Domain-based risk
         high_risk_domains = {
-            ExecutionDomain.DOCKER.value, ExecutionDomain.KUBERNETES.value,
-            ExecutionDomain.CLOUD.value, ExecutionDomain.DATABASE.value,
+            ExecutionDomain.DOCKER.value,
+            ExecutionDomain.KUBERNETES.value,
+            ExecutionDomain.CLOUD.value,
+            ExecutionDomain.DATABASE.value,
         }
         if request.domain in high_risk_domains:
             return "medium"
@@ -235,7 +254,10 @@ class ApprovalEngine:
             self._pending[approval.approval_id] = approval
         _log.info(
             "Approval requested: execution=%s domain=%s action=%s risk=%s",
-            execution_id, domain, action, risk_level,
+            execution_id,
+            domain,
+            action,
+            risk_level,
         )
         return approval
 

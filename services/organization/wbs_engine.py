@@ -72,7 +72,8 @@ class WorkBreakdownEngine:
             nodes.append(node)
         _log.info(
             "Decomposed mission '%s' (flat): %d tasks",
-            mission.title, len(nodes),
+            mission.title,
+            len(nodes),
         )
         return nodes
 
@@ -99,7 +100,8 @@ class WorkBreakdownEngine:
             nodes.append(task)
         _log.info(
             "Decomposed mission '%s' (single_project): 1 project + %d tasks",
-            mission.title, len(mission.objectives),
+            mission.title,
+            len(mission.objectives),
         )
         return nodes
 
@@ -113,7 +115,9 @@ class WorkBreakdownEngine:
                 title=f"Project {i + 1}: {obj[:60]}",
                 description=f"Project for objective: {obj}",
                 priority=mission.priority,
-                depends_on=[nodes[-1].node_id] if nodes and nodes[-1].node_type == WBSType.PROJECT.value else [],
+                depends_on=[nodes[-1].node_id]
+                if nodes and nodes[-1].node_type == WBSType.PROJECT.value
+                else [],
             )
             mission.wbs_nodes.append(project)
             nodes.append(project)
@@ -148,7 +152,8 @@ class WorkBreakdownEngine:
 
         _log.info(
             "Decomposed mission '%s' (objective_per_project): %d nodes",
-            mission.title, len(nodes),
+            mission.title,
+            len(nodes),
         )
         return nodes
 
@@ -309,7 +314,8 @@ class WorkBreakdownEngine:
         layers: list[list[str]] = []
         while remaining:
             layer = [
-                nid for nid in remaining
+                nid
+                for nid in remaining
                 if all(
                     dep in completed
                     for n in mission.wbs_nodes

@@ -81,11 +81,14 @@ class IntelligenceManager:
         # Try to collect from MissionManager
         try:
             from services.organization import MissionManager
+
             mgr = MissionManager()
             await mgr.start()
             summary = await mgr.get_mission_summary()
             metrics.total_missions = summary.total_missions
-            metrics.active_missions = summary.by_status.get("executing", 0) + summary.by_status.get("planning", 0)
+            metrics.active_missions = summary.by_status.get("executing", 0) + summary.by_status.get(
+                "planning", 0
+            )
             metrics.total_wbs_nodes = summary.total_wbs_nodes
             metrics.completed_wbs_nodes = summary.total_completed_nodes
             metrics.total_budget_usd = summary.total_budget_usd
@@ -102,6 +105,7 @@ class IntelligenceManager:
         # Try to collect from LearningEngine
         try:
             from services.experience import LearningEngine
+
             engine = LearningEngine()
             stats = await engine.learning_stats()
             metrics.total_experiences = stats.total_experiences
@@ -114,6 +118,7 @@ class IntelligenceManager:
         # Try to collect from ResourceManager
         try:
             from services.organization import ResourceManager
+
             rm = ResourceManager()
             util = await rm.get_utilization()
             metrics.active_agents = util.total_agents_assigned

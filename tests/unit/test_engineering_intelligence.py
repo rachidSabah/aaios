@@ -137,6 +137,7 @@ class TestRecommendationEngine:
 
     async def test_recommend_all(self) -> None:
         from services.engineering.intelligence import ArchAnalysisResult, EngineeringMetrics
+
         metrics = EngineeringMetrics(
             avg_cyclomatic_complexity=15.0,
             test_coverage_pct=30.0,
@@ -163,6 +164,7 @@ class TestRecommendationEngine:
 
     async def test_no_recommendations_for_healthy_code(self) -> None:
         from services.engineering.intelligence import ArchAnalysisResult, EngineeringMetrics
+
         metrics = EngineeringMetrics(
             avg_cyclomatic_complexity=5.0,
             test_coverage_pct=90.0,
@@ -181,6 +183,7 @@ class TestRiskEngine:
 
     async def test_assess_all(self) -> None:
         from services.engineering.intelligence import ArchAnalysisResult, EngineeringMetrics
+
         metrics = EngineeringMetrics(
             test_coverage_pct=30.0,
             avg_cyclomatic_complexity=15.0,
@@ -204,6 +207,7 @@ class TestRiskEngine:
 
     async def test_no_risks_for_healthy_code(self) -> None:
         from services.engineering.intelligence import ArchAnalysisResult, EngineeringMetrics
+
         metrics = EngineeringMetrics(
             test_coverage_pct=90.0,
             avg_cyclomatic_complexity=5.0,

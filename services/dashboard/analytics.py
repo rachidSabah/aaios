@@ -40,8 +40,7 @@ class Analytics:
             else 0.0
         )
         avg_latency = (
-            sum(b["avg_duration_s"] * b["sample_count"] for b in minute_buckets)
-            / total_events
+            sum(b["avg_duration_s"] * b["sample_count"] for b in minute_buckets) / total_events
             if total_events > 0
             else 0.0
         )

@@ -178,34 +178,29 @@ class DecisionEngine:
 
         # Risk analysis
         high_risk_count = sum(
-            1 for r in mission.risks
-            if r.status == "open"
-            and r.risk_score >= self.HIGH_RISK_THRESHOLD
+            1
+            for r in mission.risks
+            if r.status == "open" and r.risk_score >= self.HIGH_RISK_THRESHOLD
         )
 
         # Agent/provider failure rates (from mission decisions history)
         agent_failures = sum(
-            1 for d in mission.decisions
-            if d.decision_type == DecisionType.SWITCH_AGENT.value
+            1 for d in mission.decisions if d.decision_type == DecisionType.SWITCH_AGENT.value
         )
         provider_failures = sum(
-            1 for d in mission.decisions
-            if d.decision_type == DecisionType.SWITCH_PROVIDER.value
+            1 for d in mission.decisions if d.decision_type == DecisionType.SWITCH_PROVIDER.value
         )
         total_assignments = max(1, len(mission.wbs_nodes))
         agent_failure_rate = agent_failures / total_assignments
         provider_failure_rate = provider_failures / total_assignments
 
         recent_replans = sum(
-            1 for d in mission.decisions
-            if d.decision_type == DecisionType.REPLAN.value
+            1 for d in mission.decisions if d.decision_type == DecisionType.REPLAN.value
         )
 
         time_since_start = mission.elapsed_s()
         estimated_total = sum(n.estimated_duration_s for n in mission.wbs_nodes)
-        elapsed_vs_estimated = (
-            time_since_start / estimated_total if estimated_total > 0 else 0.0
-        )
+        elapsed_vs_estimated = time_since_start / estimated_total if estimated_total > 0 else 0.0
 
         return DecisionEvidence(
             mission_status=mission.status,
@@ -239,157 +234,180 @@ class DecisionEngine:
 
         # Rule 1: Budget over → pause + escalate
         if evidence.budget_over:
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.PAUSE.value,
-                should_act=True,
-                confidence=0.95,
-                reasoning=f"Mission is over budget (utilization: {evidence.budget_utilization_pct:.1f}%). "
-                          "Pausing to prevent further spend until budget is reviewed.",
-                evidence=evidence.to_dict(),
-                recommended_action="pause_mission",
-                urgency="critical",
-            ))
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.PAUSE.value,
+                    should_act=True,
+                    confidence=0.95,
+                    reasoning=f"Mission is over budget (utilization: {evidence.budget_utilization_pct:.1f}%). "
+                    "Pausing to prevent further spend until budget is reviewed.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="pause_mission",
+                    urgency="critical",
+                )
+            )
 
         # Rule 2: Deadline passed → fail or replan
         if evidence.deadline_passed and mission.status == MissionStatus.EXECUTING.value:
             if evidence.recent_replan_count >= self.MAX_REPLANS_BEFORE_ESCALATION:
-                recommendations.append(DecisionRecommendation(
-                    decision_type=DecisionType.CANCEL.value,
-                    should_act=True,
-                    confidence=0.9,
-                    reasoning=f"Deadline passed and {evidence.recent_replan_count} replans already attempted. "
-                              "Cancelling to stop further resource consumption.",
-                    evidence=evidence.to_dict(),
-                    recommended_action="cancel_mission",
-                    urgency="critical",
-                ))
+                recommendations.append(
+                    DecisionRecommendation(
+                        decision_type=DecisionType.CANCEL.value,
+                        should_act=True,
+                        confidence=0.9,
+                        reasoning=f"Deadline passed and {evidence.recent_replan_count} replans already attempted. "
+                        "Cancelling to stop further resource consumption.",
+                        evidence=evidence.to_dict(),
+                        recommended_action="cancel_mission",
+                        urgency="critical",
+                    )
+                )
             else:
-                recommendations.append(DecisionRecommendation(
-                    decision_type=DecisionType.REPLAN.value,
-                    should_act=True,
-                    confidence=0.85,
-                    reasoning="Deadline passed. Replanning to prioritize remaining deliverables.",
-                    evidence=evidence.to_dict(),
-                    recommended_action="replan_mission",
-                    urgency="critical",
-                ))
+                recommendations.append(
+                    DecisionRecommendation(
+                        decision_type=DecisionType.REPLAN.value,
+                        should_act=True,
+                        confidence=0.85,
+                        reasoning="Deadline passed. Replanning to prioritize remaining deliverables.",
+                        evidence=evidence.to_dict(),
+                        recommended_action="replan_mission",
+                        urgency="critical",
+                    )
+                )
 
         # Rule 3: Deadline approaching + low completion → escalate
         if evidence.deadline_approaching and evidence.completion_pct < 50.0:
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.REQUEST_APPROVAL.value,
-                should_act=True,
-                confidence=0.8,
-                reasoning=f"Deadline approaching in <24h but only {evidence.completion_pct:.1f}% complete. "
-                          "Requesting approval for deadline extension or scope reduction.",
-                evidence=evidence.to_dict(),
-                recommended_action="request_deadline_extension",
-                urgency="high",
-            ))
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.REQUEST_APPROVAL.value,
+                    should_act=True,
+                    confidence=0.8,
+                    reasoning=f"Deadline approaching in <24h but only {evidence.completion_pct:.1f}% complete. "
+                    "Requesting approval for deadline extension or scope reduction.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="request_deadline_extension",
+                    urgency="high",
+                )
+            )
 
         # Rule 4: Quality below threshold → reflect + rework
         if evidence.quality_below_threshold and evidence.quality_score > 0:
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.REFLECT.value,
-                should_act=True,
-                confidence=0.75,
-                reasoning=f"Quality score {evidence.quality_score:.2f} is below threshold {self.QUALITY_THRESHOLD}. "
-                          "Triggering reflection to identify quality issues.",
-                evidence=evidence.to_dict(),
-                recommended_action="trigger_reflection",
-                urgency="high",
-            ))
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.REFLECT.value,
+                    should_act=True,
+                    confidence=0.75,
+                    reasoning=f"Quality score {evidence.quality_score:.2f} is below threshold {self.QUALITY_THRESHOLD}. "
+                    "Triggering reflection to identify quality issues.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="trigger_reflection",
+                    urgency="high",
+                )
+            )
 
         # Rule 5: High failure rate → switch agent or provider
         if evidence.agent_failure_rate > self.FAILURE_RATE_THRESHOLD:
             failing_nodes = [
-                n.node_id for n in mission.wbs_nodes
-                if n.status == "failed" and n.assigned_agent_id
+                n.node_id for n in mission.wbs_nodes if n.status == "failed" and n.assigned_agent_id
             ]
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.SWITCH_AGENT.value,
-                should_act=True,
-                confidence=0.8,
-                reasoning=f"Agent failure rate {evidence.agent_failure_rate:.1%} exceeds threshold "
-                          f"{self.FAILURE_RATE_THRESHOLD:.0%}. Switching to alternative agent.",
-                evidence=evidence.to_dict(),
-                recommended_action="switch_agent",
-                affected_node_ids=failing_nodes,
-                urgency="high",
-            ))
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.SWITCH_AGENT.value,
+                    should_act=True,
+                    confidence=0.8,
+                    reasoning=f"Agent failure rate {evidence.agent_failure_rate:.1%} exceeds threshold "
+                    f"{self.FAILURE_RATE_THRESHOLD:.0%}. Switching to alternative agent.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="switch_agent",
+                    affected_node_ids=failing_nodes,
+                    urgency="high",
+                )
+            )
 
         if evidence.provider_failure_rate > self.FAILURE_RATE_THRESHOLD:
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.SWITCH_PROVIDER.value,
-                should_act=True,
-                confidence=0.8,
-                reasoning=f"Provider failure rate {evidence.provider_failure_rate:.1%} exceeds threshold "
-                          f"{self.FAILURE_RATE_THRESHOLD:.0%}. Switching to alternative provider.",
-                evidence=evidence.to_dict(),
-                recommended_action="switch_provider",
-                urgency="high",
-            ))
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.SWITCH_PROVIDER.value,
+                    should_act=True,
+                    confidence=0.8,
+                    reasoning=f"Provider failure rate {evidence.provider_failure_rate:.1%} exceeds threshold "
+                    f"{self.FAILURE_RATE_THRESHOLD:.0%}. Switching to alternative provider.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="switch_provider",
+                    urgency="high",
+                )
+            )
 
         # Rule 6: Blocked tasks → replan or research
         if evidence.blocked_task_count > 0:
-            blocked_nodes = [
-                n.node_id for n in mission.wbs_nodes if n.status == "blocked"
-            ]
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.RESEARCH.value,
-                should_act=True,
-                confidence=0.7,
-                reasoning=f"{evidence.blocked_task_count} tasks are blocked. "
-                          "Researching alternative approaches or unblocking strategies.",
-                evidence=evidence.to_dict(),
-                recommended_action="research_unblock",
-                affected_node_ids=blocked_nodes,
-                urgency="normal",
-            ))
+            blocked_nodes = [n.node_id for n in mission.wbs_nodes if n.status == "blocked"]
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.RESEARCH.value,
+                    should_act=True,
+                    confidence=0.7,
+                    reasoning=f"{evidence.blocked_task_count} tasks are blocked. "
+                    "Researching alternative approaches or unblocking strategies.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="research_unblock",
+                    affected_node_ids=blocked_nodes,
+                    urgency="normal",
+                )
+            )
 
         # Rule 7: High risk materializing → pause + mitigate
         materialized_risks = [
-            r for r in mission.risks
-            if r.status == "materialized" and r.severity in (
-                RiskSeverity.CRITICAL.value, RiskSeverity.HIGH.value,
+            r
+            for r in mission.risks
+            if r.status == "materialized"
+            and r.severity
+            in (
+                RiskSeverity.CRITICAL.value,
+                RiskSeverity.HIGH.value,
             )
         ]
         if materialized_risks:
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.PAUSE.value,
-                should_act=True,
-                confidence=0.9,
-                reasoning=f"{len(materialized_risks)} high-severity risks have materialized. "
-                          "Pausing mission to implement mitigations.",
-                evidence=evidence.to_dict(),
-                recommended_action="pause_for_risk_mitigation",
-                urgency="critical",
-            ))
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.PAUSE.value,
+                    should_act=True,
+                    confidence=0.9,
+                    reasoning=f"{len(materialized_risks)} high-severity risks have materialized. "
+                    "Pausing mission to implement mitigations.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="pause_for_risk_mitigation",
+                    urgency="critical",
+                )
+            )
 
         # Rule 8: Pending approvals → request
         if evidence.pending_approval_count > 0:
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.REQUEST_APPROVAL.value,
-                should_act=True,
-                confidence=0.6,
-                reasoning=f"{evidence.pending_approval_count} approval gates are pending. "
-                          "Notifying approvers.",
-                evidence=evidence.to_dict(),
-                recommended_action="notify_approvers",
-                urgency="normal",
-            ))
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.REQUEST_APPROVAL.value,
+                    should_act=True,
+                    confidence=0.6,
+                    reasoning=f"{evidence.pending_approval_count} approval gates are pending. "
+                    "Notifying approvers.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="notify_approvers",
+                    urgency="normal",
+                )
+            )
 
         # Rule 9: Everything looks good → continue
         if not recommendations:
-            recommendations.append(DecisionRecommendation(
-                decision_type=DecisionType.CONTINUE.value,
-                should_act=True,
-                confidence=0.9,
-                reasoning="No issues detected. Mission is progressing normally. Continue execution.",
-                evidence=evidence.to_dict(),
-                recommended_action="continue_execution",
-                urgency="low",
-            ))
+            recommendations.append(
+                DecisionRecommendation(
+                    decision_type=DecisionType.CONTINUE.value,
+                    should_act=True,
+                    confidence=0.9,
+                    reasoning="No issues detected. Mission is progressing normally. Continue execution.",
+                    evidence=evidence.to_dict(),
+                    recommended_action="continue_execution",
+                    urgency="low",
+                )
+            )
 
         # Sort by urgency
         urgency_order = {"critical": 0, "high": 1, "normal": 2, "low": 3}
@@ -416,8 +434,10 @@ class DecisionEngine:
         mission.decisions.append(decision)
         _log.info(
             "Decision for mission %s: %s (confidence=%.2f, urgency=%s)",
-            mission.mission_id, decision.decision_type,
-            recommendation.confidence, recommendation.urgency,
+            mission.mission_id,
+            decision.decision_type,
+            recommendation.confidence,
+            recommendation.urgency,
         )
         return decision
 
@@ -499,7 +519,11 @@ class DecisionEngine:
     ) -> DecisionRecommendation:
         """Recommend a provider for a WBS node based on history + cost."""
         # If the node already has a provider assigned, keep it unless it's failing
-        if node.assigned_provider and available_providers and node.assigned_provider in available_providers:
+        if (
+            node.assigned_provider
+            and available_providers
+            and node.assigned_provider in available_providers
+        ):
             return DecisionRecommendation(
                 decision_type=DecisionType.SWITCH_PROVIDER.value,
                 should_act=False,
@@ -534,7 +558,11 @@ class DecisionEngine:
         available_agents: list[str] | None = None,
     ) -> DecisionRecommendation:
         """Recommend an agent for a WBS node based on capabilities + history."""
-        if node.assigned_agent_id and available_agents and node.assigned_agent_id in available_agents:
+        if (
+            node.assigned_agent_id
+            and available_agents
+            and node.assigned_agent_id in available_agents
+        ):
             return DecisionRecommendation(
                 decision_type=DecisionType.SWITCH_AGENT.value,
                 should_act=False,

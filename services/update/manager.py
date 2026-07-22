@@ -17,16 +17,15 @@ Desktop UI, diagnostics, and audit trail observe real state — no simulation.
 
 from __future__ import annotations
 
-import asyncio
 from datetime import UTC, datetime
 from pathlib import Path
 from uuid import uuid4
 
 from core.contracts.actor import ActorRef
-from core.contracts.event import Event, EventTopic
+from core.contracts.event import Event
 from core.event_bus import get_bus
 from core.logging import get_logger
-from services.update.channels import ChannelPolicy, ReleaseChannelManager
+from services.update.channels import ReleaseChannelManager
 from services.update.download import download_asset
 from services.update.models import (
     ReleaseChannel,
@@ -34,7 +33,7 @@ from services.update.models import (
     UpdateReport,
     UpdateStatus,
 )
-from services.update.provider import ManifestAsset, AssetKind, UpdateManifest
+from services.update.provider import AssetKind, ManifestAsset, UpdateManifest
 from services.update.rollback import RollbackManager
 from services.update.verify import PackageVerifier, VerificationResult
 from services.update.version import VersionManager
@@ -75,9 +74,7 @@ class UpdateManager:
         rollback: RollbackManager | None = None,
         verifier: PackageVerifier | None = None,
     ) -> None:
-        self.workspace_root = Path(
-            workspace_root or self._find_workspace_root()
-        ).resolve()
+        self.workspace_root = Path(workspace_root or self._find_workspace_root()).resolve()
         self.current_version = current_version
         self.channels = channels or ReleaseChannelManager()
         self._rollback = rollback or RollbackManager(self.workspace_root)
@@ -96,7 +93,7 @@ class UpdateManager:
         if not hasattr(provider, "fetch_latest") or not hasattr(provider, "name"):
             raise UpdateError("provider must implement UpdateProvider")
         self._providers.append(provider)
-        _log.info("update.provider.registered", name=getattr(provider, "name"))
+        _log.info("update.provider.registered", name=provider.name)
 
     @property
     def provider(self) -> object | None:
@@ -113,9 +110,7 @@ class UpdateManager:
 
     # -- check ---------------------------------------------------------
 
-    async def check_for_updates(
-        self, channel: ReleaseChannel | None = None
-    ) -> UpdateInfo | None:
+    async def check_for_updates(self, channel: ReleaseChannel | None = None) -> UpdateInfo | None:
         """Check enabled channels for a genuine upgrade. Returns info or None."""
         if self._pinned_version:
             _log.info("update.check.skipped_pinned", pinned=self._pinned_version)

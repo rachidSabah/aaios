@@ -140,12 +140,16 @@ class ResearchManager:
 
     def get_research_agent(self, agent_type: str) -> dict[str, Any] | None:
         agent = self.agents.get_agent(agent_type)
-        return {
-            "agent_type": agent.agent_type.value,
-            "display_name": agent.display_name,
-            "description": agent.description,
-            "default_reliability": agent.default_reliability.value,
-        } if agent else None
+        return (
+            {
+                "agent_type": agent.agent_type.value,
+                "display_name": agent.display_name,
+                "description": agent.description,
+                "default_reliability": agent.default_reliability.value,
+            }
+            if agent
+            else None
+        )
 
     async def research_with_agent(
         self,
@@ -182,9 +186,7 @@ class ResearchManager:
         agent = self.agents.select_for_query(query)
         if not agent:
             return None
-        return await agent.research(
-            query, session_id=session_id, source_material=source_material
-        )
+        return await agent.research(query, session_id=session_id, source_material=source_material)
 
     async def add_finding(
         self,
@@ -194,9 +196,7 @@ class ResearchManager:
         description: str = "",
         **kwargs: Any,
     ) -> ResearchFinding | None:
-        return await self.engine.add_finding(
-            project_id, session_id, title, description, **kwargs
-        )
+        return await self.engine.add_finding(project_id, session_id, title, description, **kwargs)
 
     async def list_findings(
         self, *, project_id: str | None = None, session_id: str | None = None
@@ -233,15 +233,15 @@ class ResearchManager:
     def evidence_graph_stats(self) -> dict[str, Any]:
         return self.evidence_graph.stats()
 
-    def evidence_graph_search(self, query: str, kinds: list[str] | None = None) -> list[dict[str, Any]]:
+    def evidence_graph_search(
+        self, query: str, kinds: list[str] | None = None
+    ) -> list[dict[str, Any]]:
         nodes = self.evidence_graph.search(query, kinds=kinds)
         return [n.to_dict() for n in nodes]
 
     # --- Phase 5: Fact Verification ------------------------------------
 
-    async def verify_fact(
-        self, fact_text: str, sources: list[Source]
-    ) -> FactVerificationReport:
+    async def verify_fact(self, fact_text: str, sources: list[Source]) -> FactVerificationReport:
         return await self.verification.verify(fact_text, sources)
 
     async def verify_claim(
@@ -261,8 +261,11 @@ class ResearchManager:
         research_question: str = "",
     ) -> KnowledgeSynthesis:
         return await self.synthesis.synthesize(
-            project_id, title, documents,
-            description=description, research_question=research_question,
+            project_id,
+            title,
+            documents,
+            description=description,
+            research_question=research_question,
         )
 
     # --- Overview -------------------------------------------------------

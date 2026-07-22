@@ -37,7 +37,9 @@ class CertificationReport(BaseModel):
     """Formal compliance certification report for AAiOS."""
 
     timestamp: datetime = Field(default_factory=lambda: datetime.now(UTC))
-    certification_id: str = Field(default_factory=lambda: f"CERT-{int(datetime.now(UTC).timestamp())}")
+    certification_id: str = Field(
+        default_factory=lambda: f"CERT-{int(datetime.now(UTC).timestamp())}"
+    )
     compliance_level: str = "Enterprise Grade"
     checked_controls: int = 0
     passed_controls: int = 0

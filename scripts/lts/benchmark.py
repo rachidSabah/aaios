@@ -64,48 +64,60 @@ async def run_kernel_benchmarks(results: list[dict[str, Any]]) -> None:
     from core.contracts.actor import ActorRef
     from core.contracts.event import Event
     from core.event_bus import InMemoryEventBus
+
     bus = InMemoryEventBus()
     cid = uuid4()
     with bench("event_bus_publish_1000", target_ms=2000) as b:
         for _ in range(1000):
-            await bus.publish(Event(
-                topic="bench.test",
-                correlation_id=cid,
-                actor=ActorRef.system(),
-            ))
-    results.append({
-        "name": "event_bus_publish_1000",
-        "category": "kernel",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "throughput_per_s": round(1000 / (b.duration_ms / 1000), 0) if b.duration_ms > 0 else 0,
-        "passes": b.passes,
-    })
+            await bus.publish(
+                Event(
+                    topic="bench.test",
+                    correlation_id=cid,
+                    actor=ActorRef.system(),
+                )
+            )
+    results.append(
+        {
+            "name": "event_bus_publish_1000",
+            "category": "kernel",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "throughput_per_s": round(1000 / (b.duration_ms / 1000), 0) if b.duration_ms > 0 else 0,
+            "passes": b.passes,
+        }
+    )
     # Event bus subscribe latency
     received: list = []
+
     async def handler(event: Event) -> None:
         received.append(event)
+
     bus.subscribe("bench.latency", handler)
     with bench("event_bus_subscribe_latency", target_ms=500) as b:
-        await bus.publish(Event(
-            topic="bench.latency",
-            correlation_id=cid,
-            actor=ActorRef.system(),
-        ))
+        await bus.publish(
+            Event(
+                topic="bench.latency",
+                correlation_id=cid,
+                actor=ActorRef.system(),
+            )
+        )
         await asyncio.sleep(0.05)
-    results.append({
-        "name": "event_bus_subscribe_latency",
-        "category": "kernel",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "passes": b.passes,
-    })
+    results.append(
+        {
+            "name": "event_bus_subscribe_latency",
+            "category": "kernel",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "passes": b.passes,
+        }
+    )
 
 
 async def run_supervisor_benchmarks(results: list[dict[str, Any]]) -> None:
     """Supervisor benchmarks."""
     try:
         from supervisor import CapabilitySelector
+
         selector = CapabilitySelector()
         # Capability scoring latency
         with bench("capability_scoring", target_ms=100) as b:
@@ -114,48 +126,57 @@ async def run_supervisor_benchmarks(results: list[dict[str, Any]]) -> None:
                     selector.score("coding", ["python", "git"])
                 except Exception:  # noqa: BLE001
                     pass
-        results.append({
-            "name": "capability_scoring_100",
-            "category": "supervisor",
-            "duration_ms": round(b.duration_ms, 2),
-            "target_ms": b.target_ms,
-            "passes": b.passes,
-        })
+        results.append(
+            {
+                "name": "capability_scoring_100",
+                "category": "supervisor",
+                "duration_ms": round(b.duration_ms, 2),
+                "target_ms": b.target_ms,
+                "passes": b.passes,
+            }
+        )
     except Exception:  # noqa: BLE001
-        results.append({
-            "name": "capability_scoring_100",
-            "category": "supervisor",
-            "duration_ms": 0.0,
-            "target_ms": 100,
-            "passes": False,
-            "error": "supervisor unavailable",
-        })
+        results.append(
+            {
+                "name": "capability_scoring_100",
+                "category": "supervisor",
+                "duration_ms": 0.0,
+                "target_ms": 100,
+                "passes": False,
+                "error": "supervisor unavailable",
+            }
+        )
 
 
 async def run_research_benchmarks(results: list[dict[str, Any]]) -> None:
     """Research engine benchmarks."""
     from services.research import ModelAnalysis, ResearchManager, Source
+
     mgr = ResearchManager()
     # Project creation
     with bench("research_create_project", target_ms=100) as b:
         await mgr.create_project("Bench Project", domain="scientific")
-    results.append({
-        "name": "research_create_project",
-        "category": "research",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "passes": b.passes,
-    })
+    results.append(
+        {
+            "name": "research_create_project",
+            "category": "research",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "passes": b.passes,
+        }
+    )
     # Agent research
     with bench("research_agent_run", target_ms=2000) as b:
         await mgr.research_with_agent("scientific", "quantum entanglement")
-    results.append({
-        "name": "research_agent_run_scientific",
-        "category": "research",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "passes": b.passes,
-    })
+    results.append(
+        {
+            "name": "research_agent_run_scientific",
+            "category": "research",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "passes": b.passes,
+        }
+    )
     # Multi-model reasoning
     analyses = [
         ModelAnalysis(model="A", provider="x", claims=["c1"], confidence=0.9),
@@ -163,13 +184,15 @@ async def run_research_benchmarks(results: list[dict[str, Any]]) -> None:
     ]
     with bench("research_multi_model_reasoning", target_ms=500) as b:
         await mgr.reason("What is X?", analyses)
-    results.append({
-        "name": "research_multi_model_reasoning",
-        "category": "research",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "passes": b.passes,
-    })
+    results.append(
+        {
+            "name": "research_multi_model_reasoning",
+            "category": "research",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "passes": b.passes,
+        }
+    )
     # Fact verification
     sources = [
         Source(title="A", abstract="test fact", reliability_score=0.8),
@@ -177,13 +200,15 @@ async def run_research_benchmarks(results: list[dict[str, Any]]) -> None:
     ]
     with bench("research_fact_verification", target_ms=500) as b:
         await mgr.verify_fact("test fact", sources)
-    results.append({
-        "name": "research_fact_verification",
-        "category": "research",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "passes": b.passes,
-    })
+    results.append(
+        {
+            "name": "research_fact_verification",
+            "category": "research",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "passes": b.passes,
+        }
+    )
     # Knowledge synthesis
     docs = [
         Source(title="Doc 1", abstract="Test content for synthesis.", reliability_score=0.8),
@@ -191,13 +216,15 @@ async def run_research_benchmarks(results: list[dict[str, Any]]) -> None:
     ]
     with bench("research_knowledge_synthesis", target_ms=1000) as b:
         await mgr.synthesize("p1", "Synthesis", docs)
-    results.append({
-        "name": "research_knowledge_synthesis",
-        "category": "research",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "passes": b.passes,
-    })
+    results.append(
+        {
+            "name": "research_knowledge_synthesis",
+            "category": "research",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "passes": b.passes,
+        }
+    )
 
 
 async def run_engineering_benchmarks(results: list[dict[str, Any]]) -> None:
@@ -208,34 +235,40 @@ async def run_engineering_benchmarks(results: list[dict[str, Any]]) -> None:
         EngineeringReviewEngine,
         RepositoryHealthCenter,
     )
+
     # Engineering review
     review_engine = EngineeringReviewEngine()
     with TemporaryDirectory() as d, bench("engineering_review_code", target_ms=2000) as b:
         await review_engine.review("code", d)
-    results.append({
-        "name": "engineering_review_code",
-        "category": "engineering",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "passes": b.passes,
-    })
+    results.append(
+        {
+            "name": "engineering_review_code",
+            "category": "engineering",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "passes": b.passes,
+        }
+    )
     # Health center
     with TemporaryDirectory() as d:
         health = RepositoryHealthCenter(repo_root=d)
         with bench("engineering_health_assess", target_ms=2000) as b:
             await health.assess()
-    results.append({
-        "name": "engineering_health_assess",
-        "category": "engineering",
-        "duration_ms": round(b.duration_ms, 2),
-        "target_ms": b.target_ms,
-        "passes": b.passes,
-    })
+    results.append(
+        {
+            "name": "engineering_health_assess",
+            "category": "engineering",
+            "duration_ms": round(b.duration_ms, 2),
+            "target_ms": b.target_ms,
+            "passes": b.passes,
+        }
+    )
 
 
 def run_cli_benchmarks(results: list[dict[str, Any]]) -> None:
     """CLI startup benchmarks."""
     import subprocess
+
     # CLI version (just startup time)
     durations: list[float] = []
     for _ in range(3):
@@ -243,20 +276,24 @@ def run_cli_benchmarks(results: list[dict[str, Any]]) -> None:
         try:
             subprocess.run(
                 ["/home/z/.venv/bin/python", "-m", "surfaces.cli", "version"],
-                capture_output=True, timeout=10, check=False,
+                capture_output=True,
+                timeout=10,
+                check=False,
             )
         except (subprocess.SubprocessError, OSError):
             pass
         durations.append((time.monotonic() - start) * 1000)
     avg_ms = statistics.mean(durations)
-    results.append({
-        "name": "cli_startup_version",
-        "category": "cli",
-        "duration_ms": round(avg_ms, 2),
-        "target_ms": 2000,
-        "samples": len(durations),
-        "passes": avg_ms <= 2000,
-    })
+    results.append(
+        {
+            "name": "cli_startup_version",
+            "category": "cli",
+            "duration_ms": round(avg_ms, 2),
+            "target_ms": 2000,
+            "samples": len(durations),
+            "passes": avg_ms <= 2000,
+        }
+    )
 
 
 async def main() -> int:

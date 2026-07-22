@@ -367,7 +367,22 @@ class TestInvariants:
                     continue
                 # Allow subprocess in services/backup, cleanup, uninstall, validator, self_healing
                 # (all system-level tools that legitimately spawn processes)
-                if any(s in py_file.parts for s in ("backup", "cleanup", "uninstall", "validator", "self_healing", "monitoring", "execution_engine", "benchmark", "certify", "reset", "packaging")):
+                if any(
+                    s in py_file.parts
+                    for s in (
+                        "backup",
+                        "cleanup",
+                        "uninstall",
+                        "validator",
+                        "self_healing",
+                        "monitoring",
+                        "execution_engine",
+                        "benchmark",
+                        "certify",
+                        "reset",
+                        "packaging",
+                    )
+                ):
                     continue
                 # Allow subprocess in surfaces/cli (L5 legitimately spawns processes)
                 if "surfaces" in py_file.parts and "cli" in py_file.parts:

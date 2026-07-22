@@ -24,6 +24,7 @@ _log = get_logger(__name__)
 @dataclass
 class DesktopNotification:
     """A desktop notification payload."""
+
     id: str
     title: str
     message: str
@@ -73,21 +74,23 @@ class NativeNotificationService:
 
         try:
             bus = get_bus()
-            await bus.publish(Event(
-                topic="desktop.notification",
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload={
-                    "id": notification.id,
-                    "title": notification.title,
-                    "message": notification.message,
-                    "level": notification.level,
-                    "category": notification.category,
-                    "source": notification.source,
-                    "timestamp": notification.timestamp,
-                    "persistent": notification.persistent,
-                },
-            ))
+            await bus.publish(
+                Event(
+                    topic="desktop.notification",
+                    correlation_id=uuid4(),
+                    actor=ActorRef.system(),
+                    payload={
+                        "id": notification.id,
+                        "title": notification.title,
+                        "message": notification.message,
+                        "level": notification.level,
+                        "category": notification.category,
+                        "source": notification.source,
+                        "timestamp": notification.timestamp,
+                        "persistent": notification.persistent,
+                    },
+                )
+            )
         except Exception:  # noqa: BLE001
             pass
 
@@ -120,9 +123,14 @@ class NativeNotificationService:
             "app_name": self.app_name,
             "total": len(self._history),
             "recent": [
-                {"id": n.id, "title": n.title, "level": n.level,
-                 "category": n.category, "timestamp": n.timestamp,
-                 "dismissed": n.dismissed}
+                {
+                    "id": n.id,
+                    "title": n.title,
+                    "level": n.level,
+                    "category": n.category,
+                    "timestamp": n.timestamp,
+                    "dismissed": n.dismissed,
+                }
                 for n in self._history[-20:]
             ],
         }

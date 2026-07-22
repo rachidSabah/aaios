@@ -865,7 +865,9 @@ class Entity:
 
     entity_id: str = field(default_factory=lambda: uuid4().hex[:8])
     name: str = ""
-    entity_type: str = ""  # person | organization | location | date | concept | event | product | law | metric
+    entity_type: str = (
+        ""  # person | organization | location | date | concept | event | product | law | metric
+    )
     mentions: int = 0
     aliases: list[str] = field(default_factory=list)
     description: str = ""

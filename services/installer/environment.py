@@ -57,13 +57,22 @@ class EnvironmentDetector:
 
     # Primary supported platforms
     PRIMARY_PLATFORMS: frozenset[str] = frozenset({"windows-11"})
-    SECONDARY_PLATFORMS: frozenset[str] = frozenset({
-        "windows-server-2022", "windows-server-2025",
-        "wsl2", "ubuntu", "debian",
-    })
-    EXPERIMENTAL_PLATFORMS: frozenset[str] = frozenset({
-        "fedora", "arch", "macos",
-    })
+    SECONDARY_PLATFORMS: frozenset[str] = frozenset(
+        {
+            "windows-server-2022",
+            "windows-server-2025",
+            "wsl2",
+            "ubuntu",
+            "debian",
+        }
+    )
+    EXPERIMENTAL_PLATFORMS: frozenset[str] = frozenset(
+        {
+            "fedora",
+            "arch",
+            "macos",
+        }
+    )
 
     def __init__(self) -> None:
         self._errors: list[str] = []
@@ -149,18 +158,12 @@ class EnvironmentDetector:
             compat.warnings.append("No internet connection — offline installation only")
         # Platform
         if report.platform_support == PlatformSupport.UNSUPPORTED.value:
-            compat.blockers.append(
-                f"Unsupported platform: {report.os_name} {report.os_version}"
-            )
+            compat.blockers.append(f"Unsupported platform: {report.os_name} {report.os_version}")
         elif report.platform_support == PlatformSupport.EXPERIMENTAL.value:
-            compat.warnings.append(
-                f"Experimental platform: {report.os_name} {report.os_version}"
-            )
+            compat.warnings.append(f"Experimental platform: {report.os_name} {report.os_version}")
         # Administrator
         if not report.is_administrator:
-            compat.warnings.append(
-                "Not running as administrator — some operations may fail"
-            )
+            compat.warnings.append("Not running as administrator — some operations may fail")
         # Recommendations
         if not report.git_version:
             compat.recommendations.append("Install Git for version control")
@@ -187,78 +190,94 @@ class EnvironmentDetector:
             requires_admin=not report.is_administrator,
         )
         # Always start with environment discovery
-        plan.steps.append(InstallationStep(
-            stage=InstallationStage.ENVIRONMENT_DISCOVERY.value,
-            name="Environment Discovery",
-            description="Detect OS, hardware, network, and installed tools.",
-            estimated_seconds=2.0,
-            can_skip=False,
-        ))
+        plan.steps.append(
+            InstallationStep(
+                stage=InstallationStage.ENVIRONMENT_DISCOVERY.value,
+                name="Environment Discovery",
+                description="Detect OS, hardware, network, and installed tools.",
+                estimated_seconds=2.0,
+                can_skip=False,
+            )
+        )
         # Dependency discovery
-        plan.steps.append(InstallationStep(
-            stage=InstallationStage.DEPENDENCY_DISCOVERY.value,
-            name="Dependency Discovery",
-            description="Check required and optional dependencies.",
-            estimated_seconds=10.0,
-            dependencies=[plan.steps[-1].step_id],
-            can_skip=False,
-        ))
-        # Workspace bootstrap
-        plan.steps.append(InstallationStep(
-            stage=InstallationStage.WORKSPACE_BOOTSTRAP.value,
-            name="Workspace Bootstrap",
-            description=f"Create workspace at {plan.workspace_root}",
-            estimated_seconds=5.0,
-            dependencies=[plan.steps[-1].step_id],
-            can_skip=False,
-        ))
-        # Database bootstrap
-        plan.steps.append(InstallationStep(
-            stage=InstallationStage.DATABASE_BOOTSTRAP.value,
-            name="Database Bootstrap",
-            description="Initialize SQLite, Qdrant, and memory stores.",
-            estimated_seconds=15.0,
-            dependencies=[plan.steps[-1].step_id],
-            can_skip=(m in (InstallationMode.VALIDATE, InstallationMode.MINIMAL)),
-        ))
-        # Configuration
-        plan.steps.append(InstallationStep(
-            stage=InstallationStage.CONFIGURATION.value,
-            name="Configuration Wizard",
-            description=f"Apply {plan.profile} profile.",
-            estimated_seconds=5.0,
-            dependencies=[plan.steps[-1].step_id],
-            can_skip=False,
-        ))
-        # Provider configuration
-        if m not in (InstallationMode.MINIMAL, InstallationMode.VALIDATE):
-            plan.steps.append(InstallationStep(
-                stage=InstallationStage.PROVIDER_CONFIGURATION.value,
-                name="Provider Configuration",
-                description="Discover and validate LLM providers.",
-                estimated_seconds=20.0,
-                dependencies=[plan.steps[-1].step_id],
-                can_skip=True,
-            ))
-        # Agent bootstrap
-        if m not in (InstallationMode.MINIMAL, InstallationMode.VALIDATE):
-            plan.steps.append(InstallationStep(
-                stage=InstallationStage.AGENT_BOOTSTRAP.value,
-                name="Agent Bootstrap",
-                description="Discover and register supported agents.",
+        plan.steps.append(
+            InstallationStep(
+                stage=InstallationStage.DEPENDENCY_DISCOVERY.value,
+                name="Dependency Discovery",
+                description="Check required and optional dependencies.",
                 estimated_seconds=10.0,
                 dependencies=[plan.steps[-1].step_id],
-                can_skip=True,
-            ))
+                can_skip=False,
+            )
+        )
+        # Workspace bootstrap
+        plan.steps.append(
+            InstallationStep(
+                stage=InstallationStage.WORKSPACE_BOOTSTRAP.value,
+                name="Workspace Bootstrap",
+                description=f"Create workspace at {plan.workspace_root}",
+                estimated_seconds=5.0,
+                dependencies=[plan.steps[-1].step_id],
+                can_skip=False,
+            )
+        )
+        # Database bootstrap
+        plan.steps.append(
+            InstallationStep(
+                stage=InstallationStage.DATABASE_BOOTSTRAP.value,
+                name="Database Bootstrap",
+                description="Initialize SQLite, Qdrant, and memory stores.",
+                estimated_seconds=15.0,
+                dependencies=[plan.steps[-1].step_id],
+                can_skip=(m in (InstallationMode.VALIDATE, InstallationMode.MINIMAL)),
+            )
+        )
+        # Configuration
+        plan.steps.append(
+            InstallationStep(
+                stage=InstallationStage.CONFIGURATION.value,
+                name="Configuration Wizard",
+                description=f"Apply {plan.profile} profile.",
+                estimated_seconds=5.0,
+                dependencies=[plan.steps[-1].step_id],
+                can_skip=False,
+            )
+        )
+        # Provider configuration
+        if m not in (InstallationMode.MINIMAL, InstallationMode.VALIDATE):
+            plan.steps.append(
+                InstallationStep(
+                    stage=InstallationStage.PROVIDER_CONFIGURATION.value,
+                    name="Provider Configuration",
+                    description="Discover and validate LLM providers.",
+                    estimated_seconds=20.0,
+                    dependencies=[plan.steps[-1].step_id],
+                    can_skip=True,
+                )
+            )
+        # Agent bootstrap
+        if m not in (InstallationMode.MINIMAL, InstallationMode.VALIDATE):
+            plan.steps.append(
+                InstallationStep(
+                    stage=InstallationStage.AGENT_BOOTSTRAP.value,
+                    name="Agent Bootstrap",
+                    description="Discover and register supported agents.",
+                    estimated_seconds=10.0,
+                    dependencies=[plan.steps[-1].step_id],
+                    can_skip=True,
+                )
+            )
         # Validation
-        plan.steps.append(InstallationStep(
-            stage=InstallationStage.VALIDATION.value,
-            name="Validation",
-            description="Verify the installation.",
-            estimated_seconds=5.0,
-            dependencies=[plan.steps[-1].step_id],
-            can_skip=False,
-        ))
+        plan.steps.append(
+            InstallationStep(
+                stage=InstallationStage.VALIDATION.value,
+                name="Validation",
+                description="Verify the installation.",
+                estimated_seconds=5.0,
+                dependencies=[plan.steps[-1].step_id],
+                can_skip=False,
+            )
+        )
         plan.total_estimated_seconds = sum(s.estimated_seconds for s in plan.steps)
         return plan
 
@@ -271,47 +290,59 @@ class EnvironmentDetector:
         risks: list[dict[str, Any]] = []
         mitigations: list[str] = []
         if not compat.compatible:
-            risks.append({
-                "category": "compatibility",
-                "level": RiskLevel.CRITICAL.value,
-                "description": "Compatibility blockers detected",
-                "blockers": compat.blockers,
-            })
+            risks.append(
+                {
+                    "category": "compatibility",
+                    "level": RiskLevel.CRITICAL.value,
+                    "description": "Compatibility blockers detected",
+                    "blockers": compat.blockers,
+                }
+            )
             mitigations.append("Resolve compatibility blockers before retrying.")
         if not report.internet_connected:
-            risks.append({
-                "category": "network",
-                "level": RiskLevel.HIGH.value,
-                "description": "No internet connection",
-            })
+            risks.append(
+                {
+                    "category": "network",
+                    "level": RiskLevel.HIGH.value,
+                    "description": "No internet connection",
+                }
+            )
             mitigations.append("Use --offline mode or connect to the internet.")
         if not report.is_administrator:
-            risks.append({
-                "category": "privileges",
-                "level": RiskLevel.MEDIUM.value,
-                "description": "Not running as administrator",
-            })
+            risks.append(
+                {
+                    "category": "privileges",
+                    "level": RiskLevel.MEDIUM.value,
+                    "description": "Not running as administrator",
+                }
+            )
             mitigations.append("Re-run as administrator for full installation.")
         if report.disk_available_gb < MIN_DISK_GB * 2:
-            risks.append({
-                "category": "disk",
-                "level": RiskLevel.MEDIUM.value,
-                "description": "Low disk space",
-            })
+            risks.append(
+                {
+                    "category": "disk",
+                    "level": RiskLevel.MEDIUM.value,
+                    "description": "Low disk space",
+                }
+            )
             mitigations.append("Free up at least 10 GB of disk space.")
         if report.platform_support == PlatformSupport.EXPERIMENTAL.value:
-            risks.append({
-                "category": "platform",
-                "level": RiskLevel.MEDIUM.value,
-                "description": "Experimental platform",
-            })
+            risks.append(
+                {
+                    "category": "platform",
+                    "level": RiskLevel.MEDIUM.value,
+                    "description": "Experimental platform",
+                }
+            )
             mitigations.append("Test thoroughly before production use.")
         if report.firewall_detected:
-            risks.append({
-                "category": "firewall",
-                "level": RiskLevel.LOW.value,
-                "description": "Firewall detected — may block downloads",
-            })
+            risks.append(
+                {
+                    "category": "firewall",
+                    "level": RiskLevel.LOW.value,
+                    "description": "Firewall detected — may block downloads",
+                }
+            )
             mitigations.append("Whitelist aaios and python in the firewall.")
         # Overall risk
         if any(r["level"] == RiskLevel.CRITICAL.value for r in risks):
@@ -343,7 +374,9 @@ class EnvironmentDetector:
         return self._safe(lambda: platform.version(), default="")
 
     def _detect_os_build(self) -> str:
-        return self._safe(lambda: platform.win32_ver()[2] if hasattr(platform, "win32_ver") else "", default="")
+        return self._safe(
+            lambda: platform.win32_ver()[2] if hasattr(platform, "win32_ver") else "", default=""
+        )
 
     def _classify_platform(self, name: str, version: str) -> str:
         n = name.lower()
@@ -361,6 +394,7 @@ class EnvironmentDetector:
                 return PlatformSupport.SECONDARY.value
             try:
                 import distro
+
                 d = distro.id()
                 if d in ("ubuntu", "debian"):
                     return PlatformSupport.SECONDARY.value
@@ -391,14 +425,16 @@ class EnvironmentDetector:
     def _ram_total(self) -> float:
         try:
             import psutil
-            return float(psutil.virtual_memory().total / (1024 ** 3))
+
+            return float(psutil.virtual_memory().total / (1024**3))
         except ImportError:
             return 0.0
 
     def _ram_available(self) -> float:
         try:
             import psutil
-            return float(psutil.virtual_memory().available / (1024 ** 3))
+
+            return float(psutil.virtual_memory().available / (1024**3))
         except ImportError:
             return 0.0
 
@@ -410,7 +446,10 @@ class EnvironmentDetector:
             try:
                 result = subprocess.run(
                     [nvidia_smi, "--query-gpu=name", "--format=csv,noheader"],
-                    capture_output=True, text=True, timeout=5, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
                 )
                 if result.returncode == 0:
                     for line in result.stdout.splitlines():
@@ -433,7 +472,10 @@ class EnvironmentDetector:
         try:
             result = subprocess.run(
                 [nvidia_smi, "--query-gpu=driver_version", "--format=csv,noheader"],
-                capture_output=True, text=True, timeout=5, check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             if result.returncode == 0 and result.stdout.strip():
                 return result.stdout.strip().splitlines()[0]
@@ -450,14 +492,16 @@ class EnvironmentDetector:
     def _disk_total(self) -> float:
         try:
             import psutil
-            return float(psutil.disk_usage("/").total / (1024 ** 3))
+
+            return float(psutil.disk_usage("/").total / (1024**3))
         except ImportError:
             return 0.0
 
     def _disk_available(self) -> float:
         try:
             import psutil
-            return float(psutil.disk_usage("/").free / (1024 ** 3))
+
+            return float(psutil.disk_usage("/").free / (1024**3))
         except ImportError:
             return 0.0
 
@@ -482,7 +526,10 @@ class EnvironmentDetector:
             try:
                 result = subprocess.run(
                     ["netsh", "advfirewall", "show", "allprofiles", "state"],
-                    capture_output=True, text=True, timeout=5, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
                 )
                 return "ON" in result.stdout
             except (subprocess.SubprocessError, OSError):
@@ -494,6 +541,7 @@ class EnvironmentDetector:
         if platform.system().lower() == "windows":
             try:
                 import ctypes
+
                 return bool(ctypes.windll.shell32.IsUserAnAdmin())  # type: ignore[attr-defined]
             except (AttributeError, OSError):
                 return False
@@ -505,7 +553,10 @@ class EnvironmentDetector:
         try:
             result = subprocess.run(
                 ["powershell", "-Command", "$PSVersionTable.PSVersion.ToString()"],
-                capture_output=True, text=True, timeout=5, check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             if result.returncode == 0:
                 return result.stdout.strip()
@@ -518,10 +569,16 @@ class EnvironmentDetector:
         if platform.system().lower() == "windows":
             try:
                 result = subprocess.run(
-                    ["powershell", "-Command",
-                     "Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName AntivirusProduct | "
-                     "Select-Object -ExpandProperty displayName"],
-                    capture_output=True, text=True, timeout=5, check=False,
+                    [
+                        "powershell",
+                        "-Command",
+                        "Get-CimInstance -Namespace 'root/SecurityCenter2' -ClassName AntivirusProduct | "
+                        "Select-Object -ExpandProperty displayName",
+                    ],
+                    capture_output=True,
+                    text=True,
+                    timeout=5,
+                    check=False,
                 )
                 if result.returncode == 0:
                     for line in result.stdout.splitlines():
@@ -536,9 +593,11 @@ class EnvironmentDetector:
             return False
         try:
             result = subprocess.run(
-                ["powershell", "-Command",
-                 "(Get-MpComputerStatus).RealTimeProtectionEnabled"],
-                capture_output=True, text=True, timeout=5, check=False,
+                ["powershell", "-Command", "(Get-MpComputerStatus).RealTimeProtectionEnabled"],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             return "True" in result.stdout
         except (subprocess.SubprocessError, OSError):
@@ -589,24 +648,31 @@ class EnvironmentDetector:
             return False
         try:
             result = subprocess.run(
-                ["powershell", "-Command",
-                 "(Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).State"],
-                capture_output=True, text=True, timeout=5, check=False,
+                [
+                    "powershell",
+                    "-Command",
+                    "(Get-WindowsOptionalFeature -Online -FeatureName Microsoft-Hyper-V).State",
+                ],
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             return "Enabled" in result.stdout
         except (subprocess.SubprocessError, OSError):
             return False
 
     def _detect_vm(self) -> bool:
-        manufacturer = self._safe(
-            lambda: platform.system().lower(), default=""
-        )
+        manufacturer = self._safe(lambda: platform.system().lower(), default="")
         # Heuristic: check for VM-specific markers
         if manufacturer == "linux":
             try:
                 result = subprocess.run(
                     ["systemd-detect-virt"],
-                    capture_output=True, text=True, timeout=3, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=3,
+                    check=False,
                 )
                 if result.returncode == 0 and result.stdout.strip().lower() != "none":
                     return True
@@ -615,7 +681,12 @@ class EnvironmentDetector:
         return False
 
     def _detect_filesystem(self) -> str:
-        return self._safe(lambda: os.statvfs("/").f_fsid.__class__.__name__ if hasattr(os, "statvfs") else "unknown", default="unknown")
+        return self._safe(
+            lambda: (
+                os.statvfs("/").f_fsid.__class__.__name__ if hasattr(os, "statvfs") else "unknown"
+            ),
+            default="unknown",
+        )
 
     def _detect_locale(self) -> str:
         return os.environ.get("LANG", os.environ.get("LC_ALL", ""))
@@ -646,7 +717,10 @@ class EnvironmentDetector:
         try:
             result = subprocess.run(
                 [path, "--version"],
-                capture_output=True, text=True, timeout=5, check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             if result.returncode == 0:
                 # Take the first non-empty line

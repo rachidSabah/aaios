@@ -174,7 +174,9 @@ class CleanupManager:
 
         # Purge pip cache
         try:
-            subprocess.run([sys.executable, "-m", "pip", "cache", "purge"], capture_output=True, check=False)  # noqa: S603 # nosec B603
+            subprocess.run(
+                [sys.executable, "-m", "pip", "cache", "purge"], capture_output=True, check=False
+            )  # noqa: S603 # nosec B603
             report.cleaned_items.append("package_cache: pip cache purge")
         except Exception:  # noqa: BLE001 # nosec B110
             pass

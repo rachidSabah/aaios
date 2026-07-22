@@ -141,11 +141,19 @@ class RepositoryIntelligenceEngine:
         """Analyze the repository."""
         analysis = RepoAnalysis()
         py_files: list[Path] = []
-        for src_dir in [self._root / "services", self._root / "core", self._root / "agents",
-                        self._root / "supervisor", self._root / "orchestrator", self._root / "surfaces"]:
+        for src_dir in [
+            self._root / "services",
+            self._root / "core",
+            self._root / "agents",
+            self._root / "supervisor",
+            self._root / "orchestrator",
+            self._root / "surfaces",
+        ]:
             if src_dir.exists():
                 py_files.extend(src_dir.rglob("*.py"))
-        test_files = list((self._root / "tests").rglob("*.py")) if (self._root / "tests").exists() else []
+        test_files = (
+            list((self._root / "tests").rglob("*.py")) if (self._root / "tests").exists() else []
+        )
         analysis.total_files = len(py_files)
         analysis.total_tests = len(test_files)
         for py_file in py_files:
@@ -161,14 +169,16 @@ class RepositoryIntelligenceEngine:
                         # Check for unused private functions
                         if node.name.startswith("_") and not node.name.startswith("__"):
                             if not self._is_called(node.name, py_file):
-                                analysis.issues.append(RepoIssue(
-                                    issue_type="dead_code",
-                                    severity="low",
-                                    file=str(py_file.relative_to(self._root)),
-                                    line=node.lineno,
-                                    description=f"Private function '{node.name}' may be unused",
-                                    recommendation="Remove if truly unused",
-                                ))
+                                analysis.issues.append(
+                                    RepoIssue(
+                                        issue_type="dead_code",
+                                        severity="low",
+                                        file=str(py_file.relative_to(self._root)),
+                                        line=node.lineno,
+                                        description=f"Private function '{node.name}' may be unused",
+                                        recommendation="Remove if truly unused",
+                                    )
+                                )
             except Exception:
                 pass
         # Check for missing docs
@@ -178,14 +188,16 @@ class RepositoryIntelligenceEngine:
                 tree = ast.parse(source)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef) and not ast.get_docstring(node):
-                        analysis.issues.append(RepoIssue(
-                            issue_type="missing_doc",
-                            severity="low",
-                            file=str(py_file.relative_to(self._root)),
-                            line=node.lineno,
-                            description=f"Class '{node.name}' has no docstring",
-                            recommendation="Add a docstring",
-                        ))
+                        analysis.issues.append(
+                            RepoIssue(
+                                issue_type="missing_doc",
+                                severity="low",
+                                file=str(py_file.relative_to(self._root)),
+                                line=node.lineno,
+                                description=f"Class '{node.name}' has no docstring",
+                                recommendation="Add a docstring",
+                            )
+                        )
             except Exception:
                 pass
         # Check for missing test files
@@ -194,13 +206,15 @@ class RepositoryIntelligenceEngine:
                 continue
             test_name = f"test_{py_file.stem}.py"
             if not (self._root / "tests" / "unit" / test_name).exists():
-                analysis.issues.append(RepoIssue(
-                    issue_type="missing_test",
-                    severity="medium",
-                    file=str(py_file.relative_to(self._root)),
-                    description=f"No test file for {py_file.name}",
-                    recommendation=f"Create {test_name}",
-                ))
+                analysis.issues.append(
+                    RepoIssue(
+                        issue_type="missing_test",
+                        severity="medium",
+                        file=str(py_file.relative_to(self._root)),
+                        description=f"No test file for {py_file.name}",
+                        recommendation=f"Create {test_name}",
+                    )
+                )
         # Health score
         score = 100.0
         score -= len([i for i in analysis.issues if i.severity == "critical"]) * 10
@@ -259,7 +273,9 @@ class DocumentIntelligence:
         try:
             tree = ast.parse(content)
             for node in ast.walk(tree):
-                if isinstance(node, ast.ClassDef) or isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
+                if isinstance(node, ast.ClassDef) or isinstance(
+                    node, (ast.FunctionDef, ast.AsyncFunctionDef)
+                ):
                     result.entities.append(node.name)
             result.summary = f"Python file with {len(result.entities)} classes/functions"
         except Exception:
@@ -274,6 +290,7 @@ class DocumentIntelligence:
 
     async def _analyze_structured(self, content: str, result: DocIntelligenceResult) -> None:
         import json
+
         try:
             data = json.loads(content)
             if isinstance(data, dict):
@@ -289,7 +306,7 @@ class DocumentIntelligence:
         if lines:
             result.entities = lines[0].split(",")
             result.tables.append({"rows": len(lines) - 1, "columns": len(result.entities)})
-            result.summary = f"CSV with {len(lines)-1} rows, {len(result.entities)} columns"
+            result.summary = f"CSV with {len(lines) - 1} rows, {len(result.entities)} columns"
 
     async def _analyze_text(self, content: str, result: DocIntelligenceResult) -> None:
         words = re.findall(r"\b[A-Z][a-z]+\b", content)
@@ -309,53 +326,65 @@ class QualityAssurance:
         for entry in entries:
             # Completeness
             if not entry.summary:
-                issues.append(QualityIssue(
-                    issue_type="completeness",
-                    severity="low",
-                    entry_id=entry.entry_id,
-                    description="Missing summary",
-                    repair_suggestion="Add a concise summary",
-                ))
+                issues.append(
+                    QualityIssue(
+                        issue_type="completeness",
+                        severity="low",
+                        entry_id=entry.entry_id,
+                        description="Missing summary",
+                        repair_suggestion="Add a concise summary",
+                    )
+                )
             if not entry.labels:
-                issues.append(QualityIssue(
-                    issue_type="completeness",
-                    severity="low",
-                    entry_id=entry.entry_id,
-                    description="Missing labels",
-                    repair_suggestion="Add relevant labels for discoverability",
-                ))
+                issues.append(
+                    QualityIssue(
+                        issue_type="completeness",
+                        severity="low",
+                        entry_id=entry.entry_id,
+                        description="Missing labels",
+                        repair_suggestion="Add relevant labels for discoverability",
+                    )
+                )
             # Freshness
             if entry.updated_at:
                 age = (datetime.now(UTC) - entry.updated_at).total_seconds() / 86400
                 if age > 180:
-                    issues.append(QualityIssue(
-                        issue_type="freshness",
-                        severity="medium",
-                        entry_id=entry.entry_id,
-                        description=f"Entry is {age:.0f} days old",
-                        repair_suggestion="Review and update if needed",
-                    ))
+                    issues.append(
+                        QualityIssue(
+                            issue_type="freshness",
+                            severity="medium",
+                            entry_id=entry.entry_id,
+                            description=f"Entry is {age:.0f} days old",
+                            repair_suggestion="Review and update if needed",
+                        )
+                    )
             # Confidence
             if entry.source_confidence < 0.3:
-                issues.append(QualityIssue(
-                    issue_type="accuracy",
-                    severity="medium",
-                    entry_id=entry.entry_id,
-                    description=f"Low source confidence: {entry.source_confidence:.2f}",
-                    repair_suggestion="Verify the source and increase confidence",
-                ))
+                issues.append(
+                    QualityIssue(
+                        issue_type="accuracy",
+                        severity="medium",
+                        entry_id=entry.entry_id,
+                        description=f"Low source confidence: {entry.source_confidence:.2f}",
+                        repair_suggestion="Verify the source and increase confidence",
+                    )
+                )
         # Check for duplicates
         seen_hashes: dict[str, str] = {}
         for entry in entries:
-            content_hash = __import__("hashlib").sha256(entry.content[:500].encode()).hexdigest()[:16]
+            content_hash = (
+                __import__("hashlib").sha256(entry.content[:500].encode()).hexdigest()[:16]
+            )
             if content_hash in seen_hashes:
-                issues.append(QualityIssue(
-                    issue_type="duplicate",
-                    severity="medium",
-                    entry_id=entry.entry_id,
-                    description=f"Duplicate of entry {seen_hashes[content_hash]}",
-                    repair_suggestion="Merge duplicates",
-                ))
+                issues.append(
+                    QualityIssue(
+                        issue_type="duplicate",
+                        severity="medium",
+                        entry_id=entry.entry_id,
+                        description=f"Duplicate of entry {seen_hashes[content_hash]}",
+                        repair_suggestion="Merge duplicates",
+                    )
+                )
             else:
                 seen_hashes[content_hash] = entry.entry_id
         return issues
@@ -364,11 +393,13 @@ class QualityAssurance:
         """Generate repair suggestions for quality issues."""
         suggestions: list[dict[str, Any]] = []
         for issue in issues:
-            suggestions.append({
-                "issue_type": issue.issue_type,
-                "entry_id": issue.entry_id,
-                "severity": issue.severity,
-                "description": issue.description,
-                "suggestion": issue.repair_suggestion,
-            })
+            suggestions.append(
+                {
+                    "issue_type": issue.issue_type,
+                    "entry_id": issue.entry_id,
+                    "severity": issue.severity,
+                    "description": issue.description,
+                    "suggestion": issue.repair_suggestion,
+                }
+            )
         return suggestions

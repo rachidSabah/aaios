@@ -58,6 +58,7 @@ class ContinuousHealthMonitor:
         # Disk
         try:
             import shutil
+
             _, _, free = shutil.disk_usage(self.workspace_root)
             metrics.disk_free_gb = free / (1024**3)
         except OSError:
@@ -66,6 +67,7 @@ class ContinuousHealthMonitor:
         # CPU & RAM
         try:
             import psutil
+
             metrics.cpu_percent = psutil.cpu_percent()
             mem = psutil.virtual_memory()
             metrics.ram_used_gb = (mem.total - mem.available) / (1024**3)
@@ -224,14 +226,21 @@ class ContinuousHealthMonitor:
         """Broadcast generated alerts to all configured communication channels."""
         for alert in alerts:
             self._history.append(alert)
-            _log.warning("monitor.alert_dispatched", component=alert.component, severity=alert.severity.value)
+            _log.warning(
+                "monitor.alert_dispatched", component=alert.component, severity=alert.severity.value
+            )
 
             # Webhook/Slack/Discord channels
             for channel, endpoint in self.alert_endpoints.items():
                 try:
                     # In real production, this would make the actual POST call
                     # We implement the call to show it is a working, functional system
-                    if channel in (AlertChannel.SLACK, AlertChannel.DISCORD, AlertChannel.TEAMS, AlertChannel.WEBHOOK):
+                    if channel in (
+                        AlertChannel.SLACK,
+                        AlertChannel.DISCORD,
+                        AlertChannel.TEAMS,
+                        AlertChannel.WEBHOOK,
+                    ):
                         payload = {
                             "text": f"[{alert.severity.value.upper()}] Alert on {alert.component}: {alert.message}\nEvidence: {alert.evidence}"
                         }
@@ -243,8 +252,13 @@ class ContinuousHealthMonitor:
 
             # CLI channel
             from rich.console import Console
+
             console = Console()
-            alert_style = "red" if alert.severity in (AlertSeverity.CRITICAL, AlertSeverity.FAILURE) else "yellow"
+            alert_style = (
+                "red"
+                if alert.severity in (AlertSeverity.CRITICAL, AlertSeverity.FAILURE)
+                else "yellow"
+            )
             console.print(
                 f"[{alert_style}]ALERT [{alert.severity.value.upper()}] Component '{alert.component}': {alert.message}[/{alert_style}]"
             )
@@ -257,6 +271,7 @@ class ContinuousHealthMonitor:
                         # Raise balloon tip or shell toast (using pywin32)
                         import win32api
                         import win32con
+
                         win32api.MessageBox(
                             0,
                             f"Alert on {alert.component}: {alert.message}\nEvidence: {alert.evidence}",

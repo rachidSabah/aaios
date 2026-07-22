@@ -77,9 +77,12 @@ class ExecutiveIntelligenceEngine:
 
         _log.info(
             "Enterprise health: %.2f (%s) — op=%.2f mission=%.2f agents=%.2f providers=%.2f",
-            score.overall_score, score.grade,
-            score.operational, score.mission,
-            score.agent_efficiency, score.provider_efficiency,
+            score.overall_score,
+            score.grade,
+            score.operational,
+            score.mission,
+            score.agent_efficiency,
+            score.provider_efficiency,
         )
         return score
 
@@ -107,7 +110,7 @@ class ExecutiveIntelligenceEngine:
         if m.total_agents == 0:
             return 1.0
         activity_ratio = m.active_agents / max(1, m.total_agents)
-        return (m.avg_agent_reliability * 0.7 + activity_ratio * 0.3)
+        return m.avg_agent_reliability * 0.7 + activity_ratio * 0.3
 
     def _compute_provider_efficiency(self, m: OperationalMetrics) -> float:
         """Provider efficiency: reliability."""
@@ -184,44 +187,58 @@ class ExecutiveIntelligenceEngine:
         """Break down health by component."""
         components: list[ComponentHealth] = []
 
-        components.append(ComponentHealth(
-            component="kernel",
-            score=score.operational,
-            status="healthy" if score.operational >= 0.8 else "degraded",
-            metrics={"uptime_s": m.uptime_s, "event_throughput": m.event_bus_throughput_per_s},
-        ))
-        components.append(ComponentHealth(
-            component="mission_manager",
-            score=score.mission,
-            status="healthy" if score.mission >= 0.8 else "degraded",
-            metrics={"total_missions": m.total_missions, "active": m.active_missions},
-        ))
-        components.append(ComponentHealth(
-            component="agent_registry",
-            score=score.agent_efficiency,
-            status="healthy" if score.agent_efficiency >= 0.7 else "degraded",
-            metrics={"total_agents": m.total_agents, "active": m.active_agents},
-        ))
-        components.append(ComponentHealth(
-            component="model_router",
-            score=score.provider_efficiency,
-            status="healthy" if score.provider_efficiency >= 0.7 else "degraded",
-            metrics={"avg_reliability": m.avg_provider_reliability},
-        ))
-        components.append(ComponentHealth(
-            component="memory",
-            score=1.0 - (m.memory_usage_mb / 8192.0),
-            status="healthy" if m.memory_usage_mb < 6144 else "degraded",
-            metrics={"usage_mb": m.memory_usage_mb},
-        ))
-        components.append(ComponentHealth(
-            component="budget",
-            score=score.cost_efficiency,
-            status="healthy" if score.cost_efficiency >= 0.5 else "degraded",
-            metrics={
-                "budget_usd": m.total_budget_usd,
-                "spent_usd": m.total_spent_usd,
-                "utilization_pct": (m.total_spent_usd / m.total_budget_usd * 100) if m.total_budget_usd > 0 else 0,
-            },
-        ))
+        components.append(
+            ComponentHealth(
+                component="kernel",
+                score=score.operational,
+                status="healthy" if score.operational >= 0.8 else "degraded",
+                metrics={"uptime_s": m.uptime_s, "event_throughput": m.event_bus_throughput_per_s},
+            )
+        )
+        components.append(
+            ComponentHealth(
+                component="mission_manager",
+                score=score.mission,
+                status="healthy" if score.mission >= 0.8 else "degraded",
+                metrics={"total_missions": m.total_missions, "active": m.active_missions},
+            )
+        )
+        components.append(
+            ComponentHealth(
+                component="agent_registry",
+                score=score.agent_efficiency,
+                status="healthy" if score.agent_efficiency >= 0.7 else "degraded",
+                metrics={"total_agents": m.total_agents, "active": m.active_agents},
+            )
+        )
+        components.append(
+            ComponentHealth(
+                component="model_router",
+                score=score.provider_efficiency,
+                status="healthy" if score.provider_efficiency >= 0.7 else "degraded",
+                metrics={"avg_reliability": m.avg_provider_reliability},
+            )
+        )
+        components.append(
+            ComponentHealth(
+                component="memory",
+                score=1.0 - (m.memory_usage_mb / 8192.0),
+                status="healthy" if m.memory_usage_mb < 6144 else "degraded",
+                metrics={"usage_mb": m.memory_usage_mb},
+            )
+        )
+        components.append(
+            ComponentHealth(
+                component="budget",
+                score=score.cost_efficiency,
+                status="healthy" if score.cost_efficiency >= 0.5 else "degraded",
+                metrics={
+                    "budget_usd": m.total_budget_usd,
+                    "spent_usd": m.total_spent_usd,
+                    "utilization_pct": (m.total_spent_usd / m.total_budget_usd * 100)
+                    if m.total_budget_usd > 0
+                    else 0,
+                },
+            )
+        )
         return components

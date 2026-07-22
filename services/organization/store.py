@@ -172,6 +172,7 @@ class MissionStore:
     async def update(self, mission: Mission) -> Mission:
         """Update an existing mission."""
         from datetime import UTC, datetime
+
         async with self._lock:
             if mission.mission_id not in self._missions:
                 raise MissionNotFoundError(f"Mission {mission.mission_id} not found")

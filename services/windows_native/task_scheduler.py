@@ -179,12 +179,15 @@ class TaskSchedulerManager:
                 # Or use Register-ScheduledTask PowerShell cmdlet
                 _log.info(
                     "Registered real scheduled task '%s' (actions=%d, triggers=%d)",
-                    name, len(actions), len(triggers),
+                    name,
+                    len(actions),
+                    len(triggers),
                 )
             else:
                 _log.info(
                     "Stub: scheduled task '%s' registered on %s",
-                    name, sys.platform,
+                    name,
+                    sys.platform,
                 )
             self._tasks[name] = task
             return task

@@ -191,7 +191,9 @@ class EngineeringAgentOrganization:
 
     def find_by_type(self, agent_type: str) -> list[EngineeringAgentManifest]:
         """Find agents by type."""
-        return [self._agents[aid] for aid in self._by_type.get(agent_type, []) if aid in self._agents]
+        return [
+            self._agents[aid] for aid in self._by_type.get(agent_type, []) if aid in self._agents
+        ]
 
     def find_by_language(self, language: str) -> list[EngineeringAgentManifest]:
         """Find agents that support a given language."""
@@ -226,8 +228,17 @@ class CapabilityRegistry:
     """
 
     CATEGORIES: list[str] = [
-        "language", "framework", "database", "cloud", "testing",
-        "package_manager", "build_system", "deployment", "os", "pattern", "domain",
+        "language",
+        "framework",
+        "database",
+        "cloud",
+        "testing",
+        "package_manager",
+        "build_system",
+        "deployment",
+        "os",
+        "pattern",
+        "domain",
     ]
 
     def __init__(self) -> None:
@@ -247,7 +258,11 @@ class CapabilityRegistry:
 
     async def find_by_category(self, category: str) -> list[EngCapability]:
         async with self._lock:
-            return [self._capabilities[cid] for cid in self._by_category.get(category, []) if cid in self._capabilities]
+            return [
+                self._capabilities[cid]
+                for cid in self._by_category.get(category, [])
+                if cid in self._capabilities
+            ]
 
     async def find_by_name(self, name: str) -> EngCapability | None:
         async with self._lock:

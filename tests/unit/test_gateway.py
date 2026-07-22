@@ -271,11 +271,24 @@ class TestInvariantEnforcement:
             if "brain" in py_file.parts:
                 # The brain service uses nvidia-smi for GPU detection.
                 continue
-            if any(s in py_file.parts for s in (
-                "doctor", "backup", "cleanup", "runtime_discovery", "uninstall", "validator",
-                "self_healing", "monitoring", "execution_engine", "benchmark",
-                "certify", "reset", "packaging",
-            )):
+            if any(
+                s in py_file.parts
+                for s in (
+                    "doctor",
+                    "backup",
+                    "cleanup",
+                    "runtime_discovery",
+                    "uninstall",
+                    "validator",
+                    "self_healing",
+                    "monitoring",
+                    "execution_engine",
+                    "benchmark",
+                    "certify",
+                    "reset",
+                    "packaging",
+                )
+            ):
                 # System-level services that legitimately spawn processes.
                 continue
             if "surfaces" in py_file.parts and "cli" in py_file.parts:

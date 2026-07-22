@@ -210,7 +210,8 @@ class ExperienceReplayer:
                         "original_cost_usd": original.cost_usd,
                         "comparison_cost_usd": new_record.cost_usd,
                         "winner": (
-                            "comparison" if new_record.quality_score() > original.quality_score()
+                            "comparison"
+                            if new_record.quality_score() > original.quality_score()
                             else "original"
                         ),
                     },

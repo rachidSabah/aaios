@@ -8,8 +8,9 @@ Bus so other components can respond to tray interactions.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
-from typing import Any, Callable
+from collections.abc import Callable
+from dataclasses import dataclass
+from typing import Any
 from uuid import uuid4
 
 from core.contracts.actor import ActorRef
@@ -23,12 +24,13 @@ _log = get_logger(__name__)
 @dataclass
 class TrayMenuItem:
     """A menu item in the system tray context menu."""
+
     id: str
     label: str
     enabled: bool = True
     checked: bool = False
     separator: bool = False
-    submenu: list["TrayMenuItem"] | None = None
+    submenu: list[TrayMenuItem] | None = None
 
 
 class SystemTray:
@@ -87,8 +89,13 @@ class SystemTray:
             "visible": self._visible,
             "tooltip": self._tooltip,
             "menu": [
-                {"id": m.id, "label": m.label, "enabled": m.enabled,
-                 "checked": m.checked, "separator": m.separator}
+                {
+                    "id": m.id,
+                    "label": m.label,
+                    "enabled": m.enabled,
+                    "checked": m.checked,
+                    "separator": m.separator,
+                }
                 for m in self._menu
             ],
         }
@@ -96,12 +103,14 @@ class SystemTray:
     async def _emit(self, topic: str, payload: dict) -> None:
         try:
             bus = get_bus()
-            await bus.publish(Event(
-                topic=f"desktop.{topic}",
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload=payload,
-            ))
+            await bus.publish(
+                Event(
+                    topic=f"desktop.{topic}",
+                    correlation_id=uuid4(),
+                    actor=ActorRef.system(),
+                    payload=payload,
+                )
+            )
         except Exception:  # noqa: BLE001
             pass
 

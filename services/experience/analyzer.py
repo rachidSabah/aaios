@@ -302,15 +302,17 @@ class ExperienceAnalyzer:
                     success_by_combo[(r.agent_id, cap)].append(r)
         for (agent_id, capability), records in success_by_combo.items():
             if len(records) >= 3:
-                report.success_patterns.append(SuccessPattern(
-                    description=f"Agent '{agent_id}' successfully serves '{capability}'",
-                    agent_id=agent_id,
-                    capability=capability,
-                    occurrence_count=len(records),
-                    avg_quality=sum(r.quality_score() for r in records) / len(records),
-                    avg_latency_s=sum(r.latency_s for r in records) / len(records),
-                    avg_cost_usd=sum(r.cost_usd for r in records) / len(records),
-                ))
+                report.success_patterns.append(
+                    SuccessPattern(
+                        description=f"Agent '{agent_id}' successfully serves '{capability}'",
+                        agent_id=agent_id,
+                        capability=capability,
+                        occurrence_count=len(records),
+                        avg_quality=sum(r.quality_score() for r in records) / len(records),
+                        avg_latency_s=sum(r.latency_s for r in records) / len(records),
+                        avg_cost_usd=sum(r.cost_usd for r in records) / len(records),
+                    )
+                )
         report.success_patterns.sort(key=lambda p: p.occurrence_count, reverse=True)
 
     @staticmethod
@@ -327,16 +329,20 @@ class ExperienceAnalyzer:
         for (reason, cap), records in failure_by_reason.items():
             if len(records) >= 2:
                 recovery_actions = [r.recovery_action for r in records if r.recovery_action]
-                recovery_success_rate = len(recovery_actions) / len(records) if recovery_actions else 0.0
-                report.failure_patterns.append(FailurePattern(
-                    description=f"Repeated failure: '{reason[:80]}' on '{cap or 'unknown'}'",
-                    failure_reason=reason,
-                    agent_id=records[0].agent_id,
-                    capability=cap,
-                    occurrence_count=len(records),
-                    recovery_action=recovery_actions[0] if recovery_actions else None,
-                    recovery_success_rate=recovery_success_rate,
-                ))
+                recovery_success_rate = (
+                    len(recovery_actions) / len(records) if recovery_actions else 0.0
+                )
+                report.failure_patterns.append(
+                    FailurePattern(
+                        description=f"Repeated failure: '{reason[:80]}' on '{cap or 'unknown'}'",
+                        failure_reason=reason,
+                        agent_id=records[0].agent_id,
+                        capability=cap,
+                        occurrence_count=len(records),
+                        recovery_action=recovery_actions[0] if recovery_actions else None,
+                        recovery_success_rate=recovery_success_rate,
+                    )
+                )
         report.failure_patterns.sort(key=lambda p: p.occurrence_count, reverse=True)
         report.repeated_failures = report.failure_patterns[:5]
 
@@ -352,15 +358,19 @@ class ExperienceAnalyzer:
                 fix_by_action[r.recovery_action].append(r)
         for action, records in fix_by_action.items():
             if len(records) >= 2:
-                report.repeated_fixes.append(SuccessPattern(
-                    description=f"Recovery '{action[:80]}' works consistently",
-                    agent_id=records[0].agent_id,
-                    capability=records[0].capabilities_used[0] if records[0].capabilities_used else "unknown",
-                    occurrence_count=len(records),
-                    avg_quality=sum(r.quality_score() for r in records) / len(records),
-                    avg_latency_s=sum(r.latency_s for r in records) / len(records),
-                    avg_cost_usd=sum(r.cost_usd for r in records) / len(records),
-                ))
+                report.repeated_fixes.append(
+                    SuccessPattern(
+                        description=f"Recovery '{action[:80]}' works consistently",
+                        agent_id=records[0].agent_id,
+                        capability=records[0].capabilities_used[0]
+                        if records[0].capabilities_used
+                        else "unknown",
+                        occurrence_count=len(records),
+                        avg_quality=sum(r.quality_score() for r in records) / len(records),
+                        avg_latency_s=sum(r.latency_s for r in records) / len(records),
+                        avg_cost_usd=sum(r.cost_usd for r in records) / len(records),
+                    )
+                )
         report.repeated_fixes.sort(key=lambda p: p.occurrence_count, reverse=True)
 
     async def trend_over_time(
@@ -389,15 +399,17 @@ class ExperienceAnalyzer:
         for key in sorted(buckets.keys()):
             records = buckets[key]
             success_count = sum(1 for r in records if r.success)
-            series.append({
-                "timestamp": key,
-                "count": len(records),
-                "success_count": success_count,
-                "failure_count": len(records) - success_count,
-                "success_rate": round(success_count / len(records), 4) if records else 0.0,
-                "avg_quality": round(sum(r.quality_score() for r in records) / len(records), 4),
-                "avg_latency_s": round(sum(r.latency_s for r in records) / len(records), 4),
-            })
+            series.append(
+                {
+                    "timestamp": key,
+                    "count": len(records),
+                    "success_count": success_count,
+                    "failure_count": len(records) - success_count,
+                    "success_rate": round(success_count / len(records), 4) if records else 0.0,
+                    "avg_quality": round(sum(r.quality_score() for r in records) / len(records), 4),
+                    "avg_latency_s": round(sum(r.latency_s for r in records) / len(records), 4),
+                }
+            )
         return series
 
 
@@ -433,11 +445,7 @@ class ExperienceScorer:
         # Reliability score: weighted combination
         # 50% success rate, 30% quality, 20% recent performance
         avg_quality = sum(r.quality_score() for r in records) / total
-        reliability = (
-            overall_rate * 0.5
-            + avg_quality * 0.3
-            + recent_rate * 0.2
-        )
+        reliability = overall_rate * 0.5 + avg_quality * 0.3 + recent_rate * 0.2
         return AgentReliability(
             agent_id=agent_id,
             agent_type=records[0].agent_type,
@@ -567,7 +575,9 @@ class ExperienceScorer:
             "score": round(best_score, 4),
             "experience_count": len(best_records),
             "success_rate": round(sum(1 for r in best_records if r.success) / len(best_records), 4),
-            "avg_quality": round(sum(r.quality_score() for r in best_records) / len(best_records), 4),
+            "avg_quality": round(
+                sum(r.quality_score() for r in best_records) / len(best_records), 4
+            ),
             "avg_cost_usd": round(sum(r.cost_usd for r in best_records) / len(best_records), 6),
             "reason": f"Highest composite score from {len(best_records)} past experiences",
         }

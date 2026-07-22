@@ -55,7 +55,10 @@ class TestResearchEngine:
     async def test_create_project(self) -> None:
         engine = ResearchEngine()
         project = await engine.create_project(
-            "Test Project", "A test", domain="scientific", owner="alice",
+            "Test Project",
+            "A test",
+            domain="scientific",
+            owner="alice",
         )
         assert project.title == "Test Project"
         assert project.domain == "scientific"
@@ -104,8 +107,11 @@ class TestResearchEngine:
         engine = ResearchEngine()
         project = await engine.create_project("P1")
         plan = await engine.create_plan(
-            project.project_id, "Plan 1", "desc",
-            objectives=["obj1"], research_questions=["q1"],
+            project.project_id,
+            "Plan 1",
+            "desc",
+            objectives=["obj1"],
+            research_questions=["q1"],
         )
         assert plan is not None
         assert plan.objectives == ["obj1"]
@@ -122,10 +128,13 @@ class TestResearchEngine:
 
     async def test_create_pipeline(self) -> None:
         from services.research.models import ResearchPipelineStage
+
         engine = ResearchEngine()
         project = await engine.create_project("P1")
         pipeline = await engine.create_pipeline(
-            project.project_id, "Pipeline 1", "desc",
+            project.project_id,
+            "Pipeline 1",
+            "desc",
             stages=[ResearchPipelineStage(name="Stage 1", agent_type="scientific")],
         )
         assert pipeline is not None
@@ -180,8 +189,12 @@ class TestResearchEngine:
         project = await engine.create_project("P1")
         session = await engine.create_session(project.project_id, "S1", "q")
         finding = await engine.add_finding(
-            project.project_id, session.session_id, "Finding 1", "desc",
-            claims=["claim1"], confidence=0.7,
+            project.project_id,
+            session.session_id,
+            "Finding 1",
+            "desc",
+            claims=["claim1"],
+            confidence=0.7,
         )
         assert finding is not None
         assert finding.confidence == 0.7
@@ -248,9 +261,7 @@ class TestResearchAgents:
 
     async def test_legal_agent_with_jurisdiction(self) -> None:
         agent = LegalResearchAgent()
-        finding = await agent.research(
-            "GDPR compliance", options={"jurisdiction": "EU"}
-        )
+        finding = await agent.research("GDPR compliance", options={"jurisdiction": "EU"})
         assert finding.agent_type == ResearchAgentType.LEGAL.value
 
     async def test_business_agent(self) -> None:
@@ -336,7 +347,13 @@ class TestMultiModelReasoning:
     async def test_single_analysis(self) -> None:
         engine = MultiModelReasoningEngine()
         analyses = [
-            ModelAnalysis(model="gpt-4", provider="openai", response="42", claims=["The answer is 42."], confidence=0.8),
+            ModelAnalysis(
+                model="gpt-4",
+                provider="openai",
+                response="42",
+                claims=["The answer is 42."],
+                confidence=0.8,
+            ),
         ]
         result = await engine.reason("What is the answer?", analyses)
         # Single model — consensus requires min_models_for_consensus (default 2)
@@ -345,8 +362,12 @@ class TestMultiModelReasoning:
     async def test_consensus_with_two_models(self) -> None:
         engine = MultiModelReasoningEngine()
         analyses = [
-            ModelAnalysis(model="gpt-4", provider="openai", claims=["The sky is blue."], confidence=0.9),
-            ModelAnalysis(model="claude", provider="anthropic", claims=["The sky is blue."], confidence=0.85),
+            ModelAnalysis(
+                model="gpt-4", provider="openai", claims=["The sky is blue."], confidence=0.9
+            ),
+            ModelAnalysis(
+                model="claude", provider="anthropic", claims=["The sky is blue."], confidence=0.85
+            ),
         ]
         result = await engine.reason("What color is the sky?", analyses)
         assert "Consensus across 2 models" in result.consensus
@@ -356,7 +377,9 @@ class TestMultiModelReasoning:
         engine = MultiModelReasoningEngine()
         analyses = [
             ModelAnalysis(model="A", provider="x", claims=["The Earth is round."], confidence=0.9),
-            ModelAnalysis(model="B", provider="y", claims=["The Earth is not round."], confidence=0.7),
+            ModelAnalysis(
+                model="B", provider="y", claims=["The Earth is not round."], confidence=0.7
+            ),
         ]
         result = await engine.reason("Is the Earth round?", analyses)
         assert len(result.conflicts) >= 1
@@ -376,7 +399,13 @@ class TestMultiModelReasoning:
         engine = MultiModelReasoningEngine()
         analyses = [
             ModelAnalysis(model="A", provider="x", response="yes", claims=["yes"], confidence=0.9),
-            ModelAnalysis(model="B", provider="y", response="completely different topic", claims=["different"], confidence=0.3),
+            ModelAnalysis(
+                model="B",
+                provider="y",
+                response="completely different topic",
+                claims=["different"],
+                confidence=0.3,
+            ),
         ]
         result = await engine.reason("q?", analyses)
         # Model B with low confidence and low overlap should be a minority opinion
@@ -504,6 +533,7 @@ class TestEvidenceGraph:
 
     def test_claim_relation(self) -> None:
         from services.research.models import ClaimRelation
+
         graph = EvidenceGraph()
         c1 = Claim(text="A")
         c2 = Claim(text="B")
@@ -598,8 +628,18 @@ class TestFactVerification:
     async def test_source_ranking(self) -> None:
         engine = FactVerificationEngine()
         sources = [
-            Source(title="Low", abstract="test", reliability=SourceReliability.TIER_5_UNVERIFIED.value, reliability_score=0.2),
-            Source(title="High", abstract="test", reliability=SourceReliability.TIER_1_PEER_REVIEWED.value, reliability_score=0.95),
+            Source(
+                title="Low",
+                abstract="test",
+                reliability=SourceReliability.TIER_5_UNVERIFIED.value,
+                reliability_score=0.2,
+            ),
+            Source(
+                title="High",
+                abstract="test",
+                reliability=SourceReliability.TIER_1_PEER_REVIEWED.value,
+                reliability_score=0.95,
+            ),
         ]
         report = await engine.verify("test", sources)
         assert len(report.source_ranking) == 2
@@ -648,7 +688,9 @@ class TestKnowledgeSynthesis:
             ),
         ]
         synthesis = await engine.synthesize(
-            "p1", "Climate Synthesis", documents,
+            "p1",
+            "Climate Synthesis",
+            documents,
             research_question="What is the state of climate action in 2024?",
         )
         assert len(synthesis.sections) == 9
@@ -708,7 +750,9 @@ class TestKnowledgeSynthesis:
 
     async def test_synthesis_requires_approval(self) -> None:
         engine = KnowledgeSynthesisEngine()
-        synthesis = await engine.synthesize("p1", "T", [Source(title="A", abstract="x", reliability_score=0.5)])
+        synthesis = await engine.synthesize(
+            "p1", "T", [Source(title="A", abstract="x", reliability_score=0.5)]
+        )
         assert synthesis.requires_approval is True
 
     async def test_document_summaries(self) -> None:

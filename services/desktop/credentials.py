@@ -10,7 +10,6 @@ from __future__ import annotations
 import json
 from pathlib import Path
 from typing import Any
-from uuid import uuid4
 
 from core.logging import get_logger
 
@@ -82,13 +81,14 @@ class NativeCredentialStore:
     def _use_win32cred(self) -> bool:
         try:
             import win32cred  # noqa: F401
+
             return True
         except ImportError:
             return False
 
     def _win32_set(self, key: str, value: str, target: str) -> None:
         import win32cred
-        import win32con
+
         type_name = f"{self.app_name}:{target}"
         win32cred.CredWrite(
             {
@@ -103,7 +103,7 @@ class NativeCredentialStore:
 
     def _win32_get(self, key: str) -> str | None:
         import win32cred
-        import win32con
+
         try:
             cred = win32cred.CredRead(
                 f"{self.app_name}:generic:{key}",
@@ -115,7 +115,7 @@ class NativeCredentialStore:
 
     def _win32_delete(self, key: str) -> None:
         import win32cred
-        import win32con
+
         try:
             win32cred.CredDelete(
                 f"{self.app_name}:generic:{key}",
@@ -126,6 +126,7 @@ class NativeCredentialStore:
 
     def _win32_list(self) -> list[str]:
         import win32cred
+
         try:
             creds = win32cred.CredEnumerate(f"{self.app_name}:generic:*")
             return [c.get("TargetName", "").split(":")[-1] for c in creds]

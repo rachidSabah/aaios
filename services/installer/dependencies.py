@@ -377,7 +377,10 @@ class DependencyChecker:
             try:
                 result = subprocess.run(  # noqa: S603
                     spec.install_command,  # noqa: S607
-                    capture_output=True, text=True, timeout=300, check=False,
+                    capture_output=True,
+                    text=True,
+                    timeout=300,
+                    check=False,
                 )
                 if result.returncode == 0:
                     check.install_succeeded = True
@@ -388,7 +391,8 @@ class DependencyChecker:
                     check.status = DependencyStatus.INSTALL_FAILED.value
                     _log.warning(
                         "installer.dependency_install_failed",
-                        name=spec.name, error=check.error,
+                        name=spec.name,
+                        error=check.error,
                     )
             except (subprocess.SubprocessError, OSError) as e:
                 check.error = str(e)
@@ -432,7 +436,10 @@ class DependencyChecker:
         try:
             result = subprocess.run(  # noqa: S603
                 [path, *args],  # noqa: S607
-                capture_output=True, text=True, timeout=5, check=False,
+                capture_output=True,
+                text=True,
+                timeout=5,
+                check=False,
             )
             if result.returncode == 0:
                 for line in result.stdout.splitlines():
@@ -444,11 +451,13 @@ class DependencyChecker:
 
     def _version_gte(self, detected: str, required: str) -> bool:
         """Compare two version strings (loose comparison)."""
+
         def parse(v: str) -> tuple[int, ...]:
             parts = []
             for p in re.findall(r"\d+", v):
                 parts.append(int(p))
             return tuple(parts)
+
         try:
             d = parse(detected)
             r = parse(required)

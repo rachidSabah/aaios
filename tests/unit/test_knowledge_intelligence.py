@@ -50,7 +50,9 @@ class TestKnowledgeIntelligence:
 
     async def test_quality_report(self) -> None:
         engine = KnowledgeIntelligenceEngine()
-        entries = [KnowledgeEntry(title="Test", content="content", summary="summary", labels=["tag"])]
+        entries = [
+            KnowledgeEntry(title="Test", content="content", summary="summary", labels=["tag"])
+        ]
         await engine.ingest_entries(entries)
         report = await engine.quality_report()
         assert report.total_entries == 1
@@ -58,7 +60,9 @@ class TestKnowledgeIntelligence:
 
     async def test_analyze_all(self) -> None:
         engine = KnowledgeIntelligenceEngine()
-        entries = [KnowledgeEntry(title="Test", content="content", summary="summary", labels=["tag"])]
+        entries = [
+            KnowledgeEntry(title="Test", content="content", summary="summary", labels=["tag"])
+        ]
         await engine.ingest_entries(entries)
         insights = await engine.analyze_all()
         assert isinstance(insights, list)
@@ -71,8 +75,12 @@ class TestAutonomousLearning:
     async def test_learn_from_success(self) -> None:
         engine = AutonomousLearningEngine()
         lesson = await engine.learn_from_execution(
-            goal="test goal", success=True, agent_id="agent-a", provider="openai",
-            duration_s=1.0, cost_usd=0.05,
+            goal="test goal",
+            success=True,
+            agent_id="agent-a",
+            provider="openai",
+            duration_s=1.0,
+            cost_usd=0.05,
         )
         assert lesson.category == "best_practice"
         assert "test goal" in lesson.title
@@ -80,8 +88,11 @@ class TestAutonomousLearning:
     async def test_learn_from_failure(self) -> None:
         engine = AutonomousLearningEngine()
         lesson = await engine.learn_from_execution(
-            goal="failing goal", success=False, agent_id="agent-b",
-            error="timeout", retries=3,
+            goal="failing goal",
+            success=False,
+            agent_id="agent-b",
+            error="timeout",
+            retries=3,
         )
         assert lesson.category == "anti_pattern"
         assert "failing goal" in lesson.title
@@ -89,14 +100,19 @@ class TestAutonomousLearning:
     async def test_learn_from_approval(self) -> None:
         engine = AutonomousLearningEngine()
         lesson = await engine.learn_from_approval(
-            action="delete_file", approved=False, risk_level="high", reason="too risky",
+            action="delete_file",
+            approved=False,
+            risk_level="high",
+            reason="too risky",
         )
         assert lesson.category == "anti_pattern"
 
     async def test_learn_from_feedback(self) -> None:
         engine = AutonomousLearningEngine()
         lesson = await engine.learn_from_feedback(
-            target="execution", feedback="great work", rating=5,
+            target="execution",
+            feedback="great work",
+            rating=5,
         )
         assert lesson.category == "best_practice"
 
@@ -141,7 +157,9 @@ class TestRecommendationEngine:
     async def test_recommend_documents(self) -> None:
         learning = AutonomousLearningEngine()
         rec = RecommendationEngine(learning)
-        entries = [KnowledgeEntry(title="Python Guide", content="Python is great", labels=["python"])]
+        entries = [
+            KnowledgeEntry(title="Python Guide", content="Python is great", labels=["python"])
+        ]
         await rec.ingest(entries, [])
         results = await rec.recommend_documents("python")
         assert len(results) >= 1
@@ -231,7 +249,9 @@ class TestKnowledgeIntegration:
     async def test_full_lifecycle(self) -> None:
         platform = KnowledgePlatform()
         # Create knowledge
-        entry = KnowledgeEntry(title="Integration Test", content="test content", summary="summary", labels=["test"])
+        entry = KnowledgeEntry(
+            title="Integration Test", content="test content", summary="summary", labels=["test"]
+        )
         await platform.create_entry(entry)
         # Learn
         learning = AutonomousLearningEngine()

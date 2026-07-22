@@ -95,7 +95,8 @@ class LearningEngine:
         self.exporter = ExperienceExporter(self.store)
         self.compressor = ExperienceCompressor(self.store)
         self.retention = ExperienceRetentionManager(
-            self.store, policy=retention_policy or RetentionPolicy(),
+            self.store,
+            policy=retention_policy or RetentionPolicy(),
         )
         self._started = False
 
@@ -156,7 +157,9 @@ class LearningEngine:
     ) -> ReplayResult:
         """Replay an experience."""
         return await self.replayer.replay(
-            experience_id, mode=mode, comparison_agent_id=comparison_agent_id,
+            experience_id,
+            mode=mode,
+            comparison_agent_id=comparison_agent_id,
         )
 
     async def learning_stats(self) -> LearningStats:

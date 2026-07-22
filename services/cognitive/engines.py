@@ -68,7 +68,8 @@ class CognitivePredictionEngine:
         if not experiences:
             return PredictionResult(
                 prediction_type=PredictionType.SUCCESS_PROBABILITY.value,
-                predicted_value=0.7, confidence=0.3,
+                predicted_value=0.7,
+                confidence=0.3,
                 explanation="No historical data — using default 70% base rate.",
             )
         success_rate = sum(1 for e in experiences if e.success) / len(experiences)
@@ -85,8 +86,15 @@ class CognitivePredictionEngine:
             predicted_value=success_rate,
             confidence=min(0.9, len(experiences) / 50.0),
             explanation=f"Based on {len(experiences)} historical executions with {success_rate:.1%} overall success rate."
-                        + (f" Agent '{agent}' has {len(agent_exps)} past executions." if agent and agent_exps else ""),
-            evidence={"sample_count": len(experiences), "base_success_rate": round(success_rate, 4)},
+            + (
+                f" Agent '{agent}' has {len(agent_exps)} past executions."
+                if agent and agent_exps
+                else ""
+            ),
+            evidence={
+                "sample_count": len(experiences),
+                "base_success_rate": round(success_rate, 4),
+            },
         )
 
     async def predict_duration(self, context: dict[str, Any]) -> PredictionResult:
@@ -95,7 +103,8 @@ class CognitivePredictionEngine:
         if not experiences:
             return PredictionResult(
                 prediction_type=PredictionType.MISSION_DURATION.value,
-                predicted_value=30.0, confidence=0.3,
+                predicted_value=30.0,
+                confidence=0.3,
                 explanation="No historical data — estimating 30s default.",
             )
         avg_duration = sum(e.latency_s for e in experiences) / len(experiences)
@@ -113,7 +122,8 @@ class CognitivePredictionEngine:
         if not experiences:
             return PredictionResult(
                 prediction_type=PredictionType.BUDGET.value,
-                predicted_value=0.05, confidence=0.3,
+                predicted_value=0.05,
+                confidence=0.3,
                 explanation="No historical data — estimating $0.05 default.",
             )
         avg_cost = sum(e.cost_usd for e in experiences) / len(experiences)
@@ -135,14 +145,16 @@ class CognitivePredictionEngine:
         if not experiences:
             return PredictionResult(
                 prediction_type=PredictionType.TOKEN_CONSUMPTION.value,
-                predicted_value=500, confidence=0.3,
+                predicted_value=500,
+                confidence=0.3,
                 explanation="No historical data — estimating 500 tokens default.",
             )
         total_tokens = [sum(e.token_usage.values()) for e in experiences if e.token_usage]
         if not total_tokens:
             return PredictionResult(
                 prediction_type=PredictionType.TOKEN_CONSUMPTION.value,
-                predicted_value=500, confidence=0.3,
+                predicted_value=500,
+                confidence=0.3,
                 explanation="No token usage data in historical executions.",
             )
         avg_tokens = sum(total_tokens) / len(total_tokens)
@@ -160,7 +172,8 @@ class CognitivePredictionEngine:
         if not experiences:
             return PredictionResult(
                 prediction_type=PredictionType.RISK_SCORE.value,
-                predicted_value=0.3, confidence=0.3,
+                predicted_value=0.3,
+                confidence=0.3,
                 explanation="No historical data — using default 0.3 risk score.",
             )
         avg_risk = sum(e.risk_score for e in experiences) / len(experiences)
@@ -178,7 +191,8 @@ class CognitivePredictionEngine:
         if not experiences:
             return PredictionResult(
                 prediction_type=PredictionType.CONFIDENCE_SCORE.value,
-                predicted_value=0.7, confidence=0.3,
+                predicted_value=0.7,
+                confidence=0.3,
                 explanation="No historical data — using default 0.7 confidence.",
             )
         avg_conf = sum(e.confidence_score for e in experiences) / len(experiences)
@@ -223,19 +237,21 @@ class CognitiveOptimizationEngine:
         worst = min(rates, key=lambda k: rates[k])
         if rates[best] - rates[worst] < 0.1:
             return []
-        return [Recommendation(
-            recommendation_type=RecommendationType.ALTERNATIVE_PROVIDER.value,
-            title=f"Switch from '{worst}' to '{best}' for better success rate",
-            description=f"'{best}' has {rates[best]:.1%} success vs '{worst}' at {rates[worst]:.1%}",
-            current_state=f"Using '{worst}' ({rates[worst]:.1%} success)",
-            recommended_state=f"Switch to '{best}' ({rates[best]:.1%} success)",
-            expected_improvement=f"+{(rates[best] - rates[worst]) * 100:.0f}% success rate",
-            estimated_impact=rates[best] - rates[worst],
-            confidence=0.7,
-            priority="high" if rates[best] - rates[worst] > 0.2 else "normal",
-            affected_components=[worst, best],
-            requires_approval=True,
-        )]
+        return [
+            Recommendation(
+                recommendation_type=RecommendationType.ALTERNATIVE_PROVIDER.value,
+                title=f"Switch from '{worst}' to '{best}' for better success rate",
+                description=f"'{best}' has {rates[best]:.1%} success vs '{worst}' at {rates[worst]:.1%}",
+                current_state=f"Using '{worst}' ({rates[worst]:.1%} success)",
+                recommended_state=f"Switch to '{best}' ({rates[best]:.1%} success)",
+                expected_improvement=f"+{(rates[best] - rates[worst]) * 100:.0f}% success rate",
+                estimated_impact=rates[best] - rates[worst],
+                confidence=0.7,
+                priority="high" if rates[best] - rates[worst] > 0.2 else "normal",
+                affected_components=[worst, best],
+                requires_approval=True,
+            )
+        ]
 
     async def recommend_agent(self) -> list[Recommendation]:
         """Recommend alternative agents based on history."""
@@ -251,19 +267,21 @@ class CognitiveOptimizationEngine:
         worst = min(rates, key=lambda k: rates[k])
         if rates[best] - rates[worst] < 0.15:
             return []
-        return [Recommendation(
-            recommendation_type=RecommendationType.ALTERNATIVE_AGENT.value,
-            title=f"Route more tasks to agent '{best}' instead of '{worst}'",
-            description=f"'{best}' has {rates[best]:.1%} success vs '{worst}' at {rates[worst]:.1%}",
-            current_state=f"'{worst}' ({rates[worst]:.1%} success)",
-            recommended_state=f"'{best}' ({rates[best]:.1%} success)",
-            expected_improvement=f"+{(rates[best] - rates[worst]) * 100:.0f}% success rate",
-            estimated_impact=rates[best] - rates[worst],
-            confidence=0.75,
-            priority="high",
-            affected_components=[worst, best],
-            requires_approval=True,
-        )]
+        return [
+            Recommendation(
+                recommendation_type=RecommendationType.ALTERNATIVE_AGENT.value,
+                title=f"Route more tasks to agent '{best}' instead of '{worst}'",
+                description=f"'{best}' has {rates[best]:.1%} success vs '{worst}' at {rates[worst]:.1%}",
+                current_state=f"'{worst}' ({rates[worst]:.1%} success)",
+                recommended_state=f"'{best}' ({rates[best]:.1%} success)",
+                expected_improvement=f"+{(rates[best] - rates[worst]) * 100:.0f}% success rate",
+                estimated_impact=rates[best] - rates[worst],
+                confidence=0.75,
+                priority="high",
+                affected_components=[worst, best],
+                requires_approval=True,
+            )
+        ]
 
     async def recommend_retry(self) -> list[Recommendation]:
         """Recommend retry strategy optimizations."""
@@ -273,18 +291,20 @@ class CognitiveOptimizationEngine:
             return []
         recovery_rate = sum(1 for e in retried if e.success) / len(retried)
         if recovery_rate < 0.5:
-            return [Recommendation(
-                recommendation_type=RecommendationType.RETRY_OPTIMIZATION.value,
-                title="Increase max_retries — current recovery rate is low",
-                description=f"Only {recovery_rate:.1%} of retried executions succeed. Consider increasing retries.",
-                current_state=f"Recovery rate: {recovery_rate:.1%}",
-                recommended_state="Increase max_retries from 2 to 3 with exponential backoff",
-                expected_improvement="+15% recovery rate",
-                estimated_impact=0.4,
-                confidence=0.7,
-                priority="normal",
-                requires_approval=True,
-            )]
+            return [
+                Recommendation(
+                    recommendation_type=RecommendationType.RETRY_OPTIMIZATION.value,
+                    title="Increase max_retries — current recovery rate is low",
+                    description=f"Only {recovery_rate:.1%} of retried executions succeed. Consider increasing retries.",
+                    current_state=f"Recovery rate: {recovery_rate:.1%}",
+                    recommended_state="Increase max_retries from 2 to 3 with exponential backoff",
+                    expected_improvement="+15% recovery rate",
+                    estimated_impact=0.4,
+                    confidence=0.7,
+                    priority="normal",
+                    requires_approval=True,
+                )
+            ]
         return []
 
     async def recommend_budget(self) -> list[Recommendation]:
@@ -295,18 +315,20 @@ class CognitiveOptimizationEngine:
         avg_cost = sum(e.cost_usd for e in experiences) / len(experiences)
         expensive = [e for e in experiences if e.cost_usd > avg_cost * 2]
         if len(expensive) > len(experiences) * 0.2:
-            return [Recommendation(
-                recommendation_type=RecommendationType.BUDGET_OPTIMIZATION.value,
-                title="Reduce cost by switching to cheaper providers for non-critical tasks",
-                description=f"{len(expensive)} executions cost >2x average (${avg_cost:.4f})",
-                current_state=f"Average cost: ${avg_cost:.4f}",
-                recommended_state="Use cheaper providers for low-priority tasks",
-                expected_improvement="-20% total cost",
-                estimated_impact=0.5,
-                confidence=0.65,
-                priority="normal",
-                requires_approval=True,
-            )]
+            return [
+                Recommendation(
+                    recommendation_type=RecommendationType.BUDGET_OPTIMIZATION.value,
+                    title="Reduce cost by switching to cheaper providers for non-critical tasks",
+                    description=f"{len(expensive)} executions cost >2x average (${avg_cost:.4f})",
+                    current_state=f"Average cost: ${avg_cost:.4f}",
+                    recommended_state="Use cheaper providers for low-priority tasks",
+                    expected_improvement="-20% total cost",
+                    estimated_impact=0.5,
+                    confidence=0.65,
+                    priority="normal",
+                    requires_approval=True,
+                )
+            ]
         return []
 
 
@@ -430,17 +452,23 @@ class ArchitectureIntelligence:
                 source = py_file.read_text(encoding="utf-8", errors="replace")
                 tree = ast.parse(source)
                 for node in ast.walk(tree):
-                    if isinstance(node, ast.FunctionDef) and node.name.startswith("_") and not node.name.startswith("__"):
+                    if (
+                        isinstance(node, ast.FunctionDef)
+                        and node.name.startswith("_")
+                        and not node.name.startswith("__")
+                    ):
                         # Check if private function is called anywhere
                         if not self._is_called(node.name, py_file):
-                            issues.append(ArchIssue(
-                                issue_type=ArchIssueType.DEAD_CODE.value,
-                                severity="low",
-                                file=str(py_file.relative_to(self._root)),
-                                line=node.lineno,
-                                description=f"Private function '{node.name}' may be unused",
-                                recommendation="Review and remove if truly unused",
-                            ))
+                            issues.append(
+                                ArchIssue(
+                                    issue_type=ArchIssueType.DEAD_CODE.value,
+                                    severity="low",
+                                    file=str(py_file.relative_to(self._root)),
+                                    line=node.lineno,
+                                    description=f"Private function '{node.name}' may be unused",
+                                    recommendation="Review and remove if truly unused",
+                                )
+                            )
             except Exception:
                 pass
         return issues[:20]  # limit
@@ -471,14 +499,16 @@ class ArchitectureIntelligence:
                 tree = ast.parse(source)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef) and not node.body:
-                        issues.append(ArchIssue(
-                            issue_type=ArchIssueType.DOC_GAP.value,
-                            severity="low",
-                            file=str(py_file.relative_to(self._root)),
-                            line=node.lineno,
-                            description=f"Class '{node.name}' has no docstring",
-                            recommendation="Add a docstring explaining the class purpose",
-                        ))
+                        issues.append(
+                            ArchIssue(
+                                issue_type=ArchIssueType.DOC_GAP.value,
+                                severity="low",
+                                file=str(py_file.relative_to(self._root)),
+                                line=node.lineno,
+                                description=f"Class '{node.name}' has no docstring",
+                                recommendation="Add a docstring explaining the class purpose",
+                            )
+                        )
             except Exception:
                 pass
         return issues[:20]
@@ -497,14 +527,16 @@ class ArchitectureIntelligence:
                 # Check if there's a test file
                 test_name = f"test_{py_file.stem}.py"
                 if not (test_dir / test_name).exists():
-                    issues.append(ArchIssue(
-                        issue_type=ArchIssueType.MISSING_TESTS.value,
-                        severity="medium",
-                        file=str(py_file.relative_to(self._root)),
-                        line=0,
-                        description=f"No test file for {py_file.name}",
-                        recommendation=f"Create {test_name} in tests/unit/",
-                    ))
+                    issues.append(
+                        ArchIssue(
+                            issue_type=ArchIssueType.MISSING_TESTS.value,
+                            severity="medium",
+                            file=str(py_file.relative_to(self._root)),
+                            line=0,
+                            description=f"No test file for {py_file.name}",
+                            recommendation=f"Create {test_name} in tests/unit/",
+                        )
+                    )
         return issues[:20]
 
 
@@ -516,9 +548,14 @@ class RepositoryIntelligence:
 
     async def health_report(self) -> dict[str, Any]:
         """Generate a repository health report."""
-        py_files = [f for f in self._root.rglob("*.py")
-                     if ".venv" not in str(f) and "node_modules" not in str(f) and ".git" not in str(f)]
-        test_files = list((self._root / "tests").rglob("*.py")) if (self._root / "tests").exists() else []
+        py_files = [
+            f
+            for f in self._root.rglob("*.py")
+            if ".venv" not in str(f) and "node_modules" not in str(f) and ".git" not in str(f)
+        ]
+        test_files = (
+            list((self._root / "tests").rglob("*.py")) if (self._root / "tests").exists() else []
+        )
         src_lines = sum(self._count_lines(f) for f in py_files)
         test_lines = sum(self._count_lines(f) for f in test_files)
         docs = list(self._root.rglob("*.md"))
@@ -541,8 +578,13 @@ class RepositoryIntelligence:
             "has_contributing": has_contributing,
             "has_security": has_security,
             "health_score": self._compute_health_score(
-                has_readme, has_changelog, has_license, has_contributing, has_security,
-                len(test_files), len(py_files),
+                has_readme,
+                has_changelog,
+                has_license,
+                has_contributing,
+                has_security,
+                len(test_files),
+                len(py_files),
             ),
         }
 
@@ -553,15 +595,26 @@ class RepositoryIntelligence:
             return 0
 
     def _compute_health_score(
-        self, readme: bool, changelog: bool, license: bool,
-        contributing: bool, security: bool, test_count: int, src_count: int,
+        self,
+        readme: bool,
+        changelog: bool,
+        license: bool,
+        contributing: bool,
+        security: bool,
+        test_count: int,
+        src_count: int,
     ) -> float:
         score = 0.0
-        if readme: score += 15
-        if changelog: score += 10
-        if license: score += 15
-        if contributing: score += 10
-        if security: score += 10
+        if readme:
+            score += 15
+        if changelog:
+            score += 10
+        if license:
+            score += 15
+        if contributing:
+            score += 10
+        if security:
+            score += 10
         test_ratio = test_count / max(1, src_count)
         score += min(40, test_ratio * 100)
         return min(100, round(score))
@@ -624,7 +677,16 @@ class EnterpriseReporting:
         for finding in report.key_findings:
             lines.append(f"- {finding}")
         if report.metrics:
-            lines.extend(["", "## Metrics", "", "```json", json.dumps(report.metrics, indent=2, default=str), "```"])
+            lines.extend(
+                [
+                    "",
+                    "## Metrics",
+                    "",
+                    "```json",
+                    json.dumps(report.metrics, indent=2, default=str),
+                    "```",
+                ]
+            )
         return "\n".join(lines)
 
     async def export_json(self, report: EnterpriseReport) -> str:
@@ -635,6 +697,7 @@ class EnterpriseReporting:
         """Export report metrics as CSV."""
         import csv
         import io
+
         output = io.StringIO()
         writer = csv.writer(output)
         writer.writerow(["metric", "value"])

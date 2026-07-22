@@ -30,17 +30,95 @@ _log = get_logger(__name__)
 __all__ = ["KnowledgeSynthesisEngine"]
 
 # Common English stop words for entity extraction
-_STOP_WORDS: frozenset[str] = frozenset({
-    "the", "a", "an", "and", "or", "but", "in", "on", "at", "to", "for",
-    "of", "with", "by", "from", "up", "about", "into", "through", "during",
-    "before", "after", "above", "below", "between", "this", "that", "these",
-    "those", "is", "are", "was", "were", "be", "been", "being", "have", "has",
-    "had", "do", "does", "did", "will", "would", "could", "should", "may",
-    "might", "must", "shall", "can", "need", "it", "its", "as", "if", "then",
-    "than", "so", "such", "no", "not", "only", "own", "same", "too", "very",
-    "s", "t", "just", "also", "we", "our", "you", "your", "they", "their",
-    "he", "she", "his", "her", "him", "i", "me", "my",
-})
+_STOP_WORDS: frozenset[str] = frozenset(
+    {
+        "the",
+        "a",
+        "an",
+        "and",
+        "or",
+        "but",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "of",
+        "with",
+        "by",
+        "from",
+        "up",
+        "about",
+        "into",
+        "through",
+        "during",
+        "before",
+        "after",
+        "above",
+        "below",
+        "between",
+        "this",
+        "that",
+        "these",
+        "those",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "can",
+        "need",
+        "it",
+        "its",
+        "as",
+        "if",
+        "then",
+        "than",
+        "so",
+        "such",
+        "no",
+        "not",
+        "only",
+        "own",
+        "same",
+        "too",
+        "very",
+        "s",
+        "t",
+        "just",
+        "also",
+        "we",
+        "our",
+        "you",
+        "your",
+        "they",
+        "their",
+        "he",
+        "she",
+        "his",
+        "her",
+        "him",
+        "i",
+        "me",
+        "my",
+    }
+)
 
 
 class KnowledgeSynthesisEngine:
@@ -112,14 +190,16 @@ class KnowledgeSynthesisEngine:
             key_points = self._extract_key_points(text)
             word_count = len(text.split())
             relevance = min(1.0, doc.reliability_score * 0.7 + (len(key_points) * 0.05))
-            out.append(DocumentSummary(
-                source_id=doc.source_id,
-                title=doc.title,
-                summary=self._truncate(text, 300),
-                key_points=key_points,
-                relevance=round(relevance, 4),
-                word_count=word_count,
-            ))
+            out.append(
+                DocumentSummary(
+                    source_id=doc.source_id,
+                    title=doc.title,
+                    summary=self._truncate(text, 300),
+                    key_points=key_points,
+                    relevance=round(relevance, 4),
+                    word_count=word_count,
+                )
+            )
         return out
 
     def _extract_key_points(self, text: str, max_points: int = 5) -> list[str]:
@@ -135,7 +215,7 @@ class KnowledgeSynthesisEngine:
     def _truncate(self, text: str, max_len: int) -> str:
         if len(text) <= max_len:
             return text
-        return text[:max_len - 3].rsplit(" ", 1)[0] + "..."
+        return text[: max_len - 3].rsplit(" ", 1)[0] + "..."
 
     # --- entity extraction ---------------------------------------------
 
@@ -156,7 +236,9 @@ class KnowledgeSynthesisEngine:
             name = match.group(1)
             self._add_entity(entities, name, "date", text_corpus)
         # Numbers with units (metrics)
-        for match in re.finditer(r"\b(\d+(?:\.\d+)?\s*(?:%|billion|million|trillion|USD|EUR|kg|km))\b", text_corpus, re.I):
+        for match in re.finditer(
+            r"\b(\d+(?:\.\d+)?\s*(?:%|billion|million|trillion|USD|EUR|kg|km))\b", text_corpus, re.I
+        ):
             name = match.group(1)
             self._add_entity(entities, name, "metric", text_corpus)
         # Sort by mention count
@@ -183,12 +265,14 @@ class KnowledgeSynthesisEngine:
         entries: list[dict[str, Any]] = []
         for doc in documents:
             if doc.published_at:
-                entries.append({
-                    "timestamp": doc.published_at.isoformat(),
-                    "title": doc.title,
-                    "description": f"Document published by {', '.join(doc.authors) or 'unknown'}.",
-                    "source_id": doc.source_id,
-                })
+                entries.append(
+                    {
+                        "timestamp": doc.published_at.isoformat(),
+                        "title": doc.title,
+                        "description": f"Document published by {', '.join(doc.authors) or 'unknown'}.",
+                        "source_id": doc.source_id,
+                    }
+                )
         entries.sort(key=lambda e: e["timestamp"])
         return entries
 
@@ -204,7 +288,7 @@ class KnowledgeSynthesisEngine:
             text = (doc.abstract or doc.title).lower()
             present = [e for e in entities if e.name.lower() in text]
             for i, e1 in enumerate(present):
-                for e2 in present[i + 1:]:
+                for e2 in present[i + 1 :]:
                     pair: tuple[str, str] = tuple(sorted([e1.name, e2.name]))  # type: ignore[assignment]
                     co_occurrence[pair] += 1
         # Convert to list of relationship dicts
@@ -212,13 +296,15 @@ class KnowledgeSynthesisEngine:
         for (a, b), count in sorted(co_occurrence.items(), key=lambda x: x[1], reverse=True):
             if count < 1:
                 continue
-            out.append({
-                "source": a,
-                "target": b,
-                "relation": "co_occurs_with",
-                "weight": min(1.0, count * 0.3),
-                "evidence": [f"co_occurrence_count={count}"],
-            })
+            out.append(
+                {
+                    "source": a,
+                    "target": b,
+                    "relation": "co_occurs_with",
+                    "weight": min(1.0, count * 0.3),
+                    "evidence": [f"co_occurrence_count={count}"],
+                }
+            )
         return out[:50]
 
     # --- sections -------------------------------------------------------
@@ -280,9 +366,7 @@ class KnowledgeSynthesisEngine:
         )
 
     def _entities_section(self, entities: list[Entity]) -> SynthesisSection:
-        content = (
-            f"{len(entities)} entities extracted via capitalized n-gram and date detection."
-        )
+        content = f"{len(entities)} entities extracted via capitalized n-gram and date detection."
         bullets = [f"{e.name} [{e.entity_type}] — {e.mentions} mentions" for e in entities[:15]]
         return SynthesisSection(
             title="Entities",
@@ -293,12 +377,8 @@ class KnowledgeSynthesisEngine:
             confidence=0.55,
         )
 
-    def _relationships_section(
-        self, relationship_map: list[dict[str, Any]]
-    ) -> SynthesisSection:
-        content = (
-            f"{len(relationship_map)} relationship(s) detected via entity co-occurrence."
-        )
+    def _relationships_section(self, relationship_map: list[dict[str, Any]]) -> SynthesisSection:
+        content = f"{len(relationship_map)} relationship(s) detected via entity co-occurrence."
         bullets = [
             f"{r['source']} ↔ {r['target']} (weight: {r['weight']:.2f})"
             for r in relationship_map[:10]
@@ -319,14 +399,16 @@ class KnowledgeSynthesisEngine:
         research_question: str,
     ) -> SynthesisSection:
         avg_reliability = (
-            sum(d.reliability_score for d in documents) / len(documents)
-            if documents else 0.0
+            sum(d.reliability_score for d in documents) / len(documents) if documents else 0.0
         )
         content = (
             f"Decision support based on {len(documents)} source(s) with average reliability "
             f"{avg_reliability:.2f}. "
-            + ("Sources are sufficient for tentative decisions." if avg_reliability > 0.6
-               else "Sources are insufficient — gather additional high-reliability material before decisions.")
+            + (
+                "Sources are sufficient for tentative decisions."
+                if avg_reliability > 0.6
+                else "Sources are insufficient — gather additional high-reliability material before decisions."
+            )
         )
         bullets = [
             f"Average source reliability: {avg_reliability:.2f}",
@@ -343,20 +425,15 @@ class KnowledgeSynthesisEngine:
             sources=[d.source_id for d in documents[:3]],
         )
 
-    def _key_insights(
-        self, documents: list[Source], entities: list[Entity]
-    ) -> SynthesisSection:
+    def _key_insights(self, documents: list[Source], entities: list[Entity]) -> SynthesisSection:
         # Most frequent entities → key insights
         top_entities = entities[:5]
         bullets = [
-            f"{e.name} emerges as a central theme ({e.mentions} mentions)."
-            for e in top_entities
+            f"{e.name} emerges as a central theme ({e.mentions} mentions)." for e in top_entities
         ]
         if not bullets:
             bullets = ["Insufficient corpus for insight extraction."]
-        content = (
-            f"{len(bullets)} key insight(s) derived from entity frequency and co-occurrence analysis."
-        )
+        content = f"{len(bullets)} key insight(s) derived from entity frequency and co-occurrence analysis."
         return SynthesisSection(
             title="Key Insights",
             section_type="insights",
@@ -379,11 +456,11 @@ class KnowledgeSynthesisEngine:
             bullets.append("Add peer-reviewed sources to strengthen the evidence base.")
         if entities:
             top = entities[0]
-            bullets.append(f"Investigate '{top.name}' further — highest mention count ({top.mentions}).")
+            bullets.append(
+                f"Investigate '{top.name}' further — highest mention count ({top.mentions})."
+            )
         bullets.append("Cross-validate findings with a domain expert before publication.")
-        content = (
-            f"{len(bullets)} recommendation(s) generated from corpus analysis."
-        )
+        content = f"{len(bullets)} recommendation(s) generated from corpus analysis."
         return SynthesisSection(
             title="Recommendations",
             section_type="recommendations",
@@ -393,17 +470,15 @@ class KnowledgeSynthesisEngine:
             confidence=0.65,
         )
 
-    def _open_questions(
-        self, documents: list[Source], research_question: str
-    ) -> SynthesisSection:
+    def _open_questions(self, documents: list[Source], research_question: str) -> SynthesisSection:
         bullets: list[str] = []
         if research_question:
-            bullets.append(f"Has the original research question been fully answered? — '{research_question[:80]}'")
+            bullets.append(
+                f"Has the original research question been fully answered? — '{research_question[:80]}'"
+            )
         gaps = self._detect_knowledge_gaps(documents)
         bullets.extend(gaps)
-        content = (
-            f"{len(bullets)} open question(s) remain after synthesis."
-        )
+        content = f"{len(bullets)} open question(s) remain after synthesis."
         return SynthesisSection(
             title="Open Questions",
             section_type="open_questions",
@@ -419,7 +494,11 @@ class KnowledgeSynthesisEngine:
             gaps.append("Some documents lack abstracts — full-text analysis recommended.")
         if len({d.source_type for d in documents}) == 1:
             gaps.append("All sources share the same type — diversify source types.")
-        old_sources = [d for d in documents if d.published_at and (datetime.now(UTC) - d.published_at).days > 365]
+        old_sources = [
+            d
+            for d in documents
+            if d.published_at and (datetime.now(UTC) - d.published_at).days > 365
+        ]
         if old_sources:
             gaps.append(f"{len(old_sources)} source(s) are over 1 year old — verify currency.")
         return gaps
@@ -440,25 +519,24 @@ class KnowledgeSynthesisEngine:
             return 0.0
         avg_section_conf = sum(s.confidence for s in sections) / len(sections)
         avg_reliability = (
-            sum(d.reliability_score for d in documents) / len(documents)
-            if documents else 0.0
+            sum(d.reliability_score for d in documents) / len(documents) if documents else 0.0
         )
         return round(min(1.0, (avg_section_conf * 0.6) + (avg_reliability * 0.4)), 4)
 
-    def _empty_synthesis(
-        self, project_id: str, title: str, description: str
-    ) -> KnowledgeSynthesis:
+    def _empty_synthesis(self, project_id: str, title: str, description: str) -> KnowledgeSynthesis:
         return KnowledgeSynthesis(
             project_id=project_id,
             title=title,
             description=description,
-            sections=[SynthesisSection(
-                title="No Documents",
-                section_type="executive_summary",
-                content="No documents were provided for synthesis.",
-                bullet_points=["Provide at least one document with an abstract or text field."],
-                evidence=["document_count=0"],
-                confidence=0.0,
-            )],
+            sections=[
+                SynthesisSection(
+                    title="No Documents",
+                    section_type="executive_summary",
+                    content="No documents were provided for synthesis.",
+                    bullet_points=["Provide at least one document with an abstract or text field."],
+                    evidence=["document_count=0"],
+                    confidence=0.0,
+                )
+            ],
             overall_confidence=0.0,
         )

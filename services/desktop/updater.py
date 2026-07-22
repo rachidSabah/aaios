@@ -13,7 +13,6 @@ notification and system-tray systems. It:
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
 from pathlib import Path
 from typing import Any
 from uuid import uuid4
@@ -25,7 +24,7 @@ from core.logging import get_logger
 from services.update.channels import ReleaseChannelManager
 from services.update.github_provider import GitHubReleaseProvider
 from services.update.manager import UpdateManager
-from services.update.models import ReleaseChannel, UpdateInfo, UpdateStatus
+from services.update.models import UpdateInfo
 from services.update.rollback import RollbackManager
 from services.update.service import BackgroundUpdateService
 from services.update.verify import PackageVerifier
@@ -81,10 +80,13 @@ class DesktopUpdater:
 
     async def check(self) -> UpdateInfo | None:
         self._last_check_result = await self._manager.check_for_updates()
-        await self._emit("desktop.update.check_complete", {
-            "available": self._last_check_result is not None,
-            "version": self._last_check_result.version if self._last_check_result else None,
-        })
+        await self._emit(
+            "desktop.update.check_complete",
+            {
+                "available": self._last_check_result is not None,
+                "version": self._last_check_result.version if self._last_check_result else None,
+            },
+        )
         return self._last_check_result
 
     async def install(self, info: UpdateInfo | None = None) -> Any:
@@ -93,28 +95,35 @@ class DesktopUpdater:
             return None
         await self._emit("desktop.update.installing", {"version": target.version})
         report = await self._manager.install_update(target)
-        await self._emit("desktop.update.install_complete", {
-            "version": target.version,
-            "status": report.status.value,
-            "error": report.error,
-        })
+        await self._emit(
+            "desktop.update.install_complete",
+            {
+                "version": target.version,
+                "status": report.status.value,
+                "error": report.error,
+            },
+        )
         return report
 
     def _on_update_available(self, info: UpdateInfo) -> None:
         try:
             bus = get_bus()
             asyncio = __import__("asyncio")
-            asyncio.ensure_future(bus.publish(Event(
-                topic="desktop.update.available",
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload={
-                    "version": info.version,
-                    "channel": info.channel.value,
-                    "release_notes": info.release_notes,
-                    "size_bytes": info.size_bytes,
-                },
-            )))
+            asyncio.ensure_future(
+                bus.publish(
+                    Event(
+                        topic="desktop.update.available",
+                        correlation_id=uuid4(),
+                        actor=ActorRef.system(),
+                        payload={
+                            "version": info.version,
+                            "channel": info.channel.value,
+                            "release_notes": info.release_notes,
+                            "size_bytes": info.size_bytes,
+                        },
+                    )
+                )
+            )
         except Exception:  # noqa: BLE001
             pass
 
@@ -126,18 +135,22 @@ class DesktopUpdater:
             "last_check_result": {
                 "version": self._last_check_result.version,
                 "channel": self._last_check_result.channel.value,
-            } if self._last_check_result else None,
+            }
+            if self._last_check_result
+            else None,
         }
 
     async def _emit(self, topic: str, payload: dict) -> None:
         try:
             bus = get_bus()
-            await bus.publish(Event(
-                topic=topic,
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload=payload,
-            ))
+            await bus.publish(
+                Event(
+                    topic=topic,
+                    correlation_id=uuid4(),
+                    actor=ActorRef.system(),
+                    payload=payload,
+                )
+            )
         except Exception:  # noqa: BLE001
             pass
 

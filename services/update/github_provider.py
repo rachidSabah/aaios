@@ -102,9 +102,7 @@ class GitHubReleaseProvider(UpdateProvider):
         current_version: str,
         timeout_s: float = 10.0,
     ) -> UpdateManifest | None:
-        client = self._client or httpx.AsyncClient(
-            timeout=timeout_s, headers=self._headers()
-        )
+        client = self._client or httpx.AsyncClient(timeout=timeout_s, headers=self._headers())
         own_client = self._client is None
         try:
             url = f"{self._api_root}/repos/{self.repo}/releases"
@@ -124,14 +122,15 @@ class GitHubReleaseProvider(UpdateProvider):
         candidates = [
             r
             for r in releases
-            if not r.get("draft")
-            and _channel_for_tag(r.get("tag_name", "")) == channel
+            if not r.get("draft") and _channel_for_tag(r.get("tag_name", "")) == channel
         ]
         if not candidates:
             return None
         # Newest published first.
         candidates.sort(
-            key=lambda r: _parse_published(r.get("published_at")) or datetime.min.replace(tzinfo=UTC),
+            key=lambda r: (
+                _parse_published(r.get("published_at")) or datetime.min.replace(tzinfo=UTC)
+            ),
             reverse=True,
         )
         latest = candidates[0]

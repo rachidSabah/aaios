@@ -43,13 +43,54 @@ __all__ = [
 ]
 
 
-_STOP_WORDS = frozenset({
-    "a", "an", "the", "and", "or", "but", "is", "are", "was", "were",
-    "be", "been", "being", "have", "has", "had", "do", "does", "did",
-    "will", "would", "could", "should", "may", "might", "must", "shall",
-    "can", "of", "in", "on", "at", "to", "for", "with", "by", "from",
-    "as", "into", "through", "this", "that", "these", "those",
-})
+_STOP_WORDS = frozenset(
+    {
+        "a",
+        "an",
+        "the",
+        "and",
+        "or",
+        "but",
+        "is",
+        "are",
+        "was",
+        "were",
+        "be",
+        "been",
+        "being",
+        "have",
+        "has",
+        "had",
+        "do",
+        "does",
+        "did",
+        "will",
+        "would",
+        "could",
+        "should",
+        "may",
+        "might",
+        "must",
+        "shall",
+        "can",
+        "of",
+        "in",
+        "on",
+        "at",
+        "to",
+        "for",
+        "with",
+        "by",
+        "from",
+        "as",
+        "into",
+        "through",
+        "this",
+        "that",
+        "these",
+        "those",
+    }
+)
 
 
 def _tokenize(text: str) -> list[str]:
@@ -65,11 +106,30 @@ class EnterpriseKnowledgeGraph:
     """
 
     NODE_TYPES: list[str] = [
-        "user", "organization", "project", "repository", "file", "class",
-        "function", "agent", "provider", "plugin", "workflow", "task",
-        "execution", "failure", "approval", "policy", "secret",
-        "infrastructure", "server", "cloud_resource", "document", "api",
-        "knowledge_entry", "memory_record",
+        "user",
+        "organization",
+        "project",
+        "repository",
+        "file",
+        "class",
+        "function",
+        "agent",
+        "provider",
+        "plugin",
+        "workflow",
+        "task",
+        "execution",
+        "failure",
+        "approval",
+        "policy",
+        "secret",
+        "infrastructure",
+        "server",
+        "cloud_resource",
+        "document",
+        "api",
+        "knowledge_entry",
+        "memory_record",
     ]
 
     def __init__(self) -> None:
@@ -79,16 +139,34 @@ class EnterpriseKnowledgeGraph:
         self._adjacency: dict[str, list[str]] = defaultdict(list)
         self._lock = asyncio.Lock()
 
-    async def add_node(self, node_id: str, node_type: str, name: str = "", properties: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def add_node(
+        self, node_id: str, node_type: str, name: str = "", properties: dict[str, Any] | None = None
+    ) -> dict[str, Any]:
         async with self._lock:
-            node = {"node_id": node_id, "node_type": node_type, "name": name, "properties": properties or {}}
+            node = {
+                "node_id": node_id,
+                "node_type": node_type,
+                "name": name,
+                "properties": properties or {},
+            }
             self._nodes[node_id] = node
             self._by_type[node_type].append(node_id)
             return node
 
-    async def add_edge(self, source_id: str, target_id: str, relationship: str, properties: dict[str, Any] | None = None) -> dict[str, Any]:
+    async def add_edge(
+        self,
+        source_id: str,
+        target_id: str,
+        relationship: str,
+        properties: dict[str, Any] | None = None,
+    ) -> dict[str, Any]:
         async with self._lock:
-            edge = {"source_id": source_id, "target_id": target_id, "relationship": relationship, "properties": properties or {}}
+            edge = {
+                "source_id": source_id,
+                "target_id": target_id,
+                "relationship": relationship,
+                "properties": properties or {},
+            }
             self._edges.append(edge)
             self._adjacency[source_id].append(target_id)
             self._adjacency[target_id].append(source_id)
@@ -100,7 +178,9 @@ class EnterpriseKnowledgeGraph:
 
     async def find_by_type(self, node_type: str) -> list[dict[str, Any]]:
         async with self._lock:
-            return [self._nodes[nid] for nid in self._by_type.get(node_type, []) if nid in self._nodes]
+            return [
+                self._nodes[nid] for nid in self._by_type.get(node_type, []) if nid in self._nodes
+            ]
 
     async def traverse(self, start_id: str, max_depth: int = 3) -> list[dict[str, Any]]:
         """BFS traversal from a starting node."""
@@ -127,7 +207,10 @@ class EnterpriseKnowledgeGraph:
         return {
             "source_node": node_id,
             "affected_count": len(affected),
-            "affected_nodes": [{"node_id": n["node_id"], "name": n["name"], "type": n["node_type"]} for n in affected],
+            "affected_nodes": [
+                {"node_id": n["node_id"], "name": n["name"], "type": n["node_type"]}
+                for n in affected
+            ],
             "affected_types": list({n["node_type"] for n in affected}),
         }
 
@@ -167,7 +250,9 @@ class EnterpriseKnowledgeGraph:
                 node_id = f"memory:{record.memory_id}"
                 if node_id not in self._nodes:
                     await self.add_node(
-                        node_id, "memory_record", record.content[:80],
+                        node_id,
+                        "memory_record",
+                        record.content[:80],
                         {"memory_type": record.memory_type, "importance": record.importance},
                     )
                     count += 1
@@ -195,6 +280,7 @@ class HybridSearchEngine:
             tokens = _tokenize(text)
             self._doc_lengths[entry.entry_id] = len(tokens)
             from collections import Counter
+
             tf = Counter(tokens)
             for term, count in tf.items():
                 self._index[term].append((entry.entry_id, count))
@@ -237,7 +323,7 @@ class HybridSearchEngine:
                 length = self._doc_lengths.get(doc_id, 1)
                 scores[doc_id] /= max(1, length)
             # Rank
-            ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[:limit * 2]
+            ranked = sorted(scores.items(), key=lambda x: x[1], reverse=True)[: limit * 2]
             # Build results
             results: list[KnowledgeSearchResult] = []
             for doc_id, score in ranked:
@@ -248,16 +334,18 @@ class HybridSearchEngine:
                     continue
                 if collection_id and entry.collection_id != collection_id:
                     continue
-                results.append(KnowledgeSearchResult(
-                    entry_id=entry.entry_id,
-                    title=entry.title,
-                    summary=entry.summary,
-                    content_snippet=entry.content[:500],
-                    score=score,
-                    match_type="hybrid",
-                    matched_terms=sorted(matched_terms[doc_id]),
-                    source="knowledge_repository",
-                ))
+                results.append(
+                    KnowledgeSearchResult(
+                        entry_id=entry.entry_id,
+                        title=entry.title,
+                        summary=entry.summary,
+                        content_snippet=entry.content[:500],
+                        score=score,
+                        match_type="hybrid",
+                        matched_terms=sorted(matched_terms[doc_id]),
+                        source="knowledge_repository",
+                    )
+                )
             return results[:limit]
 
 
@@ -294,23 +382,27 @@ class RetrievalEngine:
         # 3. Merge and rank
         all_sources: list[dict[str, Any]] = []
         for result in search_results:
-            all_sources.append({
-                "source": "knowledge",
-                "entry_id": result.entry_id,
-                "title": result.title,
-                "content": result.content_snippet,
-                "score": result.score,
-                "match_type": result.match_type,
-            })
+            all_sources.append(
+                {
+                    "source": "knowledge",
+                    "entry_id": result.entry_id,
+                    "title": result.title,
+                    "content": result.content_snippet,
+                    "score": result.score,
+                    "match_type": result.match_type,
+                }
+            )
         for record in memory_results:
-            all_sources.append({
-                "source": "memory",
-                "memory_id": record.memory_id,
-                "title": record.content[:80],
-                "content": record.content,
-                "score": record.importance * record.confidence,
-                "match_type": record.memory_type,
-            })
+            all_sources.append(
+                {
+                    "source": "memory",
+                    "memory_id": record.memory_id,
+                    "title": record.content[:80],
+                    "content": record.content,
+                    "score": record.importance * record.confidence,
+                    "match_type": record.memory_type,
+                }
+            )
         # 4. Filter by confidence
         if request.min_confidence > 0:
             all_sources = [s for s in all_sources if s["score"] >= request.min_confidence]
@@ -330,7 +422,7 @@ class RetrievalEngine:
         citations: list[dict[str, Any]] = []
         sources: list[str] = []
         total_tokens = 0
-        for source in all_sources[:request.max_results]:
+        for source in all_sources[: request.max_results]:
             tokens = len(source["content"]) // 4
             if total_tokens + tokens > token_budget:
                 remaining = (token_budget - total_tokens) * 4
@@ -342,19 +434,23 @@ class RetrievalEngine:
             context_parts.append(source["content"])
             total_tokens += tokens
             if request.include_citations:
-                citations.append({
-                    "source": source["source"],
-                    "id": source.get("entry_id") or source.get("memory_id"),
-                    "title": source["title"],
-                    "score": source["score"],
-                })
+                citations.append(
+                    {
+                        "source": source["source"],
+                        "id": source.get("entry_id") or source.get("memory_id"),
+                        "title": source["title"],
+                        "score": source["score"],
+                    }
+                )
             sources.append(source.get("entry_id") or source.get("memory_id", ""))
         # 7. Conflict detection
         conflicts = self._detect_conflicts(all_sources)
         # 8. Freshness scoring
         freshness = 1.0 if all_sources else 0.0
         # 9. Confidence
-        confidence = sum(s["score"] for s in all_sources[:request.max_results]) / max(1, len(all_sources[:request.max_results]))
+        confidence = sum(s["score"] for s in all_sources[: request.max_results]) / max(
+            1, len(all_sources[: request.max_results])
+        )
         return RAGResult(
             query=request.query,
             context="\n\n".join(context_parts),
@@ -371,14 +467,16 @@ class RetrievalEngine:
         conflicts: list[ConflictReport] = []
         # Simple heuristic: if two sources have very different content but same title
         for i, s1 in enumerate(sources):
-            for s2 in sources[i + 1:]:
+            for s2 in sources[i + 1 :]:
                 if s1.get("title") == s2.get("title") and s1.get("content") != s2.get("content"):
-                    conflicts.append(ConflictReport(
-                        entry_ids=[s1.get("entry_id", ""), s2.get("entry_id", "")],
-                        conflict_type="factual",
-                        description=f"Conflicting content for '{s1.get('title', '')}'",
-                        resolution="Review both sources and mark one as authoritative",
-                    ))
+                    conflicts.append(
+                        ConflictReport(
+                            entry_ids=[s1.get("entry_id", ""), s2.get("entry_id", "")],
+                            conflict_type="factual",
+                            description=f"Conflicting content for '{s1.get('title', '')}'",
+                            resolution="Review both sources and mark one as authoritative",
+                        )
+                    )
         return conflicts[:5]
 
 
@@ -412,11 +510,18 @@ class KnowledgeGovernance:
             self._permissions[entry_id].append(perm)
         return perm
 
-    async def check_access(self, entry_id: str, principal: str, required_level: str = AccessLevel.READ.value) -> bool:
+    async def check_access(
+        self, entry_id: str, principal: str, required_level: str = AccessLevel.READ.value
+    ) -> bool:
         """Check if a principal has the required access level."""
         async with self._lock:
             perms = self._permissions.get(entry_id, [])
-            level_order = [AccessLevel.READ.value, AccessLevel.WRITE.value, AccessLevel.ADMIN.value, AccessLevel.OWNER.value]
+            level_order = [
+                AccessLevel.READ.value,
+                AccessLevel.WRITE.value,
+                AccessLevel.ADMIN.value,
+                AccessLevel.OWNER.value,
+            ]
             for perm in perms:
                 if perm.principal in (principal, "*"):
                     if level_order.index(perm.access_level) >= level_order.index(required_level):
@@ -501,7 +606,9 @@ class KnowledgePlatform:
             self._entries[entry.entry_id] = entry
         await self.search_engine.index_entry(entry)
         await self.graph.add_node(
-            f"entry:{entry.entry_id}", "knowledge_entry", entry.title,
+            f"entry:{entry.entry_id}",
+            "knowledge_entry",
+            entry.title,
             {"status": entry.status, "category": entry.category},
         )
         return entry
@@ -636,7 +743,9 @@ class KnowledgePlatform:
 
     # --- Governance ---
 
-    async def publish_entry(self, entry_id: str, published_by: str = "system") -> KnowledgeEntry | None:
+    async def publish_entry(
+        self, entry_id: str, published_by: str = "system"
+    ) -> KnowledgeEntry | None:
         entry = await self.get_entry(entry_id)
         if entry is None:
             return None

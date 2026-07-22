@@ -27,18 +27,20 @@ __all__ = ["GitGateway", "get_git_gateway"]
 
 
 # Whitelisted git subcommands (read-only)
-_ALLOWED_SUBCOMMANDS: Final[frozenset[str]] = frozenset({
-    "log",
-    "branch",
-    "tag",
-    "show",
-    "rev-parse",
-    "diff",
-    "status",
-    "remote",
-    "describe",
-    "ls-files",
-})
+_ALLOWED_SUBCOMMANDS: Final[frozenset[str]] = frozenset(
+    {
+        "log",
+        "branch",
+        "tag",
+        "show",
+        "rev-parse",
+        "diff",
+        "status",
+        "remote",
+        "describe",
+        "ls-files",
+    }
+)
 
 _DEFAULT_TIMEOUT_S: Final[float] = 15.0
 

@@ -79,6 +79,7 @@ class TestMissionModels:
 
     def test_budget_utilization(self) -> None:
         from services.organization.models import Budget
+
         b = Budget(total_usd=100.0, spent_usd=50.0)
         assert b.utilization_pct == 50.0
         assert b.remaining_usd == 50.0
@@ -86,11 +87,13 @@ class TestMissionModels:
 
     def test_quality_composite_score(self) -> None:
         from services.organization.models import QualityMetrics
+
         q = QualityMetrics(reflection_score=0.8, qa_score=0.8, user_satisfaction=0.8)
         assert q.composite_score == pytest.approx(0.8, abs=0.01)
 
     def test_risk_score(self) -> None:
         from services.organization.models import Risk
+
         r = Risk(probability=0.8, impact=0.6)
         assert r.risk_score == pytest.approx(0.48, abs=0.01)
 
@@ -136,9 +139,13 @@ class TestMissionStateMachine:
 
     def test_cancel_from_any_state(self) -> None:
         sm = MissionStateMachine()
-        for state in [MissionStatus.CREATED.value, MissionStatus.PLANNING.value,
-                      MissionStatus.READY.value, MissionStatus.EXECUTING.value,
-                      MissionStatus.PAUSED.value]:
+        for state in [
+            MissionStatus.CREATED.value,
+            MissionStatus.PLANNING.value,
+            MissionStatus.READY.value,
+            MissionStatus.EXECUTING.value,
+            MissionStatus.PAUSED.value,
+        ]:
             m = _make_mission()
             m.status = state
             sm.transition(m, MissionStatus.CANCELLED.value)
@@ -305,9 +312,14 @@ class TestWorkBreakdownEngine:
         engine = WorkBreakdownEngine()
         m = _make_mission()
         n = engine.add_node(m, WBSType.TASK.value, title="Original")
-        subtasks = engine.split_task(m, n.node_id, sub_tasks=[
-            {"title": "Sub1"}, {"title": "Sub2"},
-        ])
+        subtasks = engine.split_task(
+            m,
+            n.node_id,
+            sub_tasks=[
+                {"title": "Sub1"},
+                {"title": "Sub2"},
+            ],
+        )
         assert len(subtasks) == 2
         assert all(s.node_type == WBSType.SUBTASK.value for s in subtasks)
 
@@ -352,6 +364,7 @@ class TestDecisionEngine:
         m = _make_mission()
         # Add WBS nodes so the mission is ready
         from services.organization import WorkBreakdownEngine
+
         WorkBreakdownEngine().decompose(m, strategy="flat")
         rec = engine.should_start_mission(m)
         assert rec.should_act is True
@@ -381,6 +394,7 @@ class TestCollaborationEngine:
 
     async def test_send_and_receive_message(self) -> None:
         from services.organization.collaboration import AgentMessage, MessageType
+
         engine = CollaborationEngine()
         msg = AgentMessage(
             message_type=MessageType.DIRECT.value,
@@ -395,6 +409,7 @@ class TestCollaborationEngine:
 
     async def test_broadcast_message(self) -> None:
         from services.organization.collaboration import AgentMessage, MessageType
+
         engine = CollaborationEngine()
         msg = AgentMessage(
             message_type=MessageType.BROADCAST.value,
@@ -411,6 +426,7 @@ class TestCollaborationEngine:
 
     async def test_voting(self) -> None:
         from services.organization.collaboration import Vote
+
         engine = CollaborationEngine()
         votes = [
             Vote(agent_id="a", vote="yes"),
@@ -418,7 +434,9 @@ class TestCollaborationEngine:
             Vote(agent_id="c", vote="no"),
         ]
         result = await engine.conduct_vote(
-            "Should we proceed?", ["a", "b", "c"], votes=votes,
+            "Should we proceed?",
+            ["a", "b", "c"],
+            votes=votes,
         )
         assert result.passed is True
         assert result.yes_count == 2
@@ -434,6 +452,7 @@ class TestCollaborationEngine:
 
     async def test_peer_review(self) -> None:
         from services.organization.collaboration import ReviewVerdict
+
         engine = CollaborationEngine()
         review = await engine.request_peer_review(
             reviewer_agent_id="reviewer",
@@ -445,6 +464,7 @@ class TestCollaborationEngine:
 
     async def test_delegation(self) -> None:
         from services.organization.collaboration import DelegationRequest
+
         engine = CollaborationEngine()
         req = DelegationRequest(
             from_agent_id="agent-a",
@@ -582,7 +602,9 @@ class TestMissionManager:
         await mgr.start()
         m = await mgr.create_mission(title="WBS Add", objectives=["X"])
         node = await mgr.add_wbs_node(
-            m.mission_id, WBSType.TASK.value, title="Manual task",
+            m.mission_id,
+            WBSType.TASK.value,
+            title="Manual task",
         )
         assert node.title == "Manual task"
 
@@ -693,9 +715,13 @@ class TestMissionStress:
     async def test_concurrent_mission_creation(self) -> None:
         mgr = MissionManager()
         await mgr.start()
+
         async def create(i: int) -> Mission:
             return await mgr.create_mission(
-                title=f"Concurrent {i}", objectives=["X"], budget_total_usd=10.0,
+                title=f"Concurrent {i}",
+                objectives=["X"],
+                budget_total_usd=10.0,
             )
+
         missions = await asyncio.gather(*[create(i) for i in range(20)])
         assert len(missions) == 20

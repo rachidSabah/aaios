@@ -302,7 +302,9 @@ class PlanningEngine:
             total_hours += item.estimated_hours
         plan.total_estimated_hours = total_hours
         plan.confidence = 0.6 if total_hours < max_hours else 0.4
-        plan.reasoning = f"Plan decomposed {len(requirements)} requirements into {len(plan.items)} tasks."
+        plan.reasoning = (
+            f"Plan decomposed {len(requirements)} requirements into {len(plan.items)} tasks."
+        )
         plan.assumptions = [
             "Requirements are complete and unambiguous",
             "Team has necessary skills and tools",
@@ -324,7 +326,11 @@ class PlanningEngine:
         ordered: list[str] = []
         remaining = {i.item_id: i for i in plan.items}
         while remaining:
-            ready = [iid for iid, item in remaining.items() if all(d in ordered for d in item.dependencies)]
+            ready = [
+                iid
+                for iid, item in remaining.items()
+                if all(d in ordered for d in item.dependencies)
+            ]
             if not ready:
                 # No ready items — just take the first remaining
                 ready = list(remaining.keys())[:1]
@@ -346,7 +352,16 @@ class MetricsEngine:
         complexities: list[float] = []
         comment_count = 0
         code_count = 0
-        skip_dirs = {".git", ".venv", "node_modules", "__pycache__", ".mypy_cache", "dist", "build", ".next"}
+        skip_dirs = {
+            ".git",
+            ".venv",
+            "node_modules",
+            "__pycache__",
+            ".mypy_cache",
+            "dist",
+            "build",
+            ".next",
+        }
 
         for py_file in repo_root.rglob("*.py"):
             if any(skip in str(py_file) for skip in skip_dirs):
@@ -363,7 +378,13 @@ class MetricsEngine:
                     elif isinstance(node, (ast.FunctionDef, ast.AsyncFunctionDef)):
                         metrics.total_functions += 1
                         # Cyclomatic complexity (simplified)
-                        branches = sum(1 for n in ast.walk(node) if isinstance(n, (ast.If, ast.For, ast.While, ast.ExceptHandler, ast.BoolOp)))
+                        branches = sum(
+                            1
+                            for n in ast.walk(node)
+                            if isinstance(
+                                n, (ast.If, ast.For, ast.While, ast.ExceptHandler, ast.BoolOp)
+                            )
+                        )
                         complexities.append(max(1, branches))
                 # Comment density
                 for line in lines:
@@ -379,7 +400,15 @@ class MetricsEngine:
         metrics.avg_cognitive_complexity = metrics.avg_cyclomatic_complexity * 1.2  # approximation
         # Maintainability Index (simplified)
         if metrics.total_lines > 0:
-            mi = max(0.0, min(100.0, 171 - 5.2 * (metrics.total_lines / max(1, metrics.total_functions)) - 0.37 * metrics.avg_cyclomatic_complexity))
+            mi = max(
+                0.0,
+                min(
+                    100.0,
+                    171
+                    - 5.2 * (metrics.total_lines / max(1, metrics.total_functions))
+                    - 0.37 * metrics.avg_cyclomatic_complexity,
+                ),
+            )
             metrics.avg_maintainability_index = mi / 100.0
         metrics.comment_density = comment_count / max(1, code_count)
         # Test coverage estimation
@@ -410,7 +439,10 @@ class MetricsEngine:
             + (100 - metrics.test_coverage_pct) * 0.1
         ) * max(1, metrics.total_files / 100)
         # Risk score
-        metrics.risk_score = min(1.0, metrics.avg_cyclomatic_complexity / 20.0 + (100 - metrics.test_coverage_pct) / 200.0)
+        metrics.risk_score = min(
+            1.0,
+            metrics.avg_cyclomatic_complexity / 20.0 + (100 - metrics.test_coverage_pct) / 200.0,
+        )
         # Engineering maturity
         maturity = 0.0
         if metrics.test_coverage_pct > 50:
@@ -446,14 +478,27 @@ class ArchitectureAnalysisEngine:
                 tree = ast.parse(py_file.read_text(encoding="utf-8", errors="replace"))
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ClassDef):
-                        members = sum(1 for n in node.body if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Assign)))
+                        members = sum(
+                            1
+                            for n in node.body
+                            if isinstance(n, (ast.FunctionDef, ast.AsyncFunctionDef, ast.Assign))
+                        )
                         if members > 30:
-                            result.god_classes.append(f"{py_file.name}:{node.name} ({members} members)")
+                            result.god_classes.append(
+                                f"{py_file.name}:{node.name} ({members} members)"
+                            )
             except Exception:
                 pass
 
         # Detect layer violations
-        layer_map = {"core": 1, "services": 2, "agents": 3, "supervisor": 4, "orchestrator": 4, "surfaces": 5}
+        layer_map = {
+            "core": 1,
+            "services": 2,
+            "agents": 3,
+            "supervisor": 4,
+            "orchestrator": 4,
+            "surfaces": 5,
+        }
         for src_dir, src_layer in layer_map.items():
             dir_path = repo_root / src_dir
             if not dir_path.exists():
@@ -469,22 +514,30 @@ class ArchitectureAnalysisEngine:
                                 if target_dir == src_dir:
                                     continue
                                 if node.module.startswith(target_dir) and target_layer > src_layer:
-                                    result.layer_violations.append({
-                                        "file": str(py_file.relative_to(repo_root)),
-                                        "import": node.module,
-                                        "from_layer": f"L{src_layer}",
-                                        "to_layer": f"L{target_layer}",
-                                    })
+                                    result.layer_violations.append(
+                                        {
+                                            "file": str(py_file.relative_to(repo_root)),
+                                            "import": node.module,
+                                            "from_layer": f"L{src_layer}",
+                                            "to_layer": f"L{target_layer}",
+                                        }
+                                    )
                 except Exception:
                     pass
 
         # Recommendations
         if result.god_classes:
-            result.recommendations.append(f"Refactor {len(result.god_classes)} god classes into smaller, focused classes")
+            result.recommendations.append(
+                f"Refactor {len(result.god_classes)} god classes into smaller, focused classes"
+            )
         if result.layer_violations:
-            result.recommendations.append(f"Fix {len(result.layer_violations)} layer violations — lower layers should not import from higher layers")
+            result.recommendations.append(
+                f"Fix {len(result.layer_violations)} layer violations — lower layers should not import from higher layers"
+            )
         if not result.recommendations:
-            result.recommendations.append("Architecture looks healthy — no major violations detected")
+            result.recommendations.append(
+                "Architecture looks healthy — no major violations detected"
+            )
         return result
 
 
@@ -515,7 +568,9 @@ class ImpactAnalysisEngine:
                 tree = ast.parse(source)
                 for node in ast.walk(tree):
                     if isinstance(node, ast.ImportFrom) and node.module:
-                        if target_path.stem in node.module or node.module.endswith(target_path.stem):
+                        if target_path.stem in node.module or node.module.endswith(
+                            target_path.stem
+                        ):
                             affected.append(str(py_file.relative_to(repo_root)))
                             break
                     elif isinstance(node, ast.Import):
@@ -533,9 +588,13 @@ class ImpactAnalysisEngine:
         result.migration_effort_hours = affected_count * 1.0
         result.rollback_effort_hours = affected_count * 0.5
         result.risk = "high" if affected_count > 10 else "medium" if affected_count > 3 else "low"
-        result.complexity = "high" if affected_count > 15 else "medium" if affected_count > 5 else "low"
+        result.complexity = (
+            "high" if affected_count > 15 else "medium" if affected_count > 5 else "low"
+        )
         result.confidence = 0.7 if affected_count > 0 else 0.9
-        result.reasoning = f"Changing {target_file} affects {affected_count} modules that import it."
+        result.reasoning = (
+            f"Changing {target_file} affects {affected_count} modules that import it."
+        )
         return result
 
 
@@ -545,104 +604,118 @@ class RecommendationEngine:
     Phase 15: Engineering Recommendation Engine.
     """
 
-    async def recommend_all(self, metrics: EngineeringMetrics, arch: ArchAnalysisResult) -> list[EngRecommendation]:
+    async def recommend_all(
+        self, metrics: EngineeringMetrics, arch: ArchAnalysisResult
+    ) -> list[EngRecommendation]:
         """Generate all applicable recommendations."""
         recs: list[EngRecommendation] = []
         # Architecture recommendations
         if arch.god_classes:
-            recs.append(EngRecommendation(
-                title=f"Refactor {len(arch.god_classes)} god classes",
-                description="Large classes with too many responsibilities should be split.",
-                category="architecture",
-                priority="high",
-                severity="high",
-                confidence=0.8,
-                evidence={"god_classes": arch.god_classes[:5]},
-                reasoning="God classes violate single responsibility and are hard to maintain.",
-                risk="medium",
-                impact=0.7,
-                estimated_effort_hours=len(arch.god_classes) * 4.0,
-                rollback_strategy="Revert to original class structure.",
-            ))
+            recs.append(
+                EngRecommendation(
+                    title=f"Refactor {len(arch.god_classes)} god classes",
+                    description="Large classes with too many responsibilities should be split.",
+                    category="architecture",
+                    priority="high",
+                    severity="high",
+                    confidence=0.8,
+                    evidence={"god_classes": arch.god_classes[:5]},
+                    reasoning="God classes violate single responsibility and are hard to maintain.",
+                    risk="medium",
+                    impact=0.7,
+                    estimated_effort_hours=len(arch.god_classes) * 4.0,
+                    rollback_strategy="Revert to original class structure.",
+                )
+            )
         if arch.layer_violations:
-            recs.append(EngRecommendation(
-                title=f"Fix {len(arch.layer_violations)} layer violations",
-                description="Lower layers should not import from higher layers.",
-                category="architecture",
-                priority="high",
-                severity="medium",
-                confidence=0.9,
-                evidence={"violations": arch.layer_violations[:5]},
-                reasoning="Layer violations create unwanted coupling.",
-                risk="low",
-                impact=0.6,
-                estimated_effort_hours=len(arch.layer_violations) * 1.0,
-                rollback_strategy="Revert the imports.",
-            ))
+            recs.append(
+                EngRecommendation(
+                    title=f"Fix {len(arch.layer_violations)} layer violations",
+                    description="Lower layers should not import from higher layers.",
+                    category="architecture",
+                    priority="high",
+                    severity="medium",
+                    confidence=0.9,
+                    evidence={"violations": arch.layer_violations[:5]},
+                    reasoning="Layer violations create unwanted coupling.",
+                    risk="low",
+                    impact=0.6,
+                    estimated_effort_hours=len(arch.layer_violations) * 1.0,
+                    rollback_strategy="Revert the imports.",
+                )
+            )
         # Performance recommendations
         if metrics.avg_cyclomatic_complexity > 10:
-            recs.append(EngRecommendation(
-                title="Reduce cyclomatic complexity",
-                description=f"Average complexity is {metrics.avg_cyclomatic_complexity:.1f} (target: <10)",
-                category="performance",
-                priority="normal",
-                severity="medium",
-                confidence=0.7,
-                evidence={"avg_complexity": metrics.avg_cyclomatic_complexity},
-                reasoning="High complexity increases bug risk and maintenance cost.",
-                risk="low",
-                impact=0.5,
-                estimated_effort_hours=8.0,
-                rollback_strategy="Revert refactored functions.",
-            ))
+            recs.append(
+                EngRecommendation(
+                    title="Reduce cyclomatic complexity",
+                    description=f"Average complexity is {metrics.avg_cyclomatic_complexity:.1f} (target: <10)",
+                    category="performance",
+                    priority="normal",
+                    severity="medium",
+                    confidence=0.7,
+                    evidence={"avg_complexity": metrics.avg_cyclomatic_complexity},
+                    reasoning="High complexity increases bug risk and maintenance cost.",
+                    risk="low",
+                    impact=0.5,
+                    estimated_effort_hours=8.0,
+                    rollback_strategy="Revert refactored functions.",
+                )
+            )
         # Testing recommendations
         if metrics.test_coverage_pct < 50:
-            recs.append(EngRecommendation(
-                title="Improve test coverage",
-                description=f"Test coverage is {metrics.test_coverage_pct:.1f}% (target: >80%)",
-                category="testing",
-                priority="high",
-                severity="high",
-                confidence=0.9,
-                evidence={"coverage_pct": metrics.test_coverage_pct},
-                reasoning="Low test coverage increases regression risk.",
-                risk="low",
-                impact=0.8,
-                estimated_effort_hours=16.0,
-                rollback_strategy="Remove added tests if not needed.",
-            ))
+            recs.append(
+                EngRecommendation(
+                    title="Improve test coverage",
+                    description=f"Test coverage is {metrics.test_coverage_pct:.1f}% (target: >80%)",
+                    category="testing",
+                    priority="high",
+                    severity="high",
+                    confidence=0.9,
+                    evidence={"coverage_pct": metrics.test_coverage_pct},
+                    reasoning="Low test coverage increases regression risk.",
+                    risk="low",
+                    impact=0.8,
+                    estimated_effort_hours=16.0,
+                    rollback_strategy="Remove added tests if not needed.",
+                )
+            )
         # Documentation recommendations
         if metrics.documentation_coverage_pct < 50:
-            recs.append(EngRecommendation(
-                title="Improve documentation coverage",
-                description=f"Documentation coverage is {metrics.documentation_coverage_pct:.1f}%",
-                category="documentation",
-                priority="normal",
-                severity="medium",
-                confidence=0.8,
-                evidence={"doc_coverage_pct": metrics.documentation_coverage_pct},
-                reasoning="Missing documentation makes onboarding harder.",
-                risk="low",
-                impact=0.4,
-                estimated_effort_hours=8.0,
-                rollback_strategy="Remove added docstrings.",
-            ))
+            recs.append(
+                EngRecommendation(
+                    title="Improve documentation coverage",
+                    description=f"Documentation coverage is {metrics.documentation_coverage_pct:.1f}%",
+                    category="documentation",
+                    priority="normal",
+                    severity="medium",
+                    confidence=0.8,
+                    evidence={"doc_coverage_pct": metrics.documentation_coverage_pct},
+                    reasoning="Missing documentation makes onboarding harder.",
+                    risk="low",
+                    impact=0.4,
+                    estimated_effort_hours=8.0,
+                    rollback_strategy="Remove added docstrings.",
+                )
+            )
         # Security recommendations
         if metrics.risk_score > 0.5:
-            recs.append(EngRecommendation(
-                title="Reduce overall risk score",
-                description=f"Risk score is {metrics.risk_score:.2f} (target: <0.5)",
-                category="security",
-                priority="high",
-                severity="high",
-                confidence=0.6,
-                evidence={"risk_score": metrics.risk_score},
-                reasoning="High risk score indicates potential security/reliability issues.",
-                risk="medium",
-                impact=0.7,
-                estimated_effort_hours=12.0,
-                rollback_strategy="Revert risk mitigation changes.",
-            ))
+            recs.append(
+                EngRecommendation(
+                    title="Reduce overall risk score",
+                    description=f"Risk score is {metrics.risk_score:.2f} (target: <0.5)",
+                    category="security",
+                    priority="high",
+                    severity="high",
+                    confidence=0.6,
+                    evidence={"risk_score": metrics.risk_score},
+                    reasoning="High risk score indicates potential security/reliability issues.",
+                    risk="medium",
+                    impact=0.7,
+                    estimated_effort_hours=12.0,
+                    rollback_strategy="Revert risk mitigation changes.",
+                )
+            )
         return recs
 
 
@@ -652,57 +725,89 @@ class RiskEngine:
     Phase 16: Engineering Risk Engine.
     """
 
-    async def assess_all(self, metrics: EngineeringMetrics, arch: ArchAnalysisResult) -> list[EngRiskAssessment]:
+    async def assess_all(
+        self, metrics: EngineeringMetrics, arch: ArchAnalysisResult
+    ) -> list[EngRiskAssessment]:
         """Assess all engineering risks."""
         risks: list[EngRiskAssessment] = []
         # Regression risk
         if metrics.test_coverage_pct < 50:
-            risks.append(EngRiskAssessment(
-                risk_type="regression",
-                description=f"Low test coverage ({metrics.test_coverage_pct:.1f}%) increases regression risk",
-                risk_score=0.7,
-                confidence=0.8,
-                mitigation_strategy="Add tests for critical paths before making changes",
-                alternative_approaches=["Increase coverage to 80%+", "Add integration tests", "Use mutation testing"],
-            ))
+            risks.append(
+                EngRiskAssessment(
+                    risk_type="regression",
+                    description=f"Low test coverage ({metrics.test_coverage_pct:.1f}%) increases regression risk",
+                    risk_score=0.7,
+                    confidence=0.8,
+                    mitigation_strategy="Add tests for critical paths before making changes",
+                    alternative_approaches=[
+                        "Increase coverage to 80%+",
+                        "Add integration tests",
+                        "Use mutation testing",
+                    ],
+                )
+            )
         # Performance risk
         if metrics.avg_cyclomatic_complexity > 10:
-            risks.append(EngRiskAssessment(
-                risk_type="performance",
-                description=f"High complexity ({metrics.avg_cyclomatic_complexity:.1f}) may indicate performance bottlenecks",
-                risk_score=0.5,
-                confidence=0.6,
-                mitigation_strategy="Profile and optimize high-complexity functions",
-                alternative_approaches=["Refactor into smaller functions", "Add caching", "Use async where possible"],
-            ))
+            risks.append(
+                EngRiskAssessment(
+                    risk_type="performance",
+                    description=f"High complexity ({metrics.avg_cyclomatic_complexity:.1f}) may indicate performance bottlenecks",
+                    risk_score=0.5,
+                    confidence=0.6,
+                    mitigation_strategy="Profile and optimize high-complexity functions",
+                    alternative_approaches=[
+                        "Refactor into smaller functions",
+                        "Add caching",
+                        "Use async where possible",
+                    ],
+                )
+            )
         # Compatibility risk
         if arch.layer_violations:
-            risks.append(EngRiskAssessment(
-                risk_type="compatibility",
-                description=f"{len(arch.layer_violations)} layer violations may cause compatibility issues",
-                risk_score=0.6,
-                confidence=0.7,
-                mitigation_strategy="Fix layer violations before adding new features",
-                alternative_approaches=["Introduce interfaces", "Use dependency injection", "Event-driven communication"],
-            ))
+            risks.append(
+                EngRiskAssessment(
+                    risk_type="compatibility",
+                    description=f"{len(arch.layer_violations)} layer violations may cause compatibility issues",
+                    risk_score=0.6,
+                    confidence=0.7,
+                    mitigation_strategy="Fix layer violations before adding new features",
+                    alternative_approaches=[
+                        "Introduce interfaces",
+                        "Use dependency injection",
+                        "Event-driven communication",
+                    ],
+                )
+            )
         # Maintenance risk
         if metrics.technical_debt_hours > 50:
-            risks.append(EngRiskAssessment(
-                risk_type="maintenance",
-                description=f"Technical debt is {metrics.technical_debt_hours:.1f} hours",
-                risk_score=0.6,
-                confidence=0.7,
-                mitigation_strategy="Allocate sprint capacity to debt reduction",
-                alternative_approaches=["Refactor incrementally", "Prioritize high-impact debt", "Automate repetitive tasks"],
-            ))
+            risks.append(
+                EngRiskAssessment(
+                    risk_type="maintenance",
+                    description=f"Technical debt is {metrics.technical_debt_hours:.1f} hours",
+                    risk_score=0.6,
+                    confidence=0.7,
+                    mitigation_strategy="Allocate sprint capacity to debt reduction",
+                    alternative_approaches=[
+                        "Refactor incrementally",
+                        "Prioritize high-impact debt",
+                        "Automate repetitive tasks",
+                    ],
+                )
+            )
         # Deployment risk
         if metrics.architecture_violations > 5:
-            risks.append(EngRiskAssessment(
-                risk_type="deployment",
-                description=f"{metrics.architecture_violations} architecture violations increase deployment risk",
-                risk_score=0.5,
-                confidence=0.6,
-                mitigation_strategy="Use feature flags for risky deployments",
-                alternative_approaches=["Canary deployments", "Blue-green deployments", "Gradual rollout"],
-            ))
+            risks.append(
+                EngRiskAssessment(
+                    risk_type="deployment",
+                    description=f"{metrics.architecture_violations} architecture violations increase deployment risk",
+                    risk_score=0.5,
+                    confidence=0.6,
+                    mitigation_strategy="Use feature flags for risky deployments",
+                    alternative_approaches=[
+                        "Canary deployments",
+                        "Blue-green deployments",
+                        "Gradual rollout",
+                    ],
+                )
+            )
         return risks

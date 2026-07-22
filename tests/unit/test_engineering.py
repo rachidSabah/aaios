@@ -168,7 +168,9 @@ class TestCapabilityRegistry:
     async def test_update_stats(self) -> None:
         reg = CapabilityRegistry()
         cap = await reg.register(EngCapability(name="python", category="language"))
-        updated = await reg.update_stats(cap.capability_id, success=True, latency_s=1.0, cost_usd=0.01)
+        updated = await reg.update_stats(
+            cap.capability_id, success=True, latency_s=1.0, cost_usd=0.01
+        )
         assert updated is not None
         assert updated.sample_count == 1
         assert updated.success_rate == 1.0

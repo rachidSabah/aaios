@@ -61,6 +61,7 @@ class UninstallManager:
         # Find and terminate processes matching python -m uvicorn or pnpm run dev
         try:
             import psutil  # type: ignore[import-untyped]
+
             for proc in psutil.process_iter(["pid", "name", "cmdline"]):
                 try:
                     cmd = proc.info.get("cmdline") or []
@@ -81,6 +82,7 @@ class UninstallManager:
         """Deregister active Windows Services and Scheduled Tasks."""
         if platform.system() == "Windows":
             import subprocess  # nosec B404
+
             # Remove Scheduled Task if registered
             try:
                 subprocess.run(
@@ -155,6 +157,7 @@ class UninstallManager:
             # Remove environment vars using Registry (simulated/implemented)
             try:
                 import winreg
+
                 key = winreg.OpenKey(
                     winreg.HKEY_LOCAL_MACHINE,
                     r"SYSTEM\CurrentControlSet\Control\Session Manager\Environment",

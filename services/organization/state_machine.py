@@ -164,6 +164,7 @@ class MissionStateMachine:
 
         # Update mission timestamps
         from datetime import UTC, datetime
+
         mission.status = to_state
         mission.updated_at = datetime.now(UTC)
         if to_state == MissionStatus.EXECUTING.value and mission.started_at is None:
@@ -185,7 +186,11 @@ class MissionStateMachine:
         )
         _log.info(
             "Mission %s transition: %s → %s (reason: %s, actor: %s)",
-            mission.mission_id, from_state, to_state, reason, actor,
+            mission.mission_id,
+            from_state,
+            to_state,
+            reason,
+            actor,
         )
         return transition
 

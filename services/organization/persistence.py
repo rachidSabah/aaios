@@ -143,9 +143,7 @@ class MissionPersistence:
     async def list_saved_missions(self) -> list[str]:
         """List all saved mission IDs."""
         async with self._lock:
-            return [
-                p.stem for p in self._storage_dir.glob("*.json") if p.is_file()
-            ]
+            return [p.stem for p in self._storage_dir.glob("*.json") if p.is_file()]
 
 
 class MissionRecovery:
@@ -177,7 +175,8 @@ class MissionRecovery:
             if mission.status == MissionStatus.EXECUTING.value:
                 try:
                     self._state_machine.transition(
-                        mission, MissionStatus.PAUSED.value,
+                        mission,
+                        MissionStatus.PAUSED.value,
                         reason="Recovery: system restarted, pausing executing mission",
                         actor="recovery",
                     )
@@ -185,12 +184,15 @@ class MissionRecovery:
                 except Exception as e:
                     _log.warning(
                         "Failed to pause mission %s during recovery: %s",
-                        mission_id, e,
+                        mission_id,
+                        e,
                     )
             recovered.append(mission)
             _log.info(
                 "Recovered mission '%s' (id=%s, status=%s)",
-                mission.title, mission.mission_id, mission.status,
+                mission.title,
+                mission.mission_id,
+                mission.status,
             )
         return recovered
 
@@ -239,18 +241,21 @@ class MissionReplay:
             speed: Replay speed (1.0 = real-time, 0 = instant)
         """
         import time
+
         start = time.perf_counter()
         entries = await self._history.get_history(mission.mission_id, limit=10000)
         entries.reverse()  # chronological order (oldest first)
 
         timeline: list[dict[str, Any]] = []
         for entry in entries:
-            timeline.append({
-                "timestamp": entry.timestamp.isoformat(),
-                "event_type": entry.event_type,
-                "description": entry.description,
-                "data": entry.data,
-            })
+            timeline.append(
+                {
+                    "timestamp": entry.timestamp.isoformat(),
+                    "event_type": entry.event_type,
+                    "description": entry.description,
+                    "data": entry.data,
+                }
+            )
             if speed > 0:
                 # In real replay, we'd sleep here to simulate timing
                 await asyncio.sleep(0)

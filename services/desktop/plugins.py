@@ -11,10 +11,11 @@ import asyncio
 import hashlib
 import json
 import zipfile
+from collections.abc import Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any, Callable
+from typing import Any
 from uuid import uuid4
 
 from core.contracts.actor import ActorRef
@@ -28,6 +29,7 @@ _log = get_logger(__name__)
 @dataclass
 class DesktopPlugin:
     """Metadata for an installed desktop plugin."""
+
     id: str
     name: str
     version: str
@@ -117,9 +119,14 @@ class DesktopPluginLoader:
             except Exception:  # noqa: BLE001
                 pass
 
-        await self._emit("desktop.plugin.installed", {
-            "plugin_id": plugin_id, "name": plugin.name, "version": plugin.version,
-        })
+        await self._emit(
+            "desktop.plugin.installed",
+            {
+                "plugin_id": plugin_id,
+                "name": plugin.name,
+                "version": plugin.version,
+            },
+        )
         _log.info("desktop.plugin.installed", plugin_id=plugin_id, name=plugin.name)
         return plugin
 
@@ -130,6 +137,7 @@ class DesktopPluginLoader:
         dest = self._plugin_dir / plugin_id
         if dest.exists():
             import shutil
+
             shutil.rmtree(dest)
         manifest_path = self._plugin_dir / f"{plugin_id}.json"
         if manifest_path.exists():
@@ -179,9 +187,13 @@ class DesktopPluginLoader:
             "sandbox_enabled": self._sandbox_enabled,
             "plugins": {
                 pid: {
-                    "id": p.id, "name": p.name, "version": p.version,
-                    "enabled": p.enabled, "author": p.author,
-                    "permissions": p.permissions, "sandboxed": p.sandboxed,
+                    "id": p.id,
+                    "name": p.name,
+                    "version": p.version,
+                    "enabled": p.enabled,
+                    "author": p.author,
+                    "permissions": p.permissions,
+                    "sandboxed": p.sandboxed,
                 }
                 for pid, p in self._plugins.items()
             },
@@ -200,13 +212,25 @@ class DesktopPluginLoader:
     def _save_manifest(self, plugin: DesktopPlugin) -> None:
         try:
             path = self._plugin_dir / f"{plugin.id}.json"
-            path.write_text(json.dumps({
-                "id": plugin.id, "name": plugin.name, "version": plugin.version,
-                "description": plugin.description, "author": plugin.author,
-                "permissions": plugin.permissions, "signature": plugin.signature,
-                "enabled": plugin.enabled, "installed_at": plugin.installed_at,
-                "entry_point": plugin.entry_point, "sandboxed": plugin.sandboxed,
-            }, indent=2), encoding="utf-8")
+            path.write_text(
+                json.dumps(
+                    {
+                        "id": plugin.id,
+                        "name": plugin.name,
+                        "version": plugin.version,
+                        "description": plugin.description,
+                        "author": plugin.author,
+                        "permissions": plugin.permissions,
+                        "signature": plugin.signature,
+                        "enabled": plugin.enabled,
+                        "installed_at": plugin.installed_at,
+                        "entry_point": plugin.entry_point,
+                        "sandboxed": plugin.sandboxed,
+                    },
+                    indent=2,
+                ),
+                encoding="utf-8",
+            )
         except Exception as exc:  # noqa: BLE001
             _log.warning("desktop.plugin.save_manifest_failed", plugin_id=plugin.id, error=str(exc))
 
@@ -238,12 +262,14 @@ class DesktopPluginLoader:
     async def _emit(self, topic: str, payload: dict) -> None:
         try:
             bus = get_bus()
-            await bus.publish(Event(
-                topic=topic,
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload=payload,
-            ))
+            await bus.publish(
+                Event(
+                    topic=topic,
+                    correlation_id=uuid4(),
+                    actor=ActorRef.system(),
+                    payload=payload,
+                )
+            )
         except Exception:  # noqa: BLE001
             pass
 

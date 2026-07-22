@@ -60,14 +60,16 @@ class FactVerificationEngine:
         stances: list[dict[str, Any]] = []
         for src in sources:
             stance = self._classify_stance(fact_text, src)
-            stances.append({
-                "source_id": src.source_id,
-                "source_title": src.title,
-                "reliability": src.reliability,
-                "reliability_score": src.reliability_score,
-                "stance": stance,  # supports | contradicts | neutral
-                "weight": _TIER_WEIGHTS.get(src.reliability, 0.3) * src.reliability_score,
-            })
+            stances.append(
+                {
+                    "source_id": src.source_id,
+                    "source_title": src.title,
+                    "reliability": src.reliability,
+                    "reliability_score": src.reliability_score,
+                    "stance": stance,  # supports | contradicts | neutral
+                    "weight": _TIER_WEIGHTS.get(src.reliability, 0.3) * src.reliability_score,
+                }
+            )
         supporting = [s for s in stances if s["stance"] == "supports"]
         contradicting = [s for s in stances if s["stance"] == "contradicts"]
         neutral = [s for s in stances if s["stance"] == "neutral"]
@@ -149,18 +151,24 @@ class FactVerificationEngine:
             return "supports"
         return "neutral"
 
-    def _compute_status(
-        self, supporting: int, contradicting: int, neutral: int
-    ) -> str:
+    def _compute_status(self, supporting: int, contradicting: int, neutral: int) -> str:
         total = supporting + contradicting + neutral
         if total == 0:
             return VerificationStatus.UNVERIFIABLE.value
         if supporting > 0 and contradicting == 0:
-            return VerificationStatus.VERIFIED.value if supporting >= 2 else VerificationStatus.PARTIALLY_VERIFIED.value
+            return (
+                VerificationStatus.VERIFIED.value
+                if supporting >= 2
+                else VerificationStatus.PARTIALLY_VERIFIED.value
+            )
         if contradicting > 0 and supporting == 0:
             return VerificationStatus.CONTRADICTED.value
         if contradicting > 0 and supporting > 0:
-            return VerificationStatus.PARTIALLY_VERIFIED.value if supporting > contradicting else VerificationStatus.CONTRADICTED.value
+            return (
+                VerificationStatus.PARTIALLY_VERIFIED.value
+                if supporting > contradicting
+                else VerificationStatus.CONTRADICTED.value
+            )
         return VerificationStatus.UNVERIFIED.value
 
     def _compute_confidence(

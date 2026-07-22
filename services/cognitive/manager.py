@@ -102,6 +102,7 @@ class CognitiveManager:
     # Module 5: Knowledge Graph
     def add_graph_node(self, node: Any) -> dict[str, Any]:
         from services.cognitive.models import GraphNode
+
         if isinstance(node, dict):
             graph_node = GraphNode(**node)
         else:

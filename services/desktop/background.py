@@ -69,9 +69,13 @@ class BackgroundServiceRunner:
                 results[name] = {"status": "error", "error": str(exc)}
                 self._results[name] = results[name]
                 _log.warning("desktop.background.service_failed", name=name, error=str(exc))
-        await self._emit("desktop.background.run_complete", {
-            "services": results, "count": len(results),
-        })
+        await self._emit(
+            "desktop.background.run_complete",
+            {
+                "services": results,
+                "count": len(results),
+            },
+        )
         return results
 
     def last_results(self) -> dict[str, Any]:
@@ -95,12 +99,14 @@ class BackgroundServiceRunner:
     async def _emit(self, topic: str, payload: dict) -> None:
         try:
             bus = get_bus()
-            await bus.publish(Event(
-                topic=topic,
-                correlation_id=uuid4(),
-                actor=ActorRef.system(),
-                payload=payload,
-            ))
+            await bus.publish(
+                Event(
+                    topic=topic,
+                    correlation_id=uuid4(),
+                    actor=ActorRef.system(),
+                    payload=payload,
+                )
+            )
         except Exception:  # noqa: BLE001
             pass
 

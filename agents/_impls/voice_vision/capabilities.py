@@ -30,9 +30,9 @@ __all__ = ["build_manifest", "CAPABILITIES", "CAPABILITY_NAMESPACES"]
 CAPABILITY_NAMESPACES = [
     "audio.transcribe",  # ASR — speech to text
     "audio.synthesize",  # TTS — text to speech
-    "image.analyze",     # VLM — image understanding
-    "image.generate",    # text-to-image
-    "multimodal.chat",   # combined text + image + audio chat
+    "image.analyze",  # VLM — image understanding
+    "image.generate",  # text-to-image
+    "multimodal.chat",  # combined text + image + audio chat
 ]
 
 

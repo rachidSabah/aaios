@@ -44,7 +44,7 @@ class CertifyManager:
         controls = {
             "CTRL-INSTALL": "DB_DIR_MISSING" not in issues_ids,
             "CTRL-UPGRADE": True,  # Placeholder check
-            "CTRL-REPAIR": True,   # Self-healing engine active
+            "CTRL-REPAIR": True,  # Self-healing engine active
             "CTRL-BACKUP": (self.workspace_root / "backups").exists(),
             "CTRL-RESTORE": True,  # RecoveryManager valid
             "CTRL-RESET": True,
@@ -105,7 +105,7 @@ SSL Certificate Binding: Active"""
 
         (reports_dir / "compliance_certificates.txt").write_text(
             f"{res.production_cert}\n\n{res.deployment_cert}\n\n{res.release_cert}\n\n{res.security_cert}\n\n{res.arch_compliance_report}",
-            encoding="utf-8"
+            encoding="utf-8",
         )
 
         _log.info("certify.completed", is_certified=res.is_certified)

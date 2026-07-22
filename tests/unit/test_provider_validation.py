@@ -147,7 +147,8 @@ class TestProviderValidator:
     async def test_validate_unauthorized(self) -> None:
         validator = ProviderValidator(
             provider_factory=lambda c: _MockProvider(
-                c, error=Exception("401 Unauthorized: invalid api key"),
+                c,
+                error=Exception("401 Unauthorized: invalid api key"),
             ),
         )
         config = _make_config()
@@ -157,7 +158,8 @@ class TestProviderValidator:
     async def test_validate_rate_limited(self) -> None:
         validator = ProviderValidator(
             provider_factory=lambda c: _MockProvider(
-                c, error=Exception("429 Too Many Requests: rate limit exceeded"),
+                c,
+                error=Exception("429 Too Many Requests: rate limit exceeded"),
             ),
         )
         config = _make_config()
@@ -167,7 +169,8 @@ class TestProviderValidator:
     async def test_validate_unreachable(self) -> None:
         validator = ProviderValidator(
             provider_factory=lambda c: _MockProvider(
-                c, error=ConnectionError("connection refused"),
+                c,
+                error=ConnectionError("connection refused"),
             ),
         )
         config = _make_config()
@@ -177,7 +180,8 @@ class TestProviderValidator:
     async def test_validate_unknown_error(self) -> None:
         validator = ProviderValidator(
             provider_factory=lambda c: _MockProvider(
-                c, error=ValueError("something weird"),
+                c,
+                error=ValueError("something weird"),
             ),
         )
         config = _make_config()
@@ -204,6 +208,7 @@ class TestProviderValidator:
             if c.name == "bad":
                 return _MockProvider(c, error=Exception("401 unauthorized"))
             return _MockProvider(c, response="ok")
+
         validator = ProviderValidator(provider_factory=factory)
         configs = [
             _make_config(ProviderType.OPENAI, "good"),

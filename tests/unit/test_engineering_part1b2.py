@@ -65,13 +65,7 @@ class TestEngineeringReviewEngine:
         engine = EngineeringReviewEngine()
         with TemporaryDirectory() as d:
             p = Path(d) / "mod.py"
-            p.write_text(
-                "def bad():\n"
-                "    try:\n"
-                "        return 1\n"
-                "    except:\n"
-                "        return 0\n"
-            )
+            p.write_text("def bad():\n    try:\n        return 1\n    except:\n        return 0\n")
             report = await engine.review(ReviewType.CODE, d)
         assert any(w.title == "Bare except clauses" for w in report.weaknesses)
 
@@ -159,10 +153,7 @@ class TestTestIntelligenceEngine:
             tests_dir = Path(d) / "tests"
             tests_dir.mkdir()
             (tests_dir / "test_foo.py").write_text(
-                "import pytest\n"
-                "@pytest.mark.slow\n"
-                "def test_basic():\n"
-                "    assert 1 + 1 == 2\n"
+                "import pytest\n@pytest.mark.slow\ndef test_basic():\n    assert 1 + 1 == 2\n"
             )
             analysis = await engine.analyze_suite(tests_dir)
         assert analysis.total_tests == 1
@@ -369,10 +360,12 @@ class TestDeveloperProductivityEngine:
         # Use past timestamps so events fall within the default 30-day window
         past_open = now - timedelta(hours=10)
         past_merge = now - timedelta(hours=8)
-        engine.record_events([
-            {"type": "pr_opened", "pr_id": "1", "timestamp": past_open.isoformat()},
-            {"type": "pr_merged", "pr_id": "1", "timestamp": past_merge.isoformat()},
-        ])
+        engine.record_events(
+            [
+                {"type": "pr_opened", "pr_id": "1", "timestamp": past_open.isoformat()},
+                {"type": "pr_merged", "pr_id": "1", "timestamp": past_merge.isoformat()},
+            ]
+        )
         m = await engine.metrics()
         assert m.cycle_time_hours > 0
 
@@ -395,10 +388,12 @@ class TestDeveloperProductivityEngine:
             recovery_time_hours=0.5,
         )
         # Apply same logic as in engine
-        if (d.deployment_frequency >= 1.0
-                and d.lead_time_hours <= 24
-                and d.change_failure_rate <= 0.15
-                and d.recovery_time_hours <= 1):
+        if (
+            d.deployment_frequency >= 1.0
+            and d.lead_time_hours <= 24
+            and d.change_failure_rate <= 0.15
+            and d.recovery_time_hours <= 1
+        ):
             d.level = "elite"
             d.elite = True
         assert d.level == "elite"
