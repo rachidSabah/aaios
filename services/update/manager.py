@@ -84,7 +84,7 @@ class UpdateManager:
         self.download_dir.mkdir(parents=True, exist_ok=True)
         self._pinned_version: str | None = None
         # Providers are registered by the boot layer; default empty.
-        self._providers: list = []
+        self._providers: list[object] = []
 
     # -- provider registry --------------------------------------------
 
@@ -172,7 +172,7 @@ class UpdateManager:
             )
             report.status = UpdateStatus.INSTALLING
 
-            result: VerificationResult = await self._verifier.verify(package_path, asset)
+            result: VerificationResult = await self._verifier.verify(str(package_path), asset)
             if not result.ok:
                 raise ValueError(f"package verification failed: {result.error}")
 
@@ -268,7 +268,7 @@ class UpdateManager:
 
     # -- internals -----------------------------------------------------
 
-    async def _emit(self, topic: str, payload: dict) -> None:
+    async def _emit(self, topic: str, payload: dict[str, object]) -> None:
         """Publish an update lifecycle event on the Event Bus (best-effort)."""
         try:
             bus = get_bus()

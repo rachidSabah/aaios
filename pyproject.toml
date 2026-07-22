@@ -89,6 +89,7 @@ linux = [
 dev = [
   "ruff>=0.6,<1",
   "mypy>=1.11,<2",
+  "types-PyYAML>=6.0,<7",
   "bandit>=1.7,<2",
   "pytest>=8.3,<9",
   "pytest-asyncio>=0.23,<1",
@@ -283,7 +284,7 @@ files = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["pywinauto.*", "pyautogui.*", "win32api", "win32con", "win32service", "win32serviceutil", "win32event", "win32job", "win32security", "ntsecuritycon", "pythoncom", "pywintypes", "networkx.*", "playwright.*", "boto3.*", "azure.*", "google.cloud.*", "docx.*", "reportlab.*", "openpyxl.*", "win32cred", "winreg", "semver", "sqlalchemy.*", "sqlalchemy.ext.asyncio.*", "opentelemetry.*", "opentelemetry.exporter.*", "opentelemetry.sdk.*", "defusedxml.*", "defusedxml"]
+module = ["pywinauto.*", "pyautogui.*", "win32api", "win32con", "win32service", "win32serviceutil", "win32event", "win32job", "win32security", "ntsecuritycon", "pythoncom", "pywintypes", "network[...]
 ignore_missing_imports = true
 
 
