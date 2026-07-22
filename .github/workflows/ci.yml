@@ -115,7 +115,7 @@ jobs:
           node-version: '22'
 
       - name: Install pnpm
-        uses: pnpm/action-setup@v4
+        uses: pnpm/action-setup@v6
         # Don't specify version here — let it read from package.json's
         # packageManager field (pnpm@9.10.0) to avoid version mismatch.
 
