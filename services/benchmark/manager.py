@@ -121,7 +121,7 @@ class BenchmarkManager:
     def _measure_resource_usage(self, res: BenchmarkResult) -> None:
         """Measure RAM footprints and active processor usage."""
         try:
-            import psutil  # type: ignore[import-untyped]
+            import psutil
 
             process = psutil.Process()
             res.memory_usage_mb = process.memory_info().rss / (1024 * 1024)

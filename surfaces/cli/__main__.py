@@ -20,6 +20,7 @@ from __future__ import annotations
 
 import os
 import time
+from datetime import UTC, datetime
 from importlib import metadata
 from pathlib import Path
 from typing import Any
@@ -570,14 +571,14 @@ def update(
         console.print("[yellow]Installing offline update package...[/yellow]")
         import asyncio
 
-        report = asyncio.run(manager.install_update(info, offline_path))
+        report = asyncio.run(manager.install_update(info, offline_path))  # type: ignore
         if report.status == UpdateStatus.SUCCESS:
             console.print("[green]Offline update installed successfully![/green]")
         else:
             console.print(f"[red]Offline update failed: {report.error}[/red]")
         return
 
-    info = manager.check_for_updates(chan_enum)
+    info = manager.check_for_updates(chan_enum)  # type: ignore[assignment]
     if not info:
         console.print("[green]Already up to date.[/green]")
         return
@@ -591,12 +592,12 @@ def update(
         return
 
     with console.status("[bold green]Downloading update...[/bold green]"):
-        package_path = manager.download_update(info)
+        package_path = manager.download_update(info)  # type: ignore
 
     console.print("[yellow]Installing update and running migrations...[/yellow]")
     import asyncio
 
-    report = asyncio.run(manager.install_update(info, package_path))
+    report = asyncio.run(manager.install_update(info, package_path))  # type: ignore
     if report.status == UpdateStatus.SUCCESS:
         console.print(f"[green]Successfully upgraded to v{info.version}![/green]")
     else:

@@ -2678,7 +2678,7 @@ def create_app() -> FastAPI:
         runtime = _get_desktop_runtime()
         if runtime is None:
             return {"booted": False, "message": "Desktop Runtime not loaded"}
-        return runtime.as_dict()
+        return cast("dict[str, Any]", runtime.as_dict())
 
     @app.get("/api/v1/desktop/diagnostics", tags=["desktop"])
     async def desktop_diagnostics() -> dict[str, Any]:
@@ -2706,7 +2706,7 @@ def create_app() -> FastAPI:
         perfmon = runtime.get("perfmon")
         if perfmon is None:
             return {"error": "Performance Monitor not loaded"}
-        return perfmon.as_dict()
+        return cast("dict[str, Any]", perfmon.as_dict())
 
     @app.get("/api/v1/desktop/perfmon/history", tags=["desktop"])
     async def desktop_perfmon_history(
@@ -2731,7 +2731,7 @@ def create_app() -> FastAPI:
         offline = runtime.get("offline")
         if offline is None:
             return {"online": True, "note": "Offline manager not loaded"}
-        return offline.as_dict()
+        return cast("dict[str, Any]", offline.as_dict())
 
     @app.get("/api/v1/desktop/local-ai", tags=["desktop"])
     async def desktop_local_ai() -> dict[str, Any]:
@@ -2742,7 +2742,7 @@ def create_app() -> FastAPI:
         local_ai = runtime.get("local_ai")
         if local_ai is None:
             return {"error": "Local AI not loaded"}
-        return local_ai.as_dict()
+        return cast("dict[str, Any]", local_ai.as_dict())
 
     @app.get("/api/v1/desktop/notifications", tags=["desktop"])
     async def desktop_notifications(
@@ -2793,7 +2793,7 @@ def create_app() -> FastAPI:
         wsm = runtime.get("workspace_manager")
         if wsm is None:
             return {"workspaces": []}
-        return wsm.as_dict()
+        return cast("dict[str, Any]", wsm.as_dict())
 
     @app.get("/api/v1/desktop/plugins", tags=["desktop"])
     async def desktop_plugins() -> dict[str, Any]:
@@ -2804,16 +2804,20 @@ def create_app() -> FastAPI:
         plugins = runtime.get("plugin_loader")
         if plugins is None:
             return {"plugins": []}
-        return plugins.as_dict()
+        return cast("dict[str, Any]", plugins.as_dict())
 
     @app.get("/api/v1/desktop/logs", tags=["desktop"])
     async def desktop_logs(limit: int = 100, level: str | None = None) -> dict[str, Any]:
         """Get recent desktop logs."""
-        from core.logging import LogManager
-
         try:
-            mgr = LogManager()
-            entries = mgr.recent(limit=limit, level=level)
+            from services.desktop.diagnostics import DiagnosticsManager
+
+            diag = DiagnosticsManager()
+            entries = (
+                diag.get_recent_logs(limit=limit, level=level)
+                if hasattr(diag, "get_recent_logs")
+                else []
+            )
             return {"entries": entries, "count": len(entries)}
         except Exception as exc:
             return {"entries": [], "error": str(exc)}
@@ -2827,7 +2831,7 @@ def create_app() -> FastAPI:
         updater = runtime.get("updater")
         if updater is None:
             return {"current_version": "unknown"}
-        return updater.as_dict()
+        return cast("dict[str, Any]", updater.as_dict())
 
     @app.post("/api/v1/desktop/updates/check", tags=["desktop"])
     async def desktop_updates_check() -> dict[str, Any]:
