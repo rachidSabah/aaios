@@ -283,8 +283,9 @@ files = [
 ]
 
 [[tool.mypy.overrides]]
-module = ["pywinauto.*", "pyautogui.*", "win32api", "win32con", "win32service", "win32serviceutil", "win32event", "win32job", "win32security", "ntsecuritycon", "pythoncom", "pywintypes", "networkx.*", "playwright.*", "boto3.*", "azure.*", "google.cloud.*", "docx.*", "reportlab.*", "openpyxl.*"]
+module = ["pywinauto.*", "pyautogui.*", "win32api", "win32con", "win32service", "win32serviceutil", "win32event", "win32job", "win32security", "ntsecuritycon", "pythoncom", "pywintypes", "networkx.*", "playwright.*", "boto3.*", "azure.*", "google.cloud.*", "docx.*", "reportlab.*", "openpyxl.*", "win32cred", "winreg", "semver", "sqlalchemy.*", "sqlalchemy.ext.asyncio.*", "opentelemetry.*", "opentelemetry.exporter.*", "opentelemetry.sdk.*", "defusedxml.*", "defusedxml"]
 ignore_missing_imports = true
+
 
 # Phase 4 service packages — relax strict mode. These packages were introduced
 # in Phase 4 Milestones 1-3 (brain, execution_engine, runtime_discovery,
