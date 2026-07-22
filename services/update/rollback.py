@@ -13,7 +13,8 @@ from __future__ import annotations
 from pathlib import Path
 
 from core.logging import get_logger
-from services.backup.manager import BackupManager, BackupType
+from services.backup.manager import BackupManager
+from services.backup.models import BackupType
 from services.backup.recovery import RecoveryManager
 from services.update.models import UpdateReport, UpdateStatus
 
