@@ -190,8 +190,9 @@ jobs:
       - name: Attach artifacts to release
         uses: softprops/action-gh-release@v2
         with:
+          tag_name: ${{ needs.should-release.outputs.tag }}
           files: |
             artifacts/aaios-windows-installer/*
             artifacts/aaios-python-wheel/*
-          draft: true
+          fail_on_unmatched_files: false
           generate_release_notes: true
