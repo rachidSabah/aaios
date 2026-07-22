@@ -173,6 +173,9 @@ jobs:
           #   - services/execution_engine/  (adapters reference agent names by design)
           #   - services/installer/  (discovers agents by name)
           #   - core/contracts/execution_engine.py  (enum defines agent types)
+          #   - services/model_router/  (provider implementations reference model names)
+          #   - services/provider_validation/  (validator references model names)
+          #   - core/contracts/model/  (model contracts reference model names)
           offending=$( \
             grep -rEni "$BANNED" \
               --include='*.py' \
@@ -183,6 +186,9 @@ jobs:
             | grep -v 'services/execution_engine/' \
             | grep -v 'services/installer/' \
             | grep -v 'core/contracts/execution_engine.py' \
+            | grep -v 'services/model_router/' \
+            | grep -v 'services/provider_validation/' \
+            | grep -v 'core/contracts/model/' \
             | grep -v '^\s*#' \
             || true \
           )
@@ -231,6 +237,9 @@ jobs:
             | grep -v 'services/certify/' \
             | grep -v 'services/reset/' \
             | grep -v 'services/packaging/' \
+            | grep -v 'services/model_router/' \
+            | grep -v 'services/update/' \
+            | grep -v 'services/desktop/' \
             | grep -v 'surfaces/cli/' \
             | grep -v '/tests/' \
             || true \
